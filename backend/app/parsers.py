@@ -1,11 +1,10 @@
-from collections import defaultdict
 import datetime
 import time
 import xml.etree.ElementTree as ET
-from typing import Any, Union
+from collections import defaultdict
 
-from bs4 import BeautifulSoup
 import feedparser
+from bs4 import BeautifulSoup
 
 from app.models.feed import RSSFeed, FeedArticle
 
@@ -54,14 +53,17 @@ def parse_feed(feeds: list[RSSFeed]) -> dict[str, list[FeedArticle]]:
       # TODO: deal with other article metadata
       guid = entry.id
       title = entry.title
-      content, url = _extract_text_from_entry(entry)
+      url = entry.link
+      content, has_full_content = _extract_text_from_entry(entry)
       articles[feed.title].append(FeedArticle(
           id=guid,
           title=title,
           content=content,
           url=url,
+          summary=content[:300] if content else '',
           pub_date=_convert_to_datetime(entry.published_parsed) if hasattr(
-            entry, 'published_parsed') else None
+            entry, 'published_parsed') else None,
+          has_full_content=has_full_content
       ))
   return articles
 
@@ -139,7 +141,7 @@ def parse_html_content(html_content: str) -> str:
   return cleaned_text
 
 
-def _extract_text_from_entry(entry) -> Union[tuple[str, None], tuple[str, Any]]:
+def _extract_text_from_entry(entry) -> tuple[str, bool]:
   """
   Extracts text from HTML content using BeautifulSoup.
 
@@ -155,14 +157,14 @@ def _extract_text_from_entry(entry) -> Union[tuple[str, None], tuple[str, Any]]:
       if entry.content[0].value:
         full_content = entry.content[0].value
         full_content = parse_html_content(full_content)
-        return full_content, None
+        return full_content, True
 
   if not full_content:
     if hasattr(entry, 'summary'):
-      full_content = entry.summary
+      full_content = entry.summary[:500]
       full_content = parse_html_content(full_content)
-      return full_content, entry.link
-  return '', entry.link
+      return full_content, False
+  return '', False
 
 
 def _convert_to_datetime(ttime: time.struct_time) -> datetime.datetime:
@@ -175,6 +177,6 @@ def _convert_to_datetime(ttime: time.struct_time) -> datetime.datetime:
   Returns:
       datetime: A datetime object representing the published date.
   """
-  t = ttime.mktime(ttime)
+  t = time.mktime(ttime)
   dt = datetime.datetime.fromtimestamp(t)
   return dt

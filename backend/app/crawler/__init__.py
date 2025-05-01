@@ -1,0 +1,1 @@
+from .crawler import fetch_all_contents

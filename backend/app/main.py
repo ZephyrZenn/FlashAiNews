@@ -1,13 +1,7 @@
-import datetime
-import time
+from services import retrieve_new_feeds
 
-import feedparser
-
-from parsers import parse_opml, parse_html_content
-
-from services import import_opml_config
-
-import_opml_config("feed.opml")
+if __name__ == '__main__':
+    retrieve_new_feeds()
 
 # urls =  parse_and_get_url('feed.opml')
 # url = random.choice(list(urls.values()))

@@ -30,3 +30,11 @@ class FeedGroup:
         self.title = title
         self.desc = desc
         self.feeds = []
+
+class FeedBrief:
+    def __init__(self, id: int, group_id: int, title: str, content: str, pub_date: datetime):
+        self.id = id
+        self.group_id = group_id
+        self.title = title
+        self.content = content
+        self.pub_date = pub_date

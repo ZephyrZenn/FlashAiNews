@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 
-from app.models.feed import RSSFeed, FeedArticle
+from app.models.feed import RSSFeed, FeedArticle, FeedBrief
 from app.parsers import parse_opml, parse_feed
 from app.db import get_pool, execute_transaction
 from app.crawler import fetch_all_contents
@@ -148,7 +148,6 @@ def generate_brief(group_id: int):
                 FeedArticle(id=row[0], title=row[2], url=row[3], content=row[6], pub_date=row[4], summary=row[5],
                             has_full_content=True) for
                 row in rows]
-    # TODO: generate brief
     brief = GeminiGenerator(prompt=DEFAULT_PROMPT).sum_up(articles)
 
     def insert_brief(cur):
@@ -157,7 +156,25 @@ def generate_brief(group_id: int):
               VALUES (%s, %s, %s)
               """
         cur.execute(sql, (group_id, brief["title"], brief["content"]))
+
     execute_transaction(insert_brief)
+
+
+def get_newest_brief():
+    sql = """
+          SELECT id, group_id, title, content, created_at
+          FROM feed_brief
+          ORDER BY created_at DESC
+          LIMIT 1 \
+          """
+    with get_pool().getconn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            res = cur.fetchone()
+            if not res:
+                return None
+            return FeedBrief(id=res[0], group_id=res[1], title=res[2], content=res[3], pub_date=res[4])
+
 
 def _add_feeds_to_group(cur, group_id, feed_ids):
     sql = """

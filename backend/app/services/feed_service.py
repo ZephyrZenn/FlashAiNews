@@ -1,10 +1,12 @@
 import asyncio
 import datetime
 
-from app.models.feed import RSSFeed
+from app.models.feed import RSSFeed, FeedArticle
 from app.parsers import parse_opml, parse_feed
 from app.db import get_pool, execute_transaction
 from app.crawler import fetch_all_contents
+from app.constants import SUMMARY_LENGTH, DEFAULT_PROMPT
+from .brief_generator import GeminiGenerator
 
 
 def import_opml_config(file_url: str):
@@ -64,7 +66,8 @@ def retrieve_new_feeds(group_ids: list[int] = None):
             continue
         article = urls[url]
         article.content = content
-        article.summary = content[:300]
+        if not article.summary:
+            article.summary = content[:SUMMARY_LENGTH]
 
     def insert_new_articles(cursor):
         for feed in feeds:
@@ -98,3 +101,70 @@ def retrieve_new_feeds(group_ids: list[int] = None):
         ])
 
     execute_transaction(insert_new_articles)
+
+
+def create_group(title: str, desc: str, feed_ids: list[int]):
+    def insert_group(cur):
+        sql = """
+              INSERT INTO feed_groups (title, "desc")
+              VALUES (%s, %s)
+              ON CONFLICT (title) DO NOTHING
+              RETURNING id \
+              """
+        cur.execute(sql, (title, desc))
+        res = cur.fetchone()
+        if not res:
+            return
+        gid = res[0]
+        _add_feeds_to_group(cur, gid, feed_ids)
+
+    execute_transaction(insert_group)
+
+
+def join_group(group_id: int, feed_ids: list[str]):
+    execute_transaction(_add_feeds_to_group, group_id, feed_ids)
+
+
+def generate_brief(group_id: int):
+    query_sql = """
+                SELECT f.id, f.feed_id, f.title, f.link, f.pub_date, f.summary, fc.content
+                FROM feed_items f
+                         LEFT JOIN
+                     feed_item_contents fc
+                     ON f.id = fc.feed_item_id
+                         AND f.feed_id IN (SELECT feed_id
+                                           FROM feed_group_items
+                                           WHERE feed_group_id = %s)
+                         AND f.pub_date::date = CURRENT_DATE \
+                """
+    articles = []
+    with get_pool().getconn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query_sql, (group_id,))
+            rows = cur.fetchall()
+            if not rows:
+                return
+            articles = [
+                FeedArticle(id=row[0], title=row[2], url=row[3], content=row[6], pub_date=row[4], summary=row[5],
+                            has_full_content=True) for
+                row in rows]
+    # TODO: generate brief
+    brief = GeminiGenerator(prompt=DEFAULT_PROMPT).sum_up(articles)
+
+    def insert_brief(cur):
+        sql = """
+              INSERT INTO feed_brief (group_id, title, content)
+              VALUES (%s, %s, %s)
+              """
+        cur.execute(sql, (group_id, brief["title"], brief["content"]))
+    execute_transaction(insert_brief)
+
+def _add_feeds_to_group(cur, group_id, feed_ids):
+    sql = """
+          INSERT INTO feed_group_items (feed_id, feed_group_id)
+          VALUES (%s, %s)
+          ON CONFLICT DO NOTHING \
+          """
+    data_to_insert = [
+        (feed_id, group_id) for feed_id in feed_ids]
+    cur.executemany(sql, data_to_insert)

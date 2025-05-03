@@ -23,3 +23,10 @@ class FeedArticle:
     self.summary = summary
     self.pub_date = pub_date
     self.has_full_content = has_full_content
+
+class FeedGroup:
+    def __init__(self, id: int, title: str, desc: str):
+        self.id = id
+        self.title = title
+        self.desc = desc
+        self.feeds = []

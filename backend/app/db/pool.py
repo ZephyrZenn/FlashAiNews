@@ -29,10 +29,10 @@ def get_pool() -> ThreadedConnectionPool:
     return pool
 
 
-def execute_transaction(call: Callable):
+def execute_transaction(call: Callable, *args, **kwargs):
     """
     Executes a callable with a connection from the pool.
     """
     with get_pool().getconn() as conn:
         with conn.cursor() as cur:
-            return call(cur)
+            return call(cur, *args, **kwargs)

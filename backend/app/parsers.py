@@ -7,8 +7,7 @@ import feedparser
 from bs4 import BeautifulSoup
 
 from app.models.feed import RSSFeed, FeedArticle
-
-DEFAULT_FEED_LAST_USED_DATE = datetime.datetime(1970, 1, 1, 0, 0, 0)
+from app.constants import DEFAULT_FEED_LAST_USED_DATE, SUMMARY_LENGTH
 
 
 def parse_opml(file_text: str) -> list[RSSFeed]:
@@ -60,7 +59,7 @@ def parse_feed(feeds: list[RSSFeed]) -> dict[str, list[FeedArticle]]:
           title=title,
           content=content,
           url=url,
-          summary=content[:300] if content else '',
+          summary=content[:SUMMARY_LENGTH] if content else '',
           pub_date=_convert_to_datetime(entry.published_parsed) if hasattr(
             entry, 'published_parsed') else None,
           has_full_content=has_full_content
@@ -161,7 +160,7 @@ def _extract_text_from_entry(entry) -> tuple[str, bool]:
 
   if not full_content:
     if hasattr(entry, 'summary'):
-      full_content = entry.summary[:500]
+      full_content = entry.summary[:SUMMARY_LENGTH]
       full_content = parse_html_content(full_content)
       return full_content, False
   return '', False

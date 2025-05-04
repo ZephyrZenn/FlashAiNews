@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from typing import Optional
 
 from app.models.feed import RSSFeed, FeedArticle, FeedBrief
 from app.parsers import parse_opml, parse_feed
@@ -160,7 +161,7 @@ def generate_brief(group_id: int):
     execute_transaction(insert_brief)
 
 
-def get_newest_brief():
+def get_newest_brief() -> Optional[FeedBrief]:
     sql = """
           SELECT id, group_id, title, content, created_at
           FROM feed_brief

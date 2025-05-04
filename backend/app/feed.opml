@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<opml version="1.0">
+    <head>
+        <title>Xuanchen subscriptions in feedly Cloud</title>
+    </head>
+    <body>
+        <outline text="Daily Recommended" title="Daily Recommended">
+            <outline type="rss" text="Business Insider" title="Business Insider"
+                xmlUrl="http://feeds2.feedburner.com/businessinsider"
+                htmlUrl="https://www.businessinsider.com" />
+        </outline>
+
+    </body>
+</opml>

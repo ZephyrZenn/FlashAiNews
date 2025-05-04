@@ -1,0 +1,18 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add custom styles below Tailwind directives */
+:root {
+  /* Define CSS variables for the pattern (optional but good practice) */
+  --bg-dot-color: rgba(0, 0, 0, 0.08); /* Adjust color and opacity */
+  --bg-dot-size: 1px;
+  --bg-dot-spacing: 25px;
+  --page-bg-color: #f4f4f9; /* Base page color */
+}
+
+body {
+  @apply min-h-screen text-gray-800 bg-white;
+  background-color: #fdf5e6;
+}

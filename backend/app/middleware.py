@@ -1,29 +1,20 @@
-import json
+import logging
+from http.server import BaseHTTPRequestHandler
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+logger = logging.getLogger(__name__)
 
-class ResponseWrapperMiddleware(BaseHTTPMiddleware):
+
+class LogMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to log requests and responses.
+    """
+
     async def dispatch(self, request: Request, call_next):
+        logger.info(
+            f"Request Path: {request.url.path}. Param: {request.query_params}. Method: {request.method}. Headers: {request.headers}. Body: {await request.body()}")
         response = await call_next(request)
 
-        # Read response body
-        body = b""
-        async for chunk in response.body_iterator:
-            body += chunk
-
-        try:
-            payload = json.loads(body.decode("utf-8"))
-        except Exception:
-            # If the response is not JSON, return it as is
-            return response
-
-        wrapped = {
-            "code": 0,
-            "message": "success",
-            "data": payload
-        }
-
-        return JSONResponse(content=wrapped, status_code=response.status_code)
+        return response

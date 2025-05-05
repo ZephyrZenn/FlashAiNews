@@ -26,6 +26,10 @@ class CommonResult(CamelModel, Generic[T]):
     message: str = ''
     data: Optional[T] = None
 
+    def to_dict(self) -> dict:
+        """Convert the model to a dictionary."""
+        return self.model_dump(by_alias=True)
+
 
 def success_with_data(data=None):
     return CommonResult(success=True, data=data)

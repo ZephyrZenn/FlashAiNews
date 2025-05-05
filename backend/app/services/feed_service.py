@@ -8,6 +8,7 @@ from app.db import get_pool, execute_transaction
 from app.crawler import fetch_all_contents
 from app.constants import SUMMARY_LENGTH, DEFAULT_PROMPT
 from .brief_generator import GeminiGenerator
+from ..exception import BizException
 
 
 def import_opml_config(file_url: str):
@@ -161,11 +162,11 @@ def generate_brief(group_id: int):
     execute_transaction(insert_brief)
 
 
-def get_newest_brief() -> Optional[FeedBrief]:
+def get_today_brief() -> Optional[FeedBrief]:
     sql = """
           SELECT id, group_id, title, content, created_at
           FROM feed_brief
-          ORDER BY created_at DESC
+          WHERE created_at::date = CURRENT_DATE
           LIMIT 1 \
           """
     with get_pool().getconn() as conn:
@@ -173,7 +174,7 @@ def get_newest_brief() -> Optional[FeedBrief]:
             cur.execute(sql)
             res = cur.fetchone()
             if not res:
-                return None
+                raise BizException("Brief hasn't been generated yet.")
             return FeedBrief(id=res[0], group_id=res[1], title=res[2], content=res[3], pub_date=res[4])
 
 

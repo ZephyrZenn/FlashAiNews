@@ -11,7 +11,6 @@ const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
   const [brief, setBrief] = useState<FeedBrief | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -59,7 +58,7 @@ const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
         <div className="absolute -bottom-1 -right-1 w-full h-full bg-gray-200 rounded-xl"></div>
 
         {/* Main card */}
-        <div className="relative bg-neutral-50 text-gray-900 rounded-xl p-6 shadow-lg border border-gray-100">
+        <div className="relative bg-neutral-50 text-gray-900 rounded-xl p-6 shadow-lg border border-gray-100 w-[80vh] h-[80vh] overflow-y-auto">
           {/* Card title */}
           {brief?.title && (
             <div className="mb-4">

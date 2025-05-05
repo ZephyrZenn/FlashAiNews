@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import Optional
+
 
 class RSSFeed:
     def __init__(self, id: int, title: str, url: str, last_updated: datetime,
@@ -14,7 +16,7 @@ class RSSFeed:
 
 
 class FeedArticle:
-    def __init__(self, id: str, title: str, url: str, content: str,
+    def __init__(self, id: str, title: str, url: str, content: Optional[str],
                  pub_date: datetime, summary: str, has_full_content: bool):
         self.id = id
         self.title = title

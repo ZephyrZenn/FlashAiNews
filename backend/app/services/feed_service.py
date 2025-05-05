@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from collections import defaultdict
 from typing import Optional
 
 from app.models.feed import RSSFeed, FeedArticle, FeedBrief
@@ -152,14 +153,7 @@ def generate_brief(group_id: int):
                 row in rows]
     brief = GeminiGenerator(prompt=DEFAULT_PROMPT).sum_up(articles)
 
-    def insert_brief(cur):
-        sql = """
-              INSERT INTO feed_brief (group_id, title, content)
-              VALUES (%s, %s, %s)
-              """
-        cur.execute(sql, (group_id, brief["title"], brief["content"]))
-
-    execute_transaction(insert_brief)
+    execute_transaction(_insert_brief, group_id, brief)
 
 
 def get_today_brief() -> Optional[FeedBrief]:
@@ -178,6 +172,33 @@ def get_today_brief() -> Optional[FeedBrief]:
             return FeedBrief(id=res[0], group_id=res[1], title=res[2], content=res[3], pub_date=res[4])
 
 
+def generate_today_brief():
+    with get_pool().getconn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT f.id, f.title, f.link, f.pub_date, f.summary, fic.content, fgi.feed_group_id
+                           FROM feed_items f
+                                    LEFT JOIN feed_group_items fgi ON f.feed_id = fgi.feed_id
+                                    LEFT JOIN feed_item_contents fic ON f.id = fic.feed_item_id
+                           WHERE fgi.feed_group_id NOT IN (SELECT feed_group_id
+                                                           FROM feed_brief
+                                                           WHERE created_at::date = CURRENT_DATE)
+                             AND f.pub_date::date = CURRENT_DATE;
+
+                        """)
+            rows = cur.fetchall()
+            articles = defaultdict(list)
+            for row in rows:
+                group_id = row[6]
+                articles[group_id].append(
+                    FeedArticle(id=row[0], title=row[1], url=row[2], content=row[5], pub_date=row[3],
+                                summary=row[4], has_full_content=True))
+        for group_id, arts in articles.items():
+            if not arts:
+                continue
+            brief = GeminiGenerator(prompt=DEFAULT_PROMPT).sum_up(arts)
+            execute_transaction(_insert_brief, group_id, brief)
+
+
 def _add_feeds_to_group(cur, group_id, feed_ids):
     sql = """
           INSERT INTO feed_group_items (feed_id, feed_group_id)
@@ -187,3 +208,11 @@ def _add_feeds_to_group(cur, group_id, feed_ids):
     data_to_insert = [
         (feed_id, group_id) for feed_id in feed_ids]
     cur.executemany(sql, data_to_insert)
+
+
+def _insert_brief(cur, group_id, brief):
+    sql = """
+          INSERT INTO feed_brief (group_id, title, content)
+          VALUES (%s, %s, %s) \
+          """
+    cur.execute(sql, (group_id, brief["title"], brief["content"]))

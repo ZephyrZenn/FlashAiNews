@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List
 
 from app.models.common import CamelModel, CommonResult
 
@@ -10,5 +11,20 @@ class FeedBriefVO(CamelModel):
     content: str
     pub_date: datetime
 
+class FeedVO(CamelModel):
+    id: int
+    title: str
+    url: str
+    desc: str
+    group_id: int
+
+class FeedGroupVO(CamelModel):
+    id: int
+    title: str
+    desc: str
+    feeds: List[FeedVO]
+
 class FeedBriefResponse(CommonResult[FeedBriefVO]):
+    pass
+class FeedGroupListResponse(CommonResult[List[FeedGroupVO]]):
     pass

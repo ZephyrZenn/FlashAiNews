@@ -4,9 +4,9 @@ from collections import defaultdict
 import logging
 from typing import Optional
 
-from app.models.feed import RSSFeed, FeedArticle, FeedBrief
+from app.models.feed import FeedGroup, Feed, FeedArticle, FeedBrief
 from app.parsers import parse_opml, parse_feed
-from app.db import get_pool, execute_transaction
+from app.db import get_connection, execute_transaction
 from app.crawler import fetch_all_contents
 from app.constants import SUMMARY_LENGTH, DEFAULT_PROMPT
 from .brief_generator import GeminiGenerator
@@ -47,14 +47,14 @@ def retrieve_new_feeds(group_ids: list[int] = None):
 
     """
     feeds = []
-    with get_pool().getconn() as conn:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             if not group_ids:
                 cur.execute("""
                             SELECT id, title, url, last_updated, description, "limit"
                             from feeds
                             """)
-                feeds = [RSSFeed(row[0], row[1], row[2], row[3], row[4], row[5])
+                feeds = [Feed(row[0], row[1], row[2], row[3], row[4], row[5])
                          for row in cur.fetchall()]
             else:
                 cur.execute("""
@@ -64,7 +64,7 @@ def retrieve_new_feeds(group_ids: list[int] = None):
                                          FROM feed_group_items
                                          WHERE id in (%s))
                             """, (tuple(group_ids),))
-                feeds = [RSSFeed(row[0], row[1], row[2], row[3], row[4], row[5])
+                feeds = [Feed(row[0], row[1], row[2], row[3], row[4], row[5])
                          for row in cur.fetchall()]
     if not feeds:
         return
@@ -148,7 +148,7 @@ def generate_brief(group_id: int):
                          AND f.pub_date::date = CURRENT_DATE \
                 """
     articles = []
-    with get_pool().getconn() as conn:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(query_sql, (group_id,))
             rows = cur.fetchall()
@@ -176,7 +176,7 @@ def get_today_brief() -> Optional[FeedBrief]:
           WHERE created_at::date = CURRENT_DATE
           LIMIT 1 \
           """
-    with get_pool().getconn() as conn:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(sql)
             res = cur.fetchone()
@@ -194,7 +194,7 @@ def get_today_brief() -> Optional[FeedBrief]:
 def generate_today_brief():
     logger.info("Generating today brief")
     global is_generating_brief
-    with get_pool().getconn() as conn:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""SELECT f.id, f.title, f.link, f.pub_date, f.summary, fic.content, fgi.feed_group_id
                            FROM feed_items f
@@ -220,6 +220,12 @@ def generate_today_brief():
             execute_transaction(_insert_brief, group_id, brief)
     logger.info("Today brief generated")
     is_generating_brief = False
+
+def get_feed_groups():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT id, title, "desc" FROM feed_groups""")
+            return [FeedGroup(id=row[0], title=row[1], desc=row[2]) for row in cur.fetchall()]
 
 
 def _add_feeds_to_group(cur, group_id, feed_ids):

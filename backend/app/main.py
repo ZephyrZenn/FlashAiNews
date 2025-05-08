@@ -10,8 +10,9 @@ from app.crons import generate_daily_brief
 from app.exception import BizException, handle_biz_exception, handle_exception
 from app.middleware import LogMiddleware
 from app.models.common import success_with_data
-from app.models.view_model import FeedBriefResponse
+from app.models.view_model import FeedBriefResponse, FeedGroupListResponse
 from app.services import get_today_brief
+from app.services.feed_service import get_feed_groups
 
 # 配置日志
 logging.basicConfig(
@@ -59,3 +60,10 @@ async def newest_brief():
     Get the newest brief.
     """
     return success_with_data(get_today_brief())
+
+@app.get("/groups", response_model=FeedGroupListResponse)
+async def get_all_feed_groups():
+    """
+    Get all feed groups.
+    """
+    return success_with_data(get_feed_groups())

@@ -6,11 +6,11 @@ from collections import defaultdict
 import feedparser
 from bs4 import BeautifulSoup
 
-from app.models.feed import RSSFeed, FeedArticle
+from app.models.feed import Feed, FeedArticle
 from app.constants import DEFAULT_FEED_LAST_USED_DATE, SUMMARY_LENGTH
 
 
-def parse_opml(file_text: str) -> list[RSSFeed]:
+def parse_opml(file_text: str) -> list[Feed]:
   """
   Parses OPML file text and returns a list of dictionaries with feed information.
 
@@ -27,14 +27,14 @@ def parse_opml(file_text: str) -> list[RSSFeed]:
   feeds = []
 
   for outline in root.findall(".//outline[@type='rss']"):
-    feed = RSSFeed(0, outline.get('title'), outline.get('xmlUrl'),
+    feed = Feed(0, outline.get('title'), outline.get('xmlUrl'),
                    DEFAULT_FEED_LAST_USED_DATE)
     feeds.append(feed)
 
   return feeds
 
 
-def parse_feed(feeds: list[RSSFeed]) -> dict[str, list[FeedArticle]]:
+def parse_feed(feeds: list[Feed]) -> dict[str, list[FeedArticle]]:
   """
   Parses a feed and get recent published articles.
   Filter out articles which has read.

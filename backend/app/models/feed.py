@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 
-class RSSFeed:
+class Feed:
     def __init__(self, id: int, title: str, url: str, last_updated: datetime,
                  desc: str = "",
                  limit: int = 10):

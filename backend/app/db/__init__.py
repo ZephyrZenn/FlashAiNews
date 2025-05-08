@@ -1,1 +1,1 @@
-from .pool import get_pool, execute_transaction
+from .pool import get_connection, execute_transaction

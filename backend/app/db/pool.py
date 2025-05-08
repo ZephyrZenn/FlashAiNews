@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Callable, Any
 from psycopg2.pool import ThreadedConnectionPool
 from dotenv import load_dotenv
@@ -23,16 +24,19 @@ except Exception as e:
     pool = None
 
 
-def get_pool() -> ThreadedConnectionPool:
-    if not pool:
-        raise Exception("Connection pool is not initialized.")
-    return pool
+@contextmanager
+def get_connection():
+    conn = pool.getconn()
+    try:
+        yield conn
+    finally:
+        pool.putconn(conn)
 
 
 def execute_transaction(call: Callable, *args, **kwargs):
     """
     Executes a callable with a connection from the pool.
     """
-    with get_pool().getconn() as conn:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             return call(cur, *args, **kwargs)

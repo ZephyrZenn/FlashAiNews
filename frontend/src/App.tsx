@@ -14,19 +14,20 @@ function App() {
       p-4 sm:p-8
     "
     >
-      <div className={`grid grid-cols-4 h-4/5 gap-6 w-full`}>
-        <div className={`col-span-1 h-full`}>
-          <GroupList />
-        </div>
-        <div className={`col-span-3 h-full`}>
-          <BrowserRouter>
+      <BrowserRouter>
+        <div className={`grid grid-cols-4 h-4/5 gap-6 w-full`}>
+          <div className={`col-span-1 h-full`}>
+            <GroupList />
+          </div>
+          <div className={`col-span-3 h-full`}>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/group/:id" element={<Group />} />
+              <Route path="/groups/new" element={<Group />} />
             </Routes>
-          </BrowserRouter>
+          </div>
         </div>
-      </div>
+      </BrowserRouter>
     </div>
   );
 }

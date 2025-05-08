@@ -8,9 +8,10 @@ import {
 import { Feed, FeedGroup } from "../../types";
 import MainCard from "../MainCard";
 import FeedSelectorModal from "./FeedSelectorModal";
+import { useNavigate } from "react-router-dom";
 
 interface GroupDetailProps {
-  id: number;
+  id: number | null;
 }
 
 export default function GroupDetailForm({ id }: GroupDetailProps) {
@@ -23,28 +24,17 @@ export default function GroupDetailForm({ id }: GroupDetailProps) {
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [selectedFeeds, setSelectedFeeds] = useState<Feed[]>([]);
   const [showFeedSelector, setShowFeedSelector] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchGroup = async () => {
-      const group = await getFeedGroupDetail(id);
-      setGroup(group);
-    };
-    const fetchFeeds = async () => {
-      const feeds = await getAllFeeds();
-      setFeeds(feeds);
-    };
-    console.log(id);
     if (id) {
-      fetchGroup();
-      fetchFeeds();
-    } else {
-      setGroup({
-        id: 0,
-        title: "",
-        desc: "",
-        feeds: [],
-      });
+      getFeedGroupDetail(id)
+        .then((data) => setGroup(data))
+        .catch((error) => {
+          console.error(error);
+        });
     }
+    getAllFeeds().then((data) => setFeeds(data));
   }, [id]);
 
   const handleAddFeed = () => {
@@ -68,8 +58,8 @@ export default function GroupDetailForm({ id }: GroupDetailProps) {
 
   const handleSaveGroup = async () => {
     if (!id) {
-      const newGroup = await createFeedGroup(group);
-      setGroup(newGroup);
+      const id = await createFeedGroup(group);
+      navigate(`/groups/${id}`);
     } else {
       await updateFeedGroup(group);
     }

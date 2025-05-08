@@ -100,8 +100,8 @@ async def add_group(request: ModifyGroupRequest):
     """
     Add a feed group.
     """
-    feed_service.create_group(request.title, request.desc, request.feed_ids)
-    return success_with_data()
+    gid = feed_service.create_group(request.title, request.desc, request.feed_ids)
+    return success_with_data(gid)
 
 
 @app.put("/groups/{group_id}")

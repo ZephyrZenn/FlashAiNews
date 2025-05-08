@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getFeedGroups } from "../services/FeedService";
 import { FeedGroup } from "../types";
 import MenuCard from "./MenuCard";
+import { Link } from "react-router-dom";
 
 interface GroupListProps {
   onGroupSelect?: (group: FeedGroup) => void;
@@ -27,13 +28,18 @@ const GroupList: React.FC<GroupListProps> = ({ onGroupSelect }) => {
     <MenuCard>
       {/* Search bar */}
       <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Search groups..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Search groups..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <Link to="/groups/new">
+            <img src="/assets/plus.svg" alt="Add Group" className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
 
       {/* Groups list */}

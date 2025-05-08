@@ -142,8 +142,9 @@ def create_group(title: str, desc: str, feed_ids: list[int]):
             return
         gid = res[0]
         _add_feeds_to_group(cur, gid, feed_ids)
+        return gid
 
-    execute_transaction(insert_group)
+    return execute_transaction(insert_group)
 
 
 def join_group(group_id: int, feed_ids: list[str]):

@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 from collections import defaultdict
+import logging
 from typing import Optional
 
 from app.models.feed import RSSFeed, FeedArticle, FeedBrief
@@ -10,7 +11,13 @@ from app.crawler import fetch_all_contents
 from app.constants import SUMMARY_LENGTH, DEFAULT_PROMPT
 from .brief_generator import GeminiGenerator
 from ..exception import BizException
+from app.utils import submit_to_thread
 
+logger = logging.getLogger(__name__)
+
+# A flag to prevent multiple brief generation at the same time
+# TODO: Use a more elegant way to handle this
+is_generating_brief = False
 
 def import_opml_config(file_url: str):
     with open(file_url, "r") as f:
@@ -157,6 +164,12 @@ def generate_brief(group_id: int):
 
 
 def get_today_brief() -> Optional[FeedBrief]:
+
+    def retrieve_and_generate():
+        retrieve_new_feeds()
+        generate_today_brief()
+    
+    global is_generating_brief
     sql = """
           SELECT id, group_id, title, content, created_at
           FROM feed_brief
@@ -168,11 +181,19 @@ def get_today_brief() -> Optional[FeedBrief]:
             cur.execute(sql)
             res = cur.fetchone()
             if not res:
-                raise BizException("Brief hasn't been generated yet.")
+                if is_generating_brief:
+                    logger.info("Brief is being generated. Returning None")
+                    return None
+                logger.info("Today brief hasn't generated. Generating brief in background")
+                is_generating_brief = True
+                submit_to_thread(retrieve_and_generate)
+                return None
             return FeedBrief(id=res[0], group_id=res[1], title=res[2], content=res[3], pub_date=res[4])
 
 
 def generate_today_brief():
+    logger.info("Generating today brief")
+    global is_generating_brief
     with get_pool().getconn() as conn:
         with conn.cursor() as cur:
             cur.execute("""SELECT f.id, f.title, f.link, f.pub_date, f.summary, fic.content, fgi.feed_group_id
@@ -197,6 +218,8 @@ def generate_today_brief():
                 continue
             brief = GeminiGenerator(prompt=DEFAULT_PROMPT).sum_up(arts)
             execute_transaction(_insert_brief, group_id, brief)
+    logger.info("Today brief generated")
+    is_generating_brief = False
 
 
 def _add_feeds_to_group(cur, group_id, feed_ids):

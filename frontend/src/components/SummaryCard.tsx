@@ -7,10 +7,19 @@ interface BriefCardProps {
   briefId?: number; // 使用可选参数
 }
 
+const GeneratingBrief: FeedBrief = {
+  id: 0,
+  title: "Today Brief is generating...",
+  content: "Please wait for a moment...",
+  pubDate: new Date(),
+  groupId: 0,
+};
+
 const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
   const [brief, setBrief] = useState<FeedBrief | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -18,7 +27,26 @@ const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
         setError(null);
 
         const data = await getFeedBrief(briefId);
+        if (data === null) {
+          setBrief(GeneratingBrief);
+          setLoading(false);
+          const checkInterval = setInterval(async () => {
+            try {
+              const newData = await getFeedBrief(briefId);
+              if (newData !== null) {
+                setBrief(newData);
+                clearInterval(checkInterval);
+              }
+            } catch (err) {
+              console.error("Error checking brief status:", err);
+              clearInterval(checkInterval);
+              setError("Failed to check content status. Please refresh the page.");
+            }
+          }, 3000);
 
+          // Cleanup interval on component unmount
+          return () => clearInterval(checkInterval);
+        }
         setBrief(data);
       } catch (err) {
         console.error("Error fetching feed:", err);
@@ -29,7 +57,7 @@ const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
     };
 
     fetchData();
-  }, [briefId]); // 只在 briefId 变化时重新获取数据
+  }, [briefId]);
   if (loading) {
     // Loading state
     return (

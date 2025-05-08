@@ -9,7 +9,7 @@ interface FeedBrief {
   title: string;
   content: string;
   pubDate: Date;
-  groupId: string;
+  groupId: number;
 }
 
 interface FeedGroup {

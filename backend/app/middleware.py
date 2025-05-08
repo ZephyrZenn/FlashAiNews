@@ -1,5 +1,4 @@
 import logging
-from http.server import BaseHTTPRequestHandler
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware

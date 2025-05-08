@@ -1,23 +1,25 @@
 import asyncio
 import datetime
-from collections import defaultdict
 import logging
+from collections import defaultdict
 from typing import Optional
 
-from app.models.feed import FeedGroup, Feed, FeedArticle, FeedBrief
-from app.parsers import parse_opml, parse_feed
-from app.db import get_connection, execute_transaction
+from app.constants import DEFAULT_PROMPT, SUMMARY_LENGTH
 from app.crawler import fetch_all_contents
-from app.constants import SUMMARY_LENGTH, DEFAULT_PROMPT
-from .brief_generator import GeminiGenerator
-from ..exception import BizException
+from app.db import execute_transaction, get_connection
+from app.models.feed import Feed, FeedArticle, FeedBrief, FeedGroup
+from app.parsers import parse_feed, parse_opml
 from app.utils import submit_to_thread
+
+from ..exception import BizException
+from .brief_generator import GeminiGenerator
 
 logger = logging.getLogger(__name__)
 
 # A flag to prevent multiple brief generation at the same time
 # TODO: Use a more elegant way to handle this
 is_generating_brief = False
+
 
 def import_opml_config(file_url: str):
     with open(file_url, "r") as f:
@@ -32,8 +34,9 @@ def import_opml_config(file_url: str):
                   RETURNING id \
                   """
             data_to_insert = [
-                (feed.title, feed.url, feed.limit, feed.desc, feed.last_updated) for
-                feed in feeds]
+                (feed.title, feed.url, feed.limit, feed.desc, feed.last_updated)
+                for feed in feeds
+            ]
             cur.executemany(sql, data_to_insert)
 
     execute_transaction(insert_feeds)
@@ -54,22 +57,31 @@ def retrieve_new_feeds(group_ids: list[int] = None):
                             SELECT id, title, url, last_updated, description, "limit"
                             from feeds
                             """)
-                feeds = [Feed(row[0], row[1], row[2], row[3], row[4], row[5])
-                         for row in cur.fetchall()]
+                feeds = [
+                    Feed(row[0], row[1], row[2], row[3], row[4], row[5])
+                    for row in cur.fetchall()
+                ]
             else:
-                cur.execute("""
+                cur.execute(
+                    """
                             SELECT id, title, url, last_updated, description, "limit"
                             from feeds
                             where id in (SELECT feed_id
                                          FROM feed_group_items
                                          WHERE id in (%s))
-                            """, (tuple(group_ids),))
-                feeds = [Feed(row[0], row[1], row[2], row[3], row[4], row[5])
-                         for row in cur.fetchall()]
+                            """,
+                    (tuple(group_ids),),
+                )
+                feeds = [
+                    Feed(row[0], row[1], row[2], row[3], row[4], row[5])
+                    for row in cur.fetchall()
+                ]
     if not feeds:
         return
     articles = parse_feed(feeds)
-    urls = {a.url: a for arts in articles.values() for a in arts if not a.has_full_content}
+    urls = {
+        a.url: a for arts in articles.values() for a in arts if not a.has_full_content
+    }
     contents = asyncio.run(fetch_all_contents(list(urls.keys())))
     for url, content in contents.items():
         if not content:
@@ -94,21 +106,24 @@ def retrieve_new_feeds(group_ids: list[int] = None):
                                VALUES (%s, %s)
                                ON CONFLICT (feed_item_id) DO NOTHING \
                                """
-            cursor.executemany(item_sql, [
-                (a.id, feed.id, a.title, a.url,
-                 a.pub_date, a.summary) for a in feed_articles
-            ])
-            cursor.executemany(item_content_sql, [
-                (a.id, a.content) for a in feed_articles
-            ])
+            cursor.executemany(
+                item_sql,
+                [
+                    (a.id, feed.id, a.title, a.url, a.pub_date, a.summary)
+                    for a in feed_articles
+                ],
+            )
+            cursor.executemany(
+                item_content_sql, [(a.id, a.content) for a in feed_articles]
+            )
         update_feed_sql = """
                           UPDATE feeds
                           SET last_updated = %s
                           WHERE id = %s \
                           """
-        cursor.executemany(update_feed_sql, [
-            (datetime.datetime.now(), feed.id) for feed in feeds
-        ])
+        cursor.executemany(
+            update_feed_sql, [(datetime.datetime.now(), feed.id) for feed in feeds]
+        )
 
     execute_transaction(insert_new_articles)
 
@@ -155,20 +170,27 @@ def generate_brief(group_id: int):
             if not rows:
                 return
             articles = [
-                FeedArticle(id=row[0], title=row[2], url=row[3], content=row[6], pub_date=row[4], summary=row[5],
-                            has_full_content=True) for
-                row in rows]
+                FeedArticle(
+                    id=row[0],
+                    title=row[2],
+                    url=row[3],
+                    content=row[6],
+                    pub_date=row[4],
+                    summary=row[5],
+                    has_full_content=True,
+                )
+                for row in rows
+            ]
     brief = GeminiGenerator(prompt=DEFAULT_PROMPT).sum_up(articles)
 
     execute_transaction(_insert_brief, group_id, brief)
 
 
 def get_today_brief() -> Optional[FeedBrief]:
-
     def retrieve_and_generate():
         retrieve_new_feeds()
         generate_today_brief()
-    
+
     global is_generating_brief
     sql = """
           SELECT id, group_id, title, content, created_at
@@ -184,11 +206,19 @@ def get_today_brief() -> Optional[FeedBrief]:
                 if is_generating_brief:
                     logger.info("Brief is being generated. Returning None")
                     return None
-                logger.info("Today brief hasn't generated. Generating brief in background")
+                logger.info(
+                    "Today brief hasn't generated. Generating brief in background"
+                )
                 is_generating_brief = True
                 submit_to_thread(retrieve_and_generate)
                 return None
-            return FeedBrief(id=res[0], group_id=res[1], title=res[2], content=res[3], pub_date=res[4])
+            return FeedBrief(
+                id=res[0],
+                group_id=res[1],
+                title=res[2],
+                content=res[3],
+                pub_date=res[4],
+            )
 
 
 def generate_today_brief():
@@ -211,8 +241,16 @@ def generate_today_brief():
             for row in rows:
                 group_id = row[6]
                 articles[group_id].append(
-                    FeedArticle(id=row[0], title=row[1], url=row[2], content=row[5], pub_date=row[3],
-                                summary=row[4], has_full_content=True))
+                    FeedArticle(
+                        id=row[0],
+                        title=row[1],
+                        url=row[2],
+                        content=row[5],
+                        pub_date=row[3],
+                        summary=row[4],
+                        has_full_content=True,
+                    )
+                )
         for group_id, arts in articles.items():
             if not arts:
                 continue
@@ -221,11 +259,101 @@ def generate_today_brief():
     logger.info("Today brief generated")
     is_generating_brief = False
 
+
 def get_feed_groups():
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""SELECT id, title, "desc" FROM feed_groups""")
-            return [FeedGroup(id=row[0], title=row[1], desc=row[2]) for row in cur.fetchall()]
+            return [
+                FeedGroup(id=row[0], title=row[1], desc=row[2])
+                for row in cur.fetchall()
+            ]
+
+
+def get_group_detail(group_id: int):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, title, "desc" FROM feed_groups WHERE id = %s""",
+                (group_id,),
+            )
+            res = cur.fetchone()
+            if not res:
+                raise BizException(f"Group {group_id} not found")
+            group = FeedGroup(id=res[0], title=res[1], desc=res[2])
+            cur.execute(
+                """SELECT id, title, url, last_updated, description, "limit" FROM feeds WHERE id IN (SELECT feed_id FROM feed_group_items WHERE feed_group_id = %s)""",
+                (group_id,),
+            )
+            group.feeds = [
+                Feed(
+                    id=row[0],
+                    title=row[1],
+                    url=row[2],
+                    last_updated=row[3],
+                    desc=row[4],
+                    limit=row[5],
+                )
+                for row in cur.fetchall()
+            ]
+            return group
+
+
+def get_all_feeds():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, title, url, last_updated, description, "limit" FROM feeds"""
+            )
+            return [
+                Feed(
+                    id=row[0],
+                    title=row[1],
+                    url=row[2],
+                    last_updated=row[3],
+                    desc=row[4],
+                    limit=row[5],
+                )
+                for row in cur.fetchall()
+            ]
+
+
+def update_group(group_id: int, title: str, desc: str, feed_ids: list[int]):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, title, "desc" FROM feed_groups WHERE id = %s""",
+                (group_id,),
+            )
+            res = cur.fetchone()
+            if not res:
+                raise BizException(f"Group {group_id} not found")
+            cur.execute(
+                """SELECT feed_id FROM feed_group_items WHERE feed_group_id = %s""",
+                (group_id,),
+            )
+            existing_feed_ids = [row[0] for row in cur.fetchall()]
+            new_feed_ids = [
+                feed_id for feed_id in feed_ids if feed_id not in existing_feed_ids
+            ]
+            removed_feed_ids = [
+                feed_id for feed_id in existing_feed_ids if feed_id not in feed_ids
+            ]
+            logger.info(
+                f"Removed feed ids: {removed_feed_ids}, new feed ids: {new_feed_ids}"
+            )
+            if removed_feed_ids:
+                cur.execute(
+                    """DELETE FROM feed_group_items WHERE feed_id IN (%s) AND feed_group_id = %s""",
+                    (tuple(removed_feed_ids), group_id),
+                )
+            if new_feed_ids:
+                logger.info(f"Adding new feed ids: {new_feed_ids}")
+                _add_feeds_to_group(cur, group_id, new_feed_ids)
+            cur.execute(
+                """UPDATE feed_groups SET title = %s, "desc" = %s WHERE id = %s""",
+                (title, desc, group_id),
+            )
 
 
 def _add_feeds_to_group(cur, group_id, feed_ids):
@@ -234,8 +362,7 @@ def _add_feeds_to_group(cur, group_id, feed_ids):
           VALUES (%s, %s)
           ON CONFLICT DO NOTHING \
           """
-    data_to_insert = [
-        (feed_id, group_id) for feed_id in feed_ids]
+    data_to_insert = [(feed_id, group_id) for feed_id in feed_ids]
     cur.executemany(sql, data_to_insert)
 
 

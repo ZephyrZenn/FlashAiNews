@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
-import { getFeedBrief } from "../services/FeedService";
-import { FeedBrief } from "../types";
+import { getFeedBrief } from "../../services/FeedService";
+import { FeedBrief } from "../../types";
+import MainCard from "../MainCard";
 
 interface BriefCardProps {
-  briefId?: number; // 使用可选参数
+  briefId?: number;
 }
 
 const GeneratingBrief: FeedBrief = {
@@ -40,7 +41,9 @@ const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
             } catch (err) {
               console.error("Error checking brief status:", err);
               clearInterval(checkInterval);
-              setError("Failed to check content status. Please refresh the page.");
+              setError(
+                "Failed to check content status. Please refresh the page."
+              );
             }
           }, 3000);
 
@@ -76,40 +79,26 @@ const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
   }
 
   return (
-    <div className="mx-auto w-full h-full min-h-[250px] p-6">
-      {/* Card with layered shadow effect */}
-      <div className="relative">
-        {/* Bottom shadow layer */}
-        <div className="absolute -bottom-2 -right-2 w-full h-full bg-gray-300 rounded-xl"></div>
-
-        {/* Middle shadow layer */}
-        <div className="absolute -bottom-1 -right-1 w-full h-full bg-gray-200 rounded-xl"></div>
-
-        {/* Main card */}
-        <div className="relative bg-neutral-50 text-gray-900 rounded-xl p-6 shadow-lg border border-gray-100 w-[80vh] h-[80vh] overflow-y-auto">
-          {/* Card title */}
-          {brief?.title && (
-            <div className="mb-4">
-              <h3 className="text-xl font-bold">{brief.title}</h3>
-              <div className="mt-2 h-px bg-gradient-to-r from-gray-200 via-gray-400 to-gray-200"></div>
-            </div>
-          )}
-
-          {/* Card content */}
-          <div className="mb-4">
-            <Markdown>{brief?.content || ""}</Markdown>
-          </div>
-
-          {/* Card footer */}
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            Published Date:{" "}
-            {brief?.pubDate
-              ? new Date(brief.pubDate).toLocaleDateString()
-              : "N/A"}
-          </div>
+    <MainCard>
+      {/* Card title */}
+      {brief?.title && (
+        <div className="mb-4">
+          <h3 className="text-xl font-bold">{brief.title}</h3>
+          <div className="mt-2 h-px bg-gradient-to-r from-gray-200 via-gray-400 to-gray-200"></div>
         </div>
+      )}
+
+      {/* Card content */}
+      <div className="mb-4">
+        <Markdown>{brief?.content || ""}</Markdown>
       </div>
-    </div>
+
+      {/* Card footer */}
+      <div className="mt-6 pt-4 border-t border-gray-100">
+        Published Date:{" "}
+        {brief?.pubDate ? new Date(brief.pubDate).toLocaleDateString() : "N/A"}
+      </div>
+    </MainCard>
   );
 };
 export default BriefCard;

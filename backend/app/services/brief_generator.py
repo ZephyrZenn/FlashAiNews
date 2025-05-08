@@ -10,7 +10,6 @@ import os
 
 
 class AIGenerator(ABC):
-
     def __init__(self, prompt: str, limit: int = 5):
         self.prompt = prompt
         self.limit = limit
@@ -28,7 +27,6 @@ class AIGenerator(ABC):
 
 
 class GeminiGenerator(AIGenerator):
-
     def __init__(self, prompt: str):
         super().__init__(prompt)
 
@@ -37,11 +35,21 @@ class GeminiGenerator(AIGenerator):
         if not api_key:
             raise ValueError("Google API key is not set.")
         input_articles = json.dumps(
-            list(map(lambda x: {"title": x.title, "content": x.content if x.content else x.summary},
-                     articles[:self.limit])))
-        client = genai.Client(api_key=api_key, http_options=types.HttpOptions(api_version='v1alpha'))
+            list(
+                map(
+                    lambda x: {
+                        "title": x.title,
+                        "content": x.content if x.content else x.summary,
+                    },
+                    articles[: self.limit],
+                )
+            )
+        )
+        client = genai.Client(
+            api_key=api_key, http_options=types.HttpOptions(api_version="v1alpha")
+        )
         inputs = f"{self.prompt}\n ----Input Articles---- \n{input_articles}"
-        resp = client.models.generate_content(model='gemini-2.0-flash', contents=inputs)
+        resp = client.models.generate_content(model="gemini-2.0-flash", contents=inputs)
         return _extract_json(resp.text)
 
 
@@ -60,4 +68,7 @@ def _extract_json(text: str) -> dict[str, str]:
     if not json_objects or len(json_objects) == 0:
         raise ValueError(f"Failed to parse json {json_objects}. Text: {text}")
     ans = json_objects[0]
-    return {"title": ans.get("title", ""), "content": ans.get("content", ""), }
+    return {
+        "title": ans.get("title", ""),
+        "content": ans.get("content", ""),
+    }

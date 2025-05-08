@@ -16,7 +16,6 @@ class FeedVO(CamelModel):
     title: str
     url: str
     desc: str
-    group_id: int
 
 class FeedGroupVO(CamelModel):
     id: int
@@ -27,4 +26,10 @@ class FeedGroupVO(CamelModel):
 class FeedBriefResponse(CommonResult[FeedBriefVO]):
     pass
 class FeedGroupListResponse(CommonResult[List[FeedGroupVO]]):
+    pass
+
+class FeedGroupDetailResponse(CommonResult[FeedGroupVO]):
+    pass
+
+class FeedListResponse(CommonResult[List[FeedVO]]):
     pass

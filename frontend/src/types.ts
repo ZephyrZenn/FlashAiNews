@@ -10,6 +10,7 @@ interface FeedBrief {
   content: string;
   pubDate: Date;
   groupId: number;
+  group?: FeedGroup;
 }
 
 interface FeedGroup {
@@ -26,9 +27,4 @@ interface Feed {
   description: string;
 }
 
-interface BriefWithGroup {
-  brief: FeedBrief;
-  group: FeedGroup;
-}
-
-export type { FeedBrief, FeedGroup, Feed, CommonResult, BriefWithGroup };
+export type { FeedBrief, FeedGroup, Feed, CommonResult };

@@ -14,11 +14,11 @@ from app.middleware import LogMiddleware
 from app.models.common import success_with_data
 from app.models.request import ModifyGroupRequest
 from app.models.view_model import (
+    FeedBriefListResponse,
     FeedBriefResponse,
     FeedGroupDetailResponse,
     FeedGroupListResponse,
     FeedListResponse,
-    GroupBriefResponse,
 )
 
 # 配置日志
@@ -63,18 +63,14 @@ app.add_exception_handler(BizException, handle_biz_exception)
 app.add_exception_handler(Exception, handle_exception)
 
 
-@app.get("/", response_model=GroupBriefResponse)
+@app.get("/", response_model=FeedBriefResponse)
 async def newest_brief():
     """
     Get the newest brief.
     """
     brief, group = feed_service.get_today_brief()
-    return success_with_data(
-        {
-            "brief": brief,
-            "group": group,
-        }
-    )
+    brief.group = group
+    return success_with_data(brief)
 
 
 @app.get("/groups", response_model=FeedGroupListResponse)
@@ -128,3 +124,10 @@ async def get_group_today_brief(group_id: int):
     return success_with_data(
         feed_service.get_group_brief(group_id, datetime.date.today())
     )
+    
+@app.get("/briefs/{group_id}/history", response_model=FeedBriefListResponse)
+async def get_history_brief(group_id: int):
+    """
+    Get the history brief of a feed group.
+    """
+    return success_with_data(feed_service.get_history_brief(group_id))

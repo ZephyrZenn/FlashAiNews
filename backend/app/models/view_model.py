@@ -1,15 +1,9 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from app.models.common import CamelModel, CommonResult
 
 
-class FeedBriefVO(CamelModel):
-    id: int
-    group_id: int
-    title: str
-    content: str
-    pub_date: datetime
 
 
 class FeedVO(CamelModel):
@@ -25,15 +19,21 @@ class FeedGroupVO(CamelModel):
     desc: str
     feeds: List[FeedVO]
 
-
-class BriefWithGroupVO(CamelModel):
-    brief: FeedBriefVO
-    group: FeedGroupVO
+class FeedBriefVO(CamelModel):
+    id: int
+    group_id: int
+    title: str
+    content: str
+    pub_date: datetime
+    group: Optional[FeedGroupVO] = None
 
 
 class FeedBriefResponse(CommonResult[FeedBriefVO]):
     pass
 
+
+class FeedBriefListResponse(CommonResult[List[FeedBriefVO]]):
+    pass
 
 class FeedGroupListResponse(CommonResult[List[FeedGroupVO]]):
     pass
@@ -44,8 +44,4 @@ class FeedGroupDetailResponse(CommonResult[FeedGroupVO]):
 
 
 class FeedListResponse(CommonResult[List[FeedVO]]):
-    pass
-
-
-class GroupBriefResponse(CommonResult[BriefWithGroupVO]):
     pass

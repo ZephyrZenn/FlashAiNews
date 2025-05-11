@@ -1,27 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+
 import Markdown from "react-markdown";
-import { getFeedBrief, getHomeFeeds } from "../../services/FeedService";
-import { FeedBrief, FeedGroup } from "../../types";
 import MainCard from "../MainCard";
+import { useState } from "react";
+import { FeedBrief } from "../../types";
+import { getHomeFeeds } from "../../services/FeedService";
+import { GeneratingBrief } from "../../constants";
 
-interface BriefCardProps {
-  briefId?: number;
-}
-
-const GeneratingBrief: FeedBrief = {
-  id: 0,
-  title: "Today Brief is generating...",
-  content: "Please wait for a moment...",
-  pubDate: new Date(),
-  groupId: 0,
-};
-
-const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
+export default function HomeBriefCard() {
   const [brief, setBrief] = useState<FeedBrief>(GeneratingBrief);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const isHome = briefId === undefined;
-  const [group, setGroup] = useState<FeedGroup | null>(null);
   useEffect(() => {
     const fetchTodayFeed = async () => {
       const data = await getHomeFeeds();
@@ -31,8 +20,7 @@ const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
           try {
             const newData = await getHomeFeeds();
             if (newData !== null) {
-              setBrief(newData.brief);
-              setGroup(newData.group);
+              setBrief(newData);
               clearInterval(checkInterval);
             }
           } catch (err) {
@@ -47,30 +35,11 @@ const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
         // Cleanup interval on component unmount
         return () => clearInterval(checkInterval);
       }
-      setBrief(data.brief);
-      setGroup(data.group);
-    };
-
-    const fetchBrief = async () => {
-      if (briefId === undefined) {
-        return;
-      }
-      const data = await getFeedBrief(briefId);
-      if (data === null) {
-        setLoading(false);
-        setError("Failed to load content. Please try again later.");
-        return;
-      }
       setBrief(data);
+      setLoading(false);
     };
-
-    if (isHome) {
-      fetchTodayFeed();
-    } else {
-      fetchBrief();
-    }
-    setLoading(false);
-  }, [briefId, isHome]);
+    fetchTodayFeed();
+  }, []);
   if (loading) {
     // Loading state
     return (
@@ -100,21 +69,16 @@ const BriefCard: React.FC<BriefCardProps> = ({ briefId }) => {
 
       {/* Card content */}
       <div className="mb-4">
-        <Markdown>{brief?.content || ""}</Markdown>
+        <Markdown>{brief.content || ""}</Markdown>
       </div>
 
       {/* Card footer */}
       <div className="mt-6 pt-4 border-t border-gray-200">
         Published Date:{" "}
-        {brief?.pubDate ? new Date(brief.pubDate).toLocaleDateString() : "N/A"}
-        {isHome && (
-          <>
-            <br />
-            Group: {group?.title}
-          </>
-        )}
+        {brief.pubDate ? new Date(brief.pubDate).toLocaleDateString() : "N/A"}
+        <br />
+        Group: {brief.group?.title}
       </div>
     </MainCard>
   );
-};
-export default BriefCard;
+}

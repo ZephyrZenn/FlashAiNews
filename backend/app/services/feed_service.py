@@ -12,7 +12,7 @@ from app.parsers import parse_feed, parse_opml
 from app.utils import submit_to_thread
 
 from ..exception import BizException
-from .brief_generator import build_deepseek_generator, build_gemini_generator
+from .brief_generator import build_deepseek_generator
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +187,7 @@ def get_today_brief() -> Optional[FeedBrief]:
             group = get_group_detail(res[1])
             return (brief, group)
 
+
 def get_group_brief(group_id: int, date: datetime.date):
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -210,6 +211,26 @@ def get_group_brief(group_id: int, date: datetime.date):
                 content=res[2],
                 pub_date=res[3],
             )
+
+
+def get_history_brief(group_id: int):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, title, content, created_at FROM feed_brief WHERE group_id = %s ORDER BY created_at DESC""",
+                (group_id,),
+            )
+            rows = cur.fetchall()
+            return [
+                FeedBrief(
+                    id=row[0],
+                    group_id=group_id,
+                    title=row[1],
+                    content=row[2],
+                    pub_date=row[3],
+                )
+                for row in rows
+            ]
 
 
 def generate_today_brief():

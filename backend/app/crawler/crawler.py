@@ -2,9 +2,11 @@ import asyncio
 from typing import Optional
 
 import httpx
+import logging
 
 from app.parsers import parse_html_content
 
+logger = logging.getLogger(__name__)
 
 async def get_content(url: str, client: httpx.AsyncClient) -> Optional[str]:
     """
@@ -28,6 +30,7 @@ async def fetch_all_contents(urls: list[str]) -> dict[str, Optional[str]]:
     """
     Fetch content from a list of URLs concurrently.
     """
+    logger.info(f"Fetching {len(urls)} URLs concurrently")
     async with httpx.AsyncClient() as client:
         tasks = [get_content(url, client) for url in urls]
         result = await asyncio.gather(*tasks)

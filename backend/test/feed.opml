@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<opml version="1.0">
+    <head>
+        <title>Xuanchen subscriptions in feedly Cloud</title>
+    </head>
+    <body>
+        <outline text="Daily Recommended" title="Daily Recommended">
+            <outline type="rss" text="Wait But Why" title="Wait But Why" xmlUrl="https://waitbutwhy.com/feed/rss" htmlUrl="https://waitbutwhy.com/"/>
+            <outline type="rss" text="Business Insider" title="Business Insider" xmlUrl="http://feeds2.feedburner.com/businessinsider" htmlUrl="https://www.businessinsider.com"/>
+            <outline type="rss" text="faustprogpu Medium For You" title="faustprogpu Medium For You" xmlUrl="https://rss-hub-lyc9.vercel.app/medium/for-you/faustprogpu" htmlUrl="https://medium.com/"/>
+        </outline>
+        <outline text="Technology" title="Technology">
+            <outline type="rss" text="阿里巴巴中间件" title="阿里巴巴中间件" xmlUrl="https://wechat2rss.xlab.app/feed/ede34e7a9aff5e93ad159ebfd27075710a963f54.xml" htmlUrl="https://wechat2rss.xlab.app/feed/ede34e7a9aff5e93ad159ebfd27075710a963f54.xml"/>
+            <outline type="rss" text="阿里技术" title="阿里技术" xmlUrl="https://wechat2rss.xlab.app/feed/6e1f9b775f7a5841ac1a94310f0478b45a02ec01.xml" htmlUrl="https://wechat2rss.xlab.app/feed/6e1f9b775f7a5841ac1a94310f0478b45a02ec01.xml"/>
+            <outline type="rss" text="Stories by David Goudet on Medium" title="Stories by David Goudet on Medium" xmlUrl="https://medium.com/feed/@davidgoudet" htmlUrl="https://medium.com/@davidgoudet?source=rss-8c4f83962a21------2"/>
+            <outline type="rss" text="美团技术团队" title="美团技术团队" xmlUrl="https://tech.meituan.com/feed/rss" htmlUrl="https://tech.meituan.com/feed/"/>
+            <outline type="rss" text="Stories by Tapas Das on Medium" title="Stories by Tapas Das on Medium" xmlUrl="https://medium.com/feed/@tdtapas" htmlUrl="https://medium.com/@tdtapas?source=rss-f387b9dead96------2"/>
+            <outline type="rss" text="Stories by Luis Soares on Medium" title="Stories by Luis Soares on Medium" xmlUrl="https://medium.com/feed/@luishrsoares" htmlUrl="https://medium.com/@luishrsoares?source=rss-5176d5a50f58------2"/>
+            <outline type="rss" text="腾讯技术工程" title="腾讯技术工程" xmlUrl="https://wechat2rss.xlab.app/feed/9685937b45fe9c7a526dbc32e4f24ba879a65b9a.xml" htmlUrl="https://wechat2rss.xlab.app/feed/9685937b45fe9c7a526dbc32e4f24ba879a65b9a.xml"/>
+        </outline>
+    </body>
+</opml>

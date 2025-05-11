@@ -12,7 +12,7 @@ from app.parsers import parse_feed, parse_opml
 from app.utils import submit_to_thread
 
 from ..exception import BizException
-from .brief_generator import GeminiGenerator
+from .brief_generator import build_deepseek_generator, build_gemini_generator
 
 logger = logging.getLogger(__name__)
 
@@ -151,42 +151,6 @@ def join_group(group_id: int, feed_ids: list[str]):
     execute_transaction(_add_feeds_to_group, group_id, feed_ids)
 
 
-def generate_brief(group_id: int):
-    query_sql = """
-                SELECT f.id, f.feed_id, f.title, f.link, f.pub_date, f.summary, fc.content
-                FROM feed_items f
-                         LEFT JOIN
-                     feed_item_contents fc
-                     ON f.id = fc.feed_item_id
-                         AND f.feed_id IN (SELECT feed_id
-                                           FROM feed_group_items
-                                           WHERE feed_group_id = %s)
-                         AND f.pub_date::date = CURRENT_DATE \
-                """
-    articles = []
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query_sql, (group_id,))
-            rows = cur.fetchall()
-            if not rows:
-                return
-            articles = [
-                FeedArticle(
-                    id=row[0],
-                    title=row[2],
-                    url=row[3],
-                    content=row[6],
-                    pub_date=row[4],
-                    summary=row[5],
-                    has_full_content=True,
-                )
-                for row in rows
-            ]
-    brief = GeminiGenerator(prompt=DEFAULT_PROMPT).sum_up(articles)
-
-    execute_transaction(_insert_brief, group_id, brief)
-
-
 def get_today_brief() -> Optional[FeedBrief]:
     def retrieve_and_generate():
         retrieve_new_feeds()
@@ -252,10 +216,11 @@ def generate_today_brief():
                         has_full_content=True,
                     )
                 )
+        generator = build_deepseek_generator(DEFAULT_PROMPT, "deepseek-reasoner")
         for group_id, arts in articles.items():
             if not arts:
                 continue
-            brief = GeminiGenerator(prompt=DEFAULT_PROMPT).sum_up(arts)
+            brief = generator.sum_up(arts)
             execute_transaction(_insert_brief, group_id, brief)
     logger.info("Today brief generated")
     is_generating_brief = False

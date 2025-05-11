@@ -34,7 +34,8 @@ def get_connection():
         yield conn
         conn.commit()
     except Exception as e:
-        conn.rollback()
+        if conn:
+            conn.rollback()
         raise e
     finally:
         pool.putconn(conn)

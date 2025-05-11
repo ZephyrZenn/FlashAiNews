@@ -50,13 +50,17 @@ def parse_feed(feeds: list[Feed]) -> dict[str, list[FeedArticle]]:
       continue
     for entry in data.entries:
       # TODO: deal with other article metadata
-      guid = entry.id
+      guid = None
+      if not hasattr(entry, 'id'):
+        guid = entry.link
+      else:
+        guid = entry.id
       title = entry.title
       url = entry.link
       content, has_full_content = _extract_text_from_entry(entry)
       articles[feed.title].append(FeedArticle(
           id=guid,
-          title=title,
+          title=title[:256],
           content=content,
           url=url,
           summary=content[:SUMMARY_LENGTH] if content else '',

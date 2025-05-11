@@ -177,12 +177,38 @@ def get_today_brief() -> Optional[FeedBrief]:
                 is_generating_brief = True
                 submit_to_thread(retrieve_and_generate)
                 return None
-            return FeedBrief(
+            brief = FeedBrief(
                 id=res[0],
                 group_id=res[1],
                 title=res[2],
                 content=res[3],
                 pub_date=res[4],
+            )
+            group = get_group_detail(res[1])
+            return (brief, group)
+
+def get_group_brief(group_id: int, date: datetime.date):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, title, content, created_at FROM feed_brief WHERE group_id = %s AND created_at::date = %s""",
+                (group_id, date),
+            )
+            res = cur.fetchone()
+            if not res:
+                return FeedBrief(
+                    id=0,
+                    group_id=group_id,
+                    title="There is no update in this group today",
+                    content="",
+                    pub_date=datetime.datetime.now(),
+                )
+            return FeedBrief(
+                id=res[0],
+                group_id=group_id,
+                title=res[1],
+                content=res[2],
+                pub_date=res[3],
             )
 
 

@@ -48,7 +48,7 @@ const GroupList: React.FC<GroupListProps> = ({ onGroupSelect }) => {
           <div
             key={group.id}
             onClick={() => onGroupSelect?.(group)}
-            className="p-4 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+            className="p-4 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors duration-200"
           >
             <h3 className="text-lg font-semibold">{group.title}</h3>
             <p className="text-sm text-gray-600 mt-1">{group.desc}</p>

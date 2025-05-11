@@ -1,12 +1,9 @@
-import BriefCard from "../components/home/SummaryCard";
+import SummaryCard from "../components/home/BriefCard";
 
 export default function Home() {
   return (
-    <div className="grid grid-cols-3">
-      <div className="col-span-2">
-        <BriefCard />
-      </div>
-      <div className="col-span-1"></div>
+    <div className="w-3/5">
+      <SummaryCard />
     </div>
   );
 }

@@ -26,4 +26,9 @@ interface Feed {
   description: string;
 }
 
-export type { FeedBrief, FeedGroup, Feed, CommonResult };
+interface BriefWithGroup {
+  brief: FeedBrief;
+  group: FeedGroup;
+}
+
+export type { FeedBrief, FeedGroup, Feed, CommonResult, BriefWithGroup };

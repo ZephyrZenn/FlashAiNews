@@ -1,14 +1,31 @@
 import axios from "axios";
 import { BASE_URL } from "../constants";
-import { Feed, FeedBrief, FeedGroup } from "../types";
+import { BriefWithGroup, Feed, FeedBrief, FeedGroup } from "../types";
 import { transformResponse } from "../utils/transform-response";
 import { ModifyFeedGroupRequest } from "./request";
 
-export const getFeedBrief = async (
-  briefId: number | undefined
-): Promise<FeedBrief> => {
-  const url = briefId ? `${BASE_URL}/brief/${briefId}` : `${BASE_URL}/`;
+export const getHomeFeeds = async (): Promise<BriefWithGroup> => {
+  const url = `${BASE_URL}/`;
   const resp = await axios.get(url);
+  const data = transformResponse(resp);
+  return data;
+};
+
+export const getFeedBrief = async (
+  briefId: number,
+  time?: Date
+): Promise<FeedBrief> => {
+  let url = "";
+  let params = {};
+  if (time === undefined) {
+    url = `${BASE_URL}/briefs/${briefId}/today`;
+  } else {
+    url = `${BASE_URL}/briefs/${briefId}`;
+    params = {
+      time: time,
+    };
+  }
+  const resp = await axios.get(url, { params });
   const data = transformResponse(resp);
   return data;
 };

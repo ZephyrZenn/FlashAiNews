@@ -11,11 +11,13 @@ class FeedBriefVO(CamelModel):
     content: str
     pub_date: datetime
 
+
 class FeedVO(CamelModel):
     id: int
     title: str
     url: str
     desc: str
+
 
 class FeedGroupVO(CamelModel):
     id: int
@@ -23,13 +25,27 @@ class FeedGroupVO(CamelModel):
     desc: str
     feeds: List[FeedVO]
 
+
+class BriefWithGroupVO(CamelModel):
+    brief: FeedBriefVO
+    group: FeedGroupVO
+
+
 class FeedBriefResponse(CommonResult[FeedBriefVO]):
     pass
+
+
 class FeedGroupListResponse(CommonResult[List[FeedGroupVO]]):
     pass
+
 
 class FeedGroupDetailResponse(CommonResult[FeedGroupVO]):
     pass
 
+
 class FeedListResponse(CommonResult[List[FeedVO]]):
+    pass
+
+
+class GroupBriefResponse(CommonResult[BriefWithGroupVO]):
     pass

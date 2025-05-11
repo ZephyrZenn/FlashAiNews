@@ -1,3 +1,4 @@
+import datetime
 import logging
 from contextlib import asynccontextmanager
 
@@ -17,6 +18,7 @@ from app.models.view_model import (
     FeedGroupDetailResponse,
     FeedGroupListResponse,
     FeedListResponse,
+    GroupBriefResponse,
 )
 
 # 配置日志
@@ -61,13 +63,18 @@ app.add_exception_handler(BizException, handle_biz_exception)
 app.add_exception_handler(Exception, handle_exception)
 
 
-# Scheduler
-@app.get("/", response_model=FeedBriefResponse)
+@app.get("/", response_model=GroupBriefResponse)
 async def newest_brief():
     """
     Get the newest brief.
     """
-    return success_with_data(feed_service.get_today_brief())
+    brief, group = feed_service.get_today_brief()
+    return success_with_data(
+        {
+            "brief": brief,
+            "group": group,
+        }
+    )
 
 
 @app.get("/groups", response_model=FeedGroupListResponse)
@@ -111,3 +118,13 @@ async def update_group(group_id: int, request: ModifyGroupRequest):
     """
     feed_service.update_group(group_id, request.title, request.desc, request.feed_ids)
     return success_with_data()
+
+
+@app.get("/briefs/{group_id}/today", response_model=FeedBriefResponse)
+async def get_group_today_brief(group_id: int):
+    """
+    Get the today brief of a feed group.
+    """
+    return success_with_data(
+        feed_service.get_group_brief(group_id, datetime.date.today())
+    )

@@ -5,7 +5,7 @@ from app.services.feed_service import generate_today_brief, import_opml_config, 
 class FeedServiceTest(unittest.TestCase):
 
     def test_generate_today_feed(self):
-        # retrieve_new_feeds()
+        retrieve_new_feeds()
         generate_today_brief()
 
     def test_import_opml_config(self):

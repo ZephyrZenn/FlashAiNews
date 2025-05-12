@@ -26,20 +26,7 @@ def import_opml_config(file_url: str):
         file_text = f.read()
         feeds = parse_opml(file_text)
 
-        def insert_feeds(cur):
-            sql = """
-                  INSERT INTO feeds (title, url, "limit", description, last_updated)
-                  VALUES (%s, %s, %s, %s, %s)
-                  ON CONFLICT(url) DO NOTHING
-                  RETURNING id \
-                  """
-            data_to_insert = [
-                (feed.title, feed.url, feed.limit, feed.desc, feed.last_updated)
-                for feed in feeds
-            ]
-            cur.executemany(sql, data_to_insert)
-
-    execute_transaction(insert_feeds)
+    execute_transaction(_insert_feeds, feeds)
 
 
 def retrieve_new_feeds(group_ids: list[int] = None):
@@ -153,15 +140,26 @@ def join_group(group_id: int, feed_ids: list[str]):
 
 def get_today_brief() -> Optional[FeedBrief]:
     def retrieve_and_generate():
-        retrieve_new_feeds()
-        generate_today_brief()
+        global is_generating_brief
+        try:
+            retrieve_new_feeds()
+            generate_today_brief()
+        except Exception as e:
+            logger.error(f"Error retrieving and generating brief: {e}")
+        finally:
+            is_generating_brief = False
 
     global is_generating_brief
     sql = """
           SELECT id, group_id, title, content, created_at
           FROM feed_brief
-          WHERE created_at::date = CURRENT_DATE
-          LIMIT 1 \
+          WHERE group_id = (
+              SELECT id
+              FROM feed_groups
+              WHERE is_default = TRUE
+          )
+          ORDER BY created_at DESC
+          LIMIT 1
           """
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -170,13 +168,13 @@ def get_today_brief() -> Optional[FeedBrief]:
             if not res:
                 if is_generating_brief:
                     logger.info("Brief is being generated. Returning None")
-                    return None
+                    return (None, None)
                 logger.info(
                     "Today brief hasn't generated. Generating brief in background"
                 )
                 is_generating_brief = True
                 submit_to_thread(retrieve_and_generate)
-                return None
+                return (None, None)
             brief = FeedBrief(
                 id=res[0],
                 group_id=res[1],
@@ -235,7 +233,6 @@ def get_history_brief(group_id: int):
 
 def generate_today_brief():
     logger.info("Generating today brief")
-    global is_generating_brief
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""SELECT f.id, f.title, f.link, f.pub_date, f.summary, fic.content, fgi.feed_group_id
@@ -270,13 +267,14 @@ def generate_today_brief():
             brief = generator.sum_up(arts)
             execute_transaction(_insert_brief, group_id, brief)
     logger.info("Today brief generated")
-    is_generating_brief = False
 
 
 def get_feed_groups():
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("""SELECT id, title, "desc" FROM feed_groups""")
+            cur.execute(
+                """SELECT id, title, "desc" FROM feed_groups ORDER BY is_default DESC, id DESC"""
+            )
             return [
                 FeedGroup(id=row[0], title=row[1], desc=row[2])
                 for row in cur.fetchall()
@@ -369,6 +367,40 @@ def update_group(group_id: int, title: str, desc: str, feed_ids: list[int]):
             )
 
 
+def get_default_group_briefs():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, title, content, created_at FROM feed_brief WHERE group_id = (SELECT id FROM feed_groups WHERE is_default = TRUE) ORDER BY created_at DESC"""
+            )
+            rows = cur.fetchall()
+            if not rows:
+                return None
+            cur.execute(
+                """
+                SELECT id, title, "desc"
+                FROM feed_groups
+                WHERE is_default = TRUE
+                """
+            )
+            res = cur.fetchone()
+            if not res:
+                raise BizException("Default group not found")
+            group = FeedGroup(id=res[0], title=res[1], desc=res[2])
+
+            briefs = [
+                FeedBrief(
+                    id=row[0],
+                    title=row[1],
+                    content=row[2],
+                    pub_date=row[3],
+                    group_id=group.id,
+                )
+                for row in rows
+            ]
+            return (briefs, group)
+
+
 def _add_feeds_to_group(cur, group_id, feed_ids):
     sql = """
           INSERT INTO feed_group_items (feed_id, feed_group_id)
@@ -385,3 +417,30 @@ def _insert_brief(cur, group_id, brief):
           VALUES (%s, %s, %s) \
           """
     cur.execute(sql, (group_id, brief["title"], brief["content"]))
+
+
+def _insert_feeds(cur, feeds):
+    if not feeds:
+        return
+    check_exist_sql = """ SELECT EXISTS(SELECT 1 FROM feeds LIMIT 1) """
+    cur.execute(check_exist_sql)
+    exist = cur.fetchone()[0]
+    if not exist:
+        feeds[0].is_default = True
+    insert_sql = """
+                  INSERT INTO feeds (title, url, "limit", description, last_updated)
+                  VALUES (%s, %s, %s, %s, %s)
+                  ON CONFLICT(url) DO NOTHING
+                  RETURNING id \
+                  """
+    data_to_insert = [
+        (
+            feed.title,
+            feed.url,
+            feed.limit,
+            feed.desc,
+            feed.last_updated,
+        )
+        for feed in feeds
+    ]
+    cur.executemany(insert_sql, data_to_insert)

@@ -69,8 +69,21 @@ async def newest_brief():
     Get the newest brief.
     """
     brief, group = feed_service.get_today_brief()
+    if not brief:
+        return success_with_data(None)
     brief.group = group
     return success_with_data(brief)
+
+
+@app.get("/briefs/default", response_model=FeedBriefListResponse)
+async def get_default_group_briefs():
+    """
+    Get the briefs of the default group.
+    """
+    briefs, group = feed_service.get_default_group_briefs()
+    for brief in briefs:
+        brief.group = group
+    return success_with_data(briefs)
 
 
 @app.get("/groups", response_model=FeedGroupListResponse)
@@ -124,7 +137,8 @@ async def get_group_today_brief(group_id: int):
     return success_with_data(
         feed_service.get_group_brief(group_id, datetime.date.today())
     )
-    
+
+
 @app.get("/briefs/{group_id}/history", response_model=FeedBriefListResponse)
 async def get_history_brief(group_id: int):
     """

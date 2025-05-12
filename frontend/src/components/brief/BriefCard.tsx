@@ -1,13 +1,13 @@
 import { useContext } from "react";
 import Markdown from "react-markdown";
-import MainCard from "../MainCard";
 import { BriefContext } from "../../contexts/BriefContext";
+import MainCard from "../MainCard";
 interface BriefCardProps {
   briefId?: number;
 }
 
 const BriefCard: React.FC<BriefCardProps> = () => {
-  const { activeBrief } = useContext(BriefContext);
+  const { activeBrief: brief } = useContext(BriefContext);
   // const [loading, setLoading] = useState<boolean>(true);
   // const [error, setError] = useState<string | null>(null);
   // if (loading) {
@@ -30,28 +30,26 @@ const BriefCard: React.FC<BriefCardProps> = () => {
   return (
     <MainCard>
       {/* Card title */}
-      {activeBrief?.title && (
+      {brief?.title && (
         <div className="mb-4">
-          <h3 className="text-xl font-bold">{activeBrief.title}</h3>
+          <h3 className="text-xl font-bold">{brief.title}</h3>
           <div className="mt-2 h-px bg-gradient-to-r from-gray-200 via-gray-400 to-gray-200"></div>
         </div>
       )}
 
       {/* Card content */}
       <div className="mb-4">
-        <Markdown>{activeBrief?.content || ""}</Markdown>
+        <Markdown>{brief.content || ""}</Markdown>
       </div>
 
       {/* Card footer */}
       <div className="mt-6 pt-4 border-t border-gray-200">
         Published Date:{" "}
-        {activeBrief?.pubDate
-          ? new Date(activeBrief.pubDate).toLocaleDateString()
-          : "N/A"}
-        {activeBrief?.group?.title && (
+        {brief.pubDate ? new Date(brief.pubDate).toLocaleDateString() : "N/A"}
+        {brief?.group?.title && (
           <>
             <br />
-            Group: {activeBrief.group.title}
+            Group: {brief.group.title}
           </>
         )}
       </div>

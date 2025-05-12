@@ -12,6 +12,7 @@ function App() {
       items-center
       justify-center
       p-4 sm:p-8
+      mx-10
     "
     >
       <BrowserRouter>

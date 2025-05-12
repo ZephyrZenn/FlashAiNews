@@ -5,7 +5,8 @@ from typing import Optional
 class Feed:
     def __init__(self, id: int, title: str, url: str, last_updated: datetime,
                  desc: str = "",
-                 limit: int = 10):
+                 limit: int = 10,
+                 is_default: bool = False):
         self.id = id
         self.title = title
         self.url = url
@@ -13,7 +14,6 @@ class Feed:
         self.desc = desc
         self.limit = limit
         self.articles = []
-
 
 class FeedArticle:
     def __init__(self, id: str, title: str, url: str, content: Optional[str],

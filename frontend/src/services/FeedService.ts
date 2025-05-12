@@ -75,8 +75,17 @@ export const updateFeedGroup = async (group: FeedGroup): Promise<FeedGroup> => {
   return data;
 };
 
-export const getHistoryBriefs = async (groupId: number): Promise<FeedBrief[]> => {
+export const getHistoryBriefs = async (
+  groupId: number
+): Promise<FeedBrief[]> => {
   const url = `${BASE_URL}/briefs/${groupId}/history`;
+  const resp = await axios.get(url);
+  const data = transformResponse(resp);
+  return data;
+};
+
+export const getDefaultBriefHistory = async (): Promise<FeedBrief[]> => {
+  const url = `${BASE_URL}/briefs/default`;
   const resp = await axios.get(url);
   const data = transformResponse(resp);
   return data;

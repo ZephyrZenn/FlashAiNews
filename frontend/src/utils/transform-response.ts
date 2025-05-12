@@ -19,7 +19,7 @@ export const transformResponse = <T = any>(
 
 const parseDateFields = (obj: any, fields: [string]) => {
   if (obj === null || obj === undefined) {
-    return {};
+    return obj;
   }
   fields.forEach((field) => {
     if (obj[field]) {

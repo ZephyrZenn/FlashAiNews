@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   createFeedGroup,
   getAllFeeds,
@@ -8,7 +9,6 @@ import {
 import { Feed, FeedGroup } from "../../types";
 import MainCard from "../MainCard";
 import FeedSelectorModal from "./FeedSelectorModal";
-import { useNavigate } from "react-router-dom";
 
 interface GroupDetailProps {
   id: number | null;
@@ -33,6 +33,14 @@ export default function GroupDetailForm({ id }: GroupDetailProps) {
         .catch((error) => {
           console.error(error);
         });
+    } else {
+      // Reset form state when id is null (new group)
+      setGroup({
+        id: 0,
+        title: "",
+        desc: "",
+        feeds: [],
+      });
     }
     getAllFeeds().then((data) => setFeeds(data));
   }, [id]);

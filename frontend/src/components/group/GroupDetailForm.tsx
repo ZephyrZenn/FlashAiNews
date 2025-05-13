@@ -8,6 +8,7 @@ import {
 } from "../../services/FeedService";
 import { Feed, FeedGroup } from "../../types";
 import MainCard from "../MainCard";
+import { useToast } from "../toast/useToast";
 import FeedSelectorModal from "./FeedSelectorModal";
 
 interface GroupDetailProps {
@@ -25,6 +26,7 @@ export default function GroupDetailForm({ id }: GroupDetailProps) {
   const [selectedFeeds, setSelectedFeeds] = useState<Feed[]>([]);
   const [showFeedSelector, setShowFeedSelector] = useState(false);
   const navigate = useNavigate();
+  const toast = useToast();
 
   useEffect(() => {
     if (id) {
@@ -65,11 +67,18 @@ export default function GroupDetailForm({ id }: GroupDetailProps) {
   };
 
   const handleSaveGroup = async () => {
-    if (!id) {
-      const id = await createFeedGroup(group);
-      navigate(`/groups/${id}`);
-    } else {
-      await updateFeedGroup(group);
+    try {
+      if (!id) {
+        const id = await createFeedGroup(group);
+        toast.success("Group created successfully");
+        navigate(`/group/${id}`);
+      } else {
+        await updateFeedGroup(group);
+        toast.success("Group updated successfully");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong");
     }
   };
 

@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import Group from "./pages/Group";
 import Brief from "./pages/Brief";
 import Home from "./pages/Home";
+import { ToastProvider } from "./components/toast/ToastProvider";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
       mx-10
     "
     >
+      <ToastProvider />
       <BrowserRouter>
         <div className="fixed top-0 left-0 right-0 bg-white bg-opacity-20 p-4 flex justify-end">
           <nav className="space-x-6 mr-28">

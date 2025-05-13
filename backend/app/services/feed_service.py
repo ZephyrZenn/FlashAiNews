@@ -280,7 +280,7 @@ def get_feed_groups():
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT id, title, "desc" FROM feed_groups ORDER BY is_default DESC, id DESC"""
+                """SELECT id, title, "desc" FROM feed_groups ORDER BY is_default DESC, id ASC"""
             )
             return [
                 FeedGroup(id=row[0], title=row[1], desc=row[2])

@@ -117,13 +117,19 @@ def retrieve_new_feeds(group_ids: list[int] = None):
 
 def create_group(title: str, desc: str, feed_ids: list[int]):
     def insert_group(cur):
+        cur.execute("SELECT EXISTS(SELECT 1 FROM feed_groups LIMIT 1)")
+        res = cur.fetchone()
+        if not res[0]:
+            is_default = True
+        else:
+            is_default = False
         sql = """
-              INSERT INTO feed_groups (title, "desc")
-              VALUES (%s, %s)
+              INSERT INTO feed_groups (title, "desc", is_default)
+              VALUES (%s, %s, %s)
               ON CONFLICT (title) DO NOTHING
               RETURNING id \
               """
-        cur.execute(sql, (title, desc))
+        cur.execute(sql, (title, desc, is_default))
         res = cur.fetchone()
         if not res:
             return
@@ -158,6 +164,7 @@ def get_today_brief() -> Optional[FeedBrief]:
               FROM feed_groups
               WHERE is_default = TRUE
           )
+          AND created_at::date = CURRENT_DATE
           ORDER BY created_at DESC
           LIMIT 1
           """
@@ -237,8 +244,8 @@ def generate_today_brief():
         with conn.cursor() as cur:
             cur.execute("""SELECT f.id, f.title, f.link, f.pub_date, f.summary, fic.content, fgi.feed_group_id
                            FROM feed_items f
-                                    LEFT JOIN feed_group_items fgi ON f.feed_id = fgi.feed_id
                                     LEFT JOIN feed_item_contents fic ON f.id = fic.feed_item_id
+                                    JOIN feed_group_items fgi ON f.feed_id = fgi.feed_id
                            WHERE fgi.feed_group_id NOT IN (SELECT feed_group_id
                                                            FROM feed_brief
                                                            WHERE created_at::date = CURRENT_DATE)
@@ -422,11 +429,6 @@ def _insert_brief(cur, group_id, brief):
 def _insert_feeds(cur, feeds):
     if not feeds:
         return
-    check_exist_sql = """ SELECT EXISTS(SELECT 1 FROM feeds LIMIT 1) """
-    cur.execute(check_exist_sql)
-    exist = cur.fetchone()[0]
-    if not exist:
-        feeds[0].is_default = True
     insert_sql = """
                   INSERT INTO feeds (title, url, "limit", description, last_updated)
                   VALUES (%s, %s, %s, %s, %s)

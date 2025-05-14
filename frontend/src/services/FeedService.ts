@@ -1,6 +1,6 @@
-import axios from "axios";
 import { BASE_URL } from "../constants";
 import { Feed, FeedBrief, FeedGroup } from "../types";
+import axios from "../utils/axios";
 import { transformResponse } from "../utils/transform-response";
 import { ModifyFeedGroupRequest } from "./request";
 

@@ -13,7 +13,9 @@ export default function Brief() {
   const [brief, setBrief] = useState<FeedBrief>(GeneratingBrief);
 
   return (
-    <BriefContext.Provider value={{ activeBrief: brief, setActiveBrief: setBrief }}>
+    <BriefContext.Provider
+      value={{ activeBrief: brief, setActiveBrief: setBrief }}
+    >
       <div className={`grid grid-cols-4 h-4/5 gap-6 w-full`}>
         <div className={`col-span-1 h-full`}>
           <GroupList

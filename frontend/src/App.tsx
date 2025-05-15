@@ -1,8 +1,8 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
-import Group from "./pages/Group";
-import Brief from "./pages/Brief";
-import Home from "./pages/Home";
 import { ToastProvider } from "./components/toast/ToastProvider";
+import Brief from "./pages/Brief";
+import Group from "./pages/Group";
+import Home from "./pages/Home";
 
 function App() {
   return (

@@ -13,6 +13,6 @@
 }
 
 body {
-  @apply min-h-screen text-gray-800 bg-white;
-  background-color: #fdf5e6;
+  @apply min-h-screen text-gray-800;
+  background-color: #fdf5e6 !important;
 }

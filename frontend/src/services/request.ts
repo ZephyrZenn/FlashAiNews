@@ -4,4 +4,9 @@ interface ModifyFeedGroupRequest {
   feedIds: number[];
 }
 
-export type { ModifyFeedGroupRequest };
+interface ImportOpmlRequest {
+  url?: string;
+  content?: string;
+}
+
+export type { ModifyFeedGroupRequest, ImportOpmlRequest };

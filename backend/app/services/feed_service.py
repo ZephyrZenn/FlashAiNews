@@ -21,10 +21,15 @@ logger = logging.getLogger(__name__)
 is_generating_brief = False
 
 
-def import_opml_config(file_url: str):
-    with open(file_url, "r") as f:
-        file_text = f.read()
-        feeds = parse_opml(file_text)
+def import_opml_config(file_url: Optional[str] = None, content: Optional[str] = None):
+    if file_url:
+        with open(file_url, "r") as f:
+            file_text = f.read()
+            feeds = parse_opml(file_text)
+    elif content:
+        feeds = parse_opml(content)
+    else:
+        raise BizException("No file URL or content provided")
 
     execute_transaction(_insert_feeds, feeds)
 

@@ -12,7 +12,7 @@ from app.crons import generate_daily_brief
 from app.exception import BizException, handle_biz_exception, handle_exception
 from app.middleware import LogMiddleware
 from app.models.common import success_with_data
-from app.models.request import ModifyGroupRequest
+from app.models.request import ImportFeedsRequest, ModifyGroupRequest
 from app.models.view_model import (
     FeedBriefListResponse,
     FeedBriefResponse,
@@ -145,3 +145,12 @@ async def get_history_brief(group_id: int):
     Get the history brief of a feed group.
     """
     return success_with_data(feed_service.get_history_brief(group_id))
+
+
+@app.post("/feeds/import")
+async def import_feeds(request: ImportFeedsRequest):
+    """
+    Import feeds from an OPML file URL.
+    """
+    feed_service.import_opml_config(request.url, request.content)
+    return success_with_data()

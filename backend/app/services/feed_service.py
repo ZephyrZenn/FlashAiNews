@@ -413,6 +413,28 @@ def get_default_group_briefs():
             return (briefs, group)
 
 
+def add_feed(title: str, description: str, url: str):
+    execute_transaction(
+        _insert_feeds, [Feed(id=0, title=title, url=url, desc=description)]
+    )
+
+
+def update_feed(id: int, title: str, description: str, url: str):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE feeds SET title = %s, url = %s, description = %s WHERE id = %s""",
+                (title, url, description, id),
+            )
+
+
+def delete_feed(id: int):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""DELETE FROM feeds WHERE id = %s""", (id,))
+            cur.execute("""DELETE FROM feed_group_items WHERE feed_id = %s""", (id,))
+
+
 def _add_feeds_to_group(cur, group_id, feed_ids):
     sql = """
           INSERT INTO feed_group_items (feed_id, feed_group_id)

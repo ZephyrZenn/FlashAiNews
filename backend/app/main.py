@@ -12,7 +12,8 @@ from app.crons import generate_daily_brief
 from app.exception import BizException, handle_biz_exception, handle_exception
 from app.middleware import LogMiddleware
 from app.models.common import success_with_data
-from app.models.request import ImportFeedsRequest, ModifyGroupRequest
+from app.models.feed import Feed
+from app.models.request import ImportFeedsRequest, ModifyFeedRequest, ModifyGroupRequest
 from app.models.view_model import (
     FeedBriefListResponse,
     FeedBriefResponse,
@@ -153,4 +154,31 @@ async def import_feeds(request: ImportFeedsRequest):
     Import feeds from an OPML file URL.
     """
     feed_service.import_opml_config(request.url, request.content)
+    return success_with_data()
+
+
+@app.post("/feeds")
+async def add_feed(request: ModifyFeedRequest):
+    """
+    Add a feed.
+    """
+    feed_service.add_feed(request.title, request.description, request.url)
+    return success_with_data()
+
+
+@app.put("/feeds/{feed_id}")
+async def update_feed(feed_id: int, request: ModifyFeedRequest):
+    """
+    Update a feed.
+    """
+    feed_service.update_feed(feed_id, request.title, request.description, request.url)
+    return success_with_data()
+
+
+@app.delete("/feeds/{feed_id}")
+async def delete_feed(feed_id: int):
+    """
+    Delete a feed.
+    """
+    feed_service.delete_feed(feed_id)
     return success_with_data()

@@ -7,7 +7,7 @@ import { GeneratingBrief } from "../constants";
 import { BriefContext } from "../contexts/BriefContext";
 import { FeedBrief } from "../types";
 
-export default function Brief() {
+export default function BriefPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [brief, setBrief] = useState<FeedBrief>(GeneratingBrief);

@@ -1,3 +1,5 @@
+import { Feed } from "../types";
+
 interface ModifyFeedGroupRequest {
   title: string;
   desc: string;
@@ -9,4 +11,6 @@ interface ImportOpmlRequest {
   content?: string;
 }
 
-export type { ModifyFeedGroupRequest, ImportOpmlRequest };
+export type ModifyFeedRequest = Omit<Feed, "id">;
+
+export type { ImportOpmlRequest, ModifyFeedGroupRequest };

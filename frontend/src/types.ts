@@ -24,7 +24,7 @@ interface Feed {
   id: number;
   title: string;
   url: string;
-  description: string;
+  desc: string;
 }
 
 export type { FeedBrief, FeedGroup, Feed, CommonResult };

@@ -1,8 +1,9 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { ToastProvider } from "./components/toast/ToastProvider";
-import Brief from "./pages/Brief";
-import Group from "./pages/Group";
-import Home from "./pages/Home";
+import BriefPage from "./pages/BriefPage";
+import FeedPage from "./pages/FeedPage";
+import GroupPage from "./pages/GroupPage";
+import HomePage from "./pages/HomePage";
 
 function App() {
   return (
@@ -27,10 +28,13 @@ function App() {
               Brief
             </Link>
             <Link
-              to="/groups/new"
+              to="/group/new"
               className="text-gray-800 hover:text-gray-600"
             >
-              Groups
+              Group
+            </Link>
+            <Link to="/feed" className="text-gray-800 hover:text-gray-600">
+              Feed
             </Link>
             <Link to="/settings" className="text-gray-800 hover:text-gray-600">
               Settings
@@ -38,11 +42,12 @@ function App() {
           </nav>
         </div>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/group/:id" element={<Group />} />
-          <Route path="/groups/new" element={<Group />} />
-          <Route path="/brief" element={<Brief />} />
-          <Route path="/brief/:id" element={<Brief />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/group/:id" element={<GroupPage />} />
+          <Route path="/group/new" element={<GroupPage />} />
+          <Route path="/brief" element={<BriefPage />} />
+          <Route path="/brief/:id" element={<BriefPage />} />
+          <Route path="/feed" element={<FeedPage />} />
         </Routes>
       </BrowserRouter>
     </div>

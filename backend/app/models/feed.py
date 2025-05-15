@@ -1,12 +1,19 @@
 from datetime import datetime
 from typing import Optional
 
+from app.constants import DEFAULT_FEED_LAST_USED_DATE
+
 
 class Feed:
-    def __init__(self, id: int, title: str, url: str, last_updated: datetime,
-                 desc: str = "",
-                 limit: int = 10,
-                 is_default: bool = False):
+    def __init__(
+        self,
+        id: int,
+        title: str,
+        url: str,
+        last_updated: datetime = DEFAULT_FEED_LAST_USED_DATE,
+        desc: str = "",
+        limit: int = 10,
+    ):
         self.id = id
         self.title = title
         self.url = url
@@ -15,9 +22,18 @@ class Feed:
         self.limit = limit
         self.articles = []
 
+
 class FeedArticle:
-    def __init__(self, id: str, title: str, url: str, content: Optional[str],
-                 pub_date: datetime, summary: str, has_full_content: bool):
+    def __init__(
+        self,
+        id: str,
+        title: str,
+        url: str,
+        content: Optional[str],
+        pub_date: datetime,
+        summary: str,
+        has_full_content: bool,
+    ):
         self.id = id
         self.title = title
         self.url = url
@@ -36,7 +52,9 @@ class FeedGroup:
 
 
 class FeedBrief:
-    def __init__(self, id: int, group_id: int, title: str, content: str, pub_date: datetime):
+    def __init__(
+        self, id: int, group_id: int, title: str, content: str, pub_date: datetime
+    ):
         self.id = id
         self.group_id = group_id
         self.title = title

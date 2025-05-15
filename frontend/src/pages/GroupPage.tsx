@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import GroupDetailForm from "../components/group/GroupDetailForm";
 import GroupList from "../components/GroupList";
-export default function Group() {
+export default function GroupPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 

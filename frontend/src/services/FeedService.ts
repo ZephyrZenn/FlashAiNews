@@ -2,7 +2,11 @@ import { BASE_URL } from "../constants";
 import { Feed, FeedBrief, FeedGroup } from "../types";
 import axios from "../utils/axios";
 import { transformResponse } from "../utils/transform-response";
-import { ImportOpmlRequest, ModifyFeedGroupRequest } from "./request";
+import {
+  ImportOpmlRequest,
+  ModifyFeedGroupRequest,
+  ModifyFeedRequest,
+} from "./request";
 
 export const getHomeFeeds = async (): Promise<FeedBrief> => {
   const url = `${BASE_URL}/`;
@@ -104,3 +108,25 @@ export const importOpml = async (
   const data = transformResponse(resp);
   return data;
 };
+
+export const createFeed = async (request: ModifyFeedRequest) => {
+  const url = `${BASE_URL}/feeds`;
+  const resp = await axios.post(url, request);
+  const data = transformResponse(resp);
+  return data;
+};
+
+export const updateFeed = async (id: number, request: ModifyFeedRequest) => {
+  const url = `${BASE_URL}/feeds/${id}`;
+  const resp = await axios.put(url, request);
+  const data = transformResponse(resp);
+  return data;
+};
+
+export const deleteFeed = async (id: number) => {
+  const url = `${BASE_URL}/feeds/${id}`;
+  const resp = await axios.delete(url);
+  const data = transformResponse(resp);
+  return data;
+};
+

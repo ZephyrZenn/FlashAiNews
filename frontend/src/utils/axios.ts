@@ -1,9 +1,17 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 
+const getBaseUrl = () => {
+  if (process.env.NODE_ENV === "development") {
+    return "http://localhost:8000/api/";
+  } else {
+    return "/api/";
+  }
+};
+
 // Create axios instance with base configuration
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
+  baseURL: getBaseUrl(),
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",

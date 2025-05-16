@@ -1,12 +1,11 @@
 import { FeedBrief } from "./types";
 
-const BASE_URL = "http://localhost:8000";
-
+// const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const GeneratingBrief: FeedBrief = {
-    id: 0,
-    title: "Today Brief is generating...",
-    content: "Please wait for a moment...",
-    pubDate: new Date(),
+  id: 0,
+  title: "Today Brief is generating...",
+  content: "Please wait for a moment...",
+  pubDate: new Date(),
   groupId: 0,
 };
 
@@ -18,4 +17,4 @@ const NoBrief: FeedBrief = {
   groupId: 0,
 };
 
-export { BASE_URL, GeneratingBrief, NoBrief };
+export { GeneratingBrief, NoBrief };

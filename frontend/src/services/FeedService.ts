@@ -1,4 +1,3 @@
-import { BASE_URL } from "../constants";
 import { Feed, FeedBrief, FeedGroup } from "../types";
 import axios from "../utils/axios";
 import { transformResponse } from "../utils/transform-response";
@@ -9,8 +8,7 @@ import {
 } from "./request";
 
 export const getHomeFeeds = async (): Promise<FeedBrief> => {
-  const url = `${BASE_URL}/`;
-  const resp = await axios.get(url);
+  const resp = await axios.get("/");
   const data = transformResponse(resp);
   return data;
 };
@@ -22,9 +20,9 @@ export const getFeedBrief = async (
   let url = "";
   let params = {};
   if (time === undefined) {
-    url = `${BASE_URL}/briefs/${briefId}/today`;
+    url = `/briefs/${briefId}/today`;
   } else {
-    url = `${BASE_URL}/briefs/${briefId}`;
+    url = `/briefs/${briefId}`;
     params = {
       time: time,
     };
@@ -35,46 +33,41 @@ export const getFeedBrief = async (
 };
 
 export const getFeedGroups = async (): Promise<FeedGroup[]> => {
-  const url = `${BASE_URL}/groups`;
-  const resp = await axios.get(url);
+  const resp = await axios.get("/groups");
   const data = transformResponse(resp);
   return data;
 };
 
 export const getFeedGroupDetail = async (id: number): Promise<FeedGroup> => {
-  const url = `${BASE_URL}/groups/${id}`;
-  const resp = await axios.get(url);
+  const resp = await axios.get(`/groups/${id}`);
   const data = transformResponse(resp);
   return data;
 };
 
 export const getAllFeeds = async (): Promise<Feed[]> => {
-  const url = `${BASE_URL}/feeds`;
-  const resp = await axios.get(url);
+  const resp = await axios.get("/feeds");
   const data = transformResponse(resp);
   return data;
 };
 
 export const createFeedGroup = async (group: FeedGroup): Promise<FeedGroup> => {
-  const url = `${BASE_URL}/groups`;
   const request: ModifyFeedGroupRequest = {
     title: group.title,
     desc: group.desc,
     feedIds: group.feeds.map((feed) => feed.id),
   };
-  const resp = await axios.post(url, request);
+  const resp = await axios.post("/groups", request);
   const data = transformResponse(resp);
   return data;
 };
 
 export const updateFeedGroup = async (group: FeedGroup): Promise<FeedGroup> => {
-  const url = `${BASE_URL}/groups/${group.id}`;
   const request: ModifyFeedGroupRequest = {
     title: group.title,
     desc: group.desc,
     feedIds: group.feeds.map((feed) => feed.id),
   };
-  const resp = await axios.put(url, request);
+  const resp = await axios.put(`/groups/${group.id}`, request);
   const data = transformResponse(resp);
   return data;
 };
@@ -82,15 +75,13 @@ export const updateFeedGroup = async (group: FeedGroup): Promise<FeedGroup> => {
 export const getHistoryBriefs = async (
   groupId: number
 ): Promise<FeedBrief[]> => {
-  const url = `${BASE_URL}/briefs/${groupId}/history`;
-  const resp = await axios.get(url);
+  const resp = await axios.get(`/briefs/${groupId}/history`);
   const data = transformResponse(resp);
   return data;
 };
 
 export const getDefaultBriefHistory = async (): Promise<FeedBrief[]> => {
-  const url = `${BASE_URL}/briefs/default`;
-  const resp = await axios.get(url);
+  const resp = await axios.get("/briefs/default");
   const data = transformResponse(resp);
   return data;
 };
@@ -99,34 +90,29 @@ export const importOpml = async (
   fileUrl?: string,
   fileContent?: string
 ): Promise<void> => {
-  const url = `${BASE_URL}/feeds/import`;
   const request: ImportOpmlRequest = {
     url: fileUrl,
     content: fileContent,
   };
-  const resp = await axios.post(url, request);
+  const resp = await axios.post("/feeds/import", request);
   const data = transformResponse(resp);
   return data;
 };
 
 export const createFeed = async (request: ModifyFeedRequest) => {
-  const url = `${BASE_URL}/feeds`;
-  const resp = await axios.post(url, request);
+  const resp = await axios.post("/feeds", request);
   const data = transformResponse(resp);
   return data;
 };
 
 export const updateFeed = async (id: number, request: ModifyFeedRequest) => {
-  const url = `${BASE_URL}/feeds/${id}`;
-  const resp = await axios.put(url, request);
+  const resp = await axios.put(`/feeds/${id}`, request);
   const data = transformResponse(resp);
   return data;
 };
 
 export const deleteFeed = async (id: number) => {
-  const url = `${BASE_URL}/feeds/${id}`;
-  const resp = await axios.delete(url);
+  const resp = await axios.delete(`/feeds/${id}`);
   const data = transformResponse(resp);
   return data;
 };
-

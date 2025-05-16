@@ -16,5 +16,5 @@ class ImportFeedsRequest(CamelModel):
 
 class ModifyFeedRequest(CamelModel):
     title: str
-    description: str
+    desc: str
     url: str

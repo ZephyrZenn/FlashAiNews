@@ -22,10 +22,17 @@ export default function ModifyFeedModal({
   const toast = useToast();
 
   useEffect(() => {
-    if (isOpen && feed) {
-      setTitle(feed.title || "");
-      setUrl(feed.url || "");
-      setDesc(feed.desc || "");
+    if (isOpen) {
+      if (feed) {
+        setTitle(feed.title || "");
+        setUrl(feed.url || "");
+        setDesc(feed.desc || "");
+      } else {
+        // Reset form fields when opening for a new feed
+        setTitle("");
+        setUrl("");
+        setDesc("");
+      }
     }
   }, [feed, isOpen]);
 
@@ -58,7 +65,9 @@ export default function ModifyFeedModal({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-xl font-semibold mb-4">Add New Feed</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          {feed ? "Edit" : "Add New"} Feed
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
@@ -88,7 +97,7 @@ export default function ModifyFeedModal({
               id="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border ${feed ? "bg-gray-100 cursor-not-allowed" : ""}`}
               readOnly={!!feed}
               required
             />

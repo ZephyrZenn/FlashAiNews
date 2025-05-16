@@ -12,7 +12,6 @@ from app.crons import generate_daily_brief
 from app.exception import BizException, handle_biz_exception, handle_exception
 from app.middleware import LogMiddleware
 from app.models.common import success_with_data
-from app.models.feed import Feed
 from app.models.request import ImportFeedsRequest, ModifyFeedRequest, ModifyGroupRequest
 from app.models.view_model import (
     FeedBriefListResponse,
@@ -162,7 +161,7 @@ async def add_feed(request: ModifyFeedRequest):
     """
     Add a feed.
     """
-    feed_service.add_feed(request.title, request.description, request.url)
+    feed_service.add_feed(title=request.title, description=request.desc, url=request.url)
     return success_with_data()
 
 
@@ -171,7 +170,7 @@ async def update_feed(feed_id: int, request: ModifyFeedRequest):
     """
     Update a feed.
     """
-    feed_service.update_feed(feed_id, request.title, request.description, request.url)
+    feed_service.update_feed(id=feed_id, title=request.title, description=request.desc, url=request.url)
     return success_with_data()
 
 

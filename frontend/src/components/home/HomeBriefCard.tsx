@@ -30,7 +30,7 @@ export default function HomeBriefCard() {
               "Failed to check content status. Please refresh the page."
             );
           }
-        }, 3000);
+        }, 5000);
 
         // Cleanup interval on component unmount
         return () => clearInterval(checkInterval);

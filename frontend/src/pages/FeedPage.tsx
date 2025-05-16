@@ -5,20 +5,27 @@ import {
   PlusIcon,
 } from "@radix-ui/react-icons";
 import { useEffect, useRef, useState } from "react";
+import { AlertDialog } from "../components/AlertDialog";
 import { DropDownMenu } from "../components/DropDownMenu";
 import ModifyFeedModal from "../components/feed/ModifyFeedModal";
 import MainCard from "../components/MainCard";
 import { useToast } from "../components/toast/useToast";
 import { deleteFeed, getAllFeeds, importOpml } from "../services/FeedService";
 import { Feed } from "../types";
-import { AlertDialog } from "../components/AlertDialog";
+
+interface ModalState {
+  isOpen: boolean;
+  selectedFeed: Feed | undefined;
+}
 
 export default function FeedPage() {
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isFeedModalOpen, setIsFeedModalOpen] = useState(false);
-  const [selectedFeed, setSelectedFeed] = useState<Feed | undefined>(undefined);
+  const [modalState, setModalState] = useState<ModalState>({
+    isOpen: false,
+    selectedFeed: undefined,
+  });
 
   const fetchFeeds = async () => {
     const data = await getAllFeeds();
@@ -85,8 +92,10 @@ export default function FeedPage() {
                     </div>
                   ),
                   onClick: () => {
-                    setSelectedFeed(undefined);
-                    setIsFeedModalOpen(true);
+                    setModalState({
+                      isOpen: true,
+                      selectedFeed: undefined,
+                    });
                   },
                 },
                 {
@@ -119,13 +128,17 @@ export default function FeedPage() {
                     <Pencil1Icon
                       className="text-blue-500 cursor-pointer"
                       onClick={() => {
-                        setSelectedFeed(feed);
-                        setIsFeedModalOpen(true);
+                        setModalState({
+                          isOpen: true,
+                          selectedFeed: feed,
+                        });
                       }}
                     />
 
                     <AlertDialog
-                      trigger={<Cross1Icon className="text-red-500 cursor-pointer" />}
+                      trigger={
+                        <Cross1Icon className="text-red-500 cursor-pointer" />
+                      }
                       title="Delete Feed"
                       description="Are you sure you want to delete this feed? This action cannot be undone."
                       confirmText="Delete"
@@ -141,10 +154,12 @@ export default function FeedPage() {
         </div>
       </MainCard>
       <ModifyFeedModal
-        isOpen={isFeedModalOpen}
-        onClose={() => setIsFeedModalOpen(false)}
+        isOpen={modalState.isOpen}
+        onClose={() =>
+          setModalState({ isOpen: false, selectedFeed: undefined })
+        }
         onFeedModified={() => fetchFeeds()}
-        feed={selectedFeed}
+        feed={modalState.selectedFeed}
       />
     </div>
   );

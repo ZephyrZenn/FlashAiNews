@@ -60,3 +60,13 @@ class FeedBrief:
         self.title = title
         self.content = content
         self.pub_date = pub_date
+
+    def to_view_model(self, group: FeedGroup) -> dict:
+        return {
+            "id": self.id,
+            "group_id": self.group_id,
+            "title": self.title,
+            "content": self.content,
+            "pub_date": self.pub_date,
+            "group": group,
+        }

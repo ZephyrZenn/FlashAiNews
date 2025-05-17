@@ -5,14 +5,16 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.router import brief, feed, group
-import app.services.feed_service as feed_service
+import app.services.brief_service as brief_service
 from app.config.thread import init_thread_pool, shutdown_thread_pool
 from app.crons import generate_daily_brief
 from app.exception import BizException, handle_biz_exception, handle_exception
 from app.middleware import LogMiddleware
 from app.models.common import success_with_data
 from app.models.view_model import FeedBriefResponse
+from app.router import brief, feed, group
+from app.services import group_service, retrieve_and_generate_brief
+from app.utils.thread_utils import submit_to_thread
 
 # 配置日志
 logging.basicConfig(
@@ -37,6 +39,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     # Shutdown: Clean up thread pool
     shutdown_thread_pool()
+
 
 # Router
 app = FastAPI(lifespan=lifespan, root_path="/api")
@@ -65,8 +68,9 @@ async def newest_brief():
     """
     Get the newest brief.
     """
-    brief, group = feed_service.get_today_brief()
+    brief = brief_service.get_today_brief()
     if not brief:
+        submit_to_thread(retrieve_and_generate_brief)
         return success_with_data(None)
-    brief.group = group
-    return success_with_data(brief)
+    group = group_service.get_group_detail(brief.group_id)
+    return success_with_data(brief.to_view_model(group))

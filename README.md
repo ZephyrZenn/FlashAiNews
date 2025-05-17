@@ -1,0 +1,85 @@
+# FlashNews
+
+We are now in the era of information explosion. It becomes impossible to know what happened in the world comprehensively as there are too many things happened and being spread at one moment.
+
+FlashNews is a modern news aggregation and summarization platform that helps you stay informed by providing concise daily summaries of news grouped by topics of your interest.
+
+You can categorize topics that interest you into groups. LLM will conclude daily news based on your groups. You can get all you need to know in just one page.
+
+## Features
+
+- **News Aggregation**: Automatically collects news from various RSS feeds
+- **Smart Grouping**: Organize news sources into custom groups (e.g., Tech, Finance, Sports)
+- **Daily Summaries**: Generates concise summaries of news articles for each group
+
+![](https://raw.githubusercontent.com/FaustsRep/picbed/main/notes/CleanShot%202025-05-17%20at%2012.03.32%402x.png)
+
+## TODO
+
+- [ ] Customized LLM Configuration. Support cutomized prompt.
+- [ ] Support more models. Can switch models easily.
+- [ ] Trigger generating manually
+- [ ] Cutomized time to generate the report
+
+## Prerequisites
+
+- Docker and Docker Compose
+- Google API Key / Deepseek API Key for news summarization (Support more models in the future)
+
+## Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Database
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=ainews
+POSTGRES_HOST=xxx
+
+# API Keys
+GOOGLE_API_KEY=your_google_api_key_here
+DEEPSEEK_API_KEY=xxx
+```
+
+ps: the app only use deepseek now. If you want to use gemini, replace `build_deepseek_generator` with `build_gemini_generator` in `backend/app/services/brief_service.py`
+
+## Deployment
+
+1. Clone the repository:
+
+2. Create and configure the `.env` file as shown above.
+
+3. Build and start the containers:
+
+```bash
+docker-compose up -d
+```
+
+## Development Setup
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python run.py
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+[MIT License](LICENSE)

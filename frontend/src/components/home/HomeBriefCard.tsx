@@ -1,45 +1,69 @@
 import { useEffect } from "react";
 
-import Markdown from "react-markdown";
-import MainCard from "../MainCard";
 import { useState } from "react";
-import { FeedBrief } from "../../types";
-import { getHomeFeeds } from "../../services/FeedService";
+import Markdown from "react-markdown";
 import { GeneratingBrief } from "../../constants";
+import { getHomeFeeds } from "../../services/FeedService";
+import { FeedBrief } from "../../types";
+import MainCard from "../MainCard";
 
 export default function HomeBriefCard() {
   const [brief, setBrief] = useState<FeedBrief>(GeneratingBrief);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const fetchTodayFeed = async () => {
-      const data = await getHomeFeeds();
-      if (data === null) {
-        setLoading(false);
-        const checkInterval = setInterval(async () => {
-          try {
-            const newData = await getHomeFeeds();
-            if (newData !== null) {
-              setBrief(newData);
-              clearInterval(checkInterval);
-            }
-          } catch (err) {
-            console.error("Error checking brief status:", err);
-            clearInterval(checkInterval);
-            setError(
-              "Failed to check content status. Please refresh the page."
-            );
-          }
-        }, 5000);
 
-        // Cleanup interval on component unmount
-        return () => clearInterval(checkInterval);
+  useEffect(() => {
+    let checkInterval: NodeJS.Timeout | null = null;
+
+    const fetchTodayFeed = async () => {
+      try {
+        const data = await getHomeFeeds();
+        if (data === null) {
+          setLoading(false);
+          // Store interval ID so we can clear it later
+          checkInterval = setInterval(async () => {
+            try {
+              const newData = await getHomeFeeds();
+              if (newData !== null) {
+                setBrief(newData);
+                if (checkInterval) {
+                  clearInterval(checkInterval);
+                  checkInterval = null;
+                }
+              }
+            } catch (err) {
+              console.error("Error checking brief status:", err);
+              if (checkInterval) {
+                clearInterval(checkInterval);
+                checkInterval = null;
+              }
+              setError(
+                "Failed to check content status. Please refresh the page."
+              );
+            }
+          }, 5000);
+        } else {
+          setBrief(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error fetching brief:", err);
+        setError("Failed to fetch content. Please refresh the page.");
+        setLoading(false);
       }
-      setBrief(data);
-      setLoading(false);
     };
+
     fetchTodayFeed();
+
+    // Cleanup function that runs when component unmounts or effect re-runs
+    return () => {
+      if (checkInterval) {
+        clearInterval(checkInterval);
+        checkInterval = null;
+      }
+    };
   }, []);
+
   if (loading) {
     // Loading state
     return (

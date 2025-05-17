@@ -1,7 +1,8 @@
 import logging
 from datetime import datetime
 
-from app.services.feed_service import generate_today_brief, retrieve_new_feeds
+from app.services.brief_service import generate_today_brief
+from app.services.feed_service import retrieve_new_feeds
 
 logger = logging.getLogger(__name__)
 

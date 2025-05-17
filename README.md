@@ -52,7 +52,9 @@ ps: the app only use deepseek now. If you want to use gemini, replace `build_dee
 
 2. Create and configure the `.env` file as shown above.
 
-3. Build and start the containers:
+3. Create a PostgresSQL and execute sql script `backend/sql/schema.sql`
+
+4. Build and start the containers:
 
 ```bash
 docker-compose up -d

@@ -6,13 +6,15 @@ FlashNews is a modern news aggregation and summarization platform that helps you
 
 You can categorize topics that interest you into groups. LLM will conclude daily news based on your groups. You can get all you need to know in just one page.
 
+PS: It's another round of information moisture. Be careful about what you see.
+
 ## Features
 
 - **News Aggregation**: Automatically collects news from various RSS feeds
 - **Smart Grouping**: Organize news sources into custom groups (e.g., Tech, Finance, Sports)
 - **Daily Summaries**: Generates concise summaries of news articles for each group
 
-![](https://raw.githubusercontent.com/FaustsRep/picbed/main/notes/CleanShot%202025-05-17%20at%2012.03.32%402x.png)
+![Showcase](https://raw.githubusercontent.com/FaustsRep/picbed/main/notes/CleanShot%202025-05-17%20at%2012.03.32%402x.png)
 
 ## TODO
 

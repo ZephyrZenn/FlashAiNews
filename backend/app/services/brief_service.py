@@ -3,10 +3,9 @@ import logging
 from collections import defaultdict
 from typing import List, Optional
 
-from app.constants import DEFAULT_PROMPT
 from app.db.pool import execute_transaction, get_connection
 from app.models.feed import FeedArticle, FeedBrief
-from app.services.brief_generator import build_deepseek_generator
+from app.services.brief_generator import build_generator
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +113,7 @@ def generate_today_brief():
                         has_full_content=True,
                     )
                 )
-        generator = build_deepseek_generator(DEFAULT_PROMPT, "deepseek-reasoner")
+        generator = build_generator()
         for group_id, arts in articles.items():
             if not arts:
                 continue

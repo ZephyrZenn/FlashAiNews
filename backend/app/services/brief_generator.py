@@ -4,12 +4,12 @@ import re
 from abc import ABC, abstractmethod
 from typing import Optional
 
+from app.config import llm
 from app.models.feed import FeedArticle
 from google import genai
 from google.genai import types
 from openai import OpenAI
 
-import os
 
 from app.models.generator import GeneratorType
 
@@ -96,52 +96,18 @@ class OpenAIGenerator(AIGenerator):
             raise e
 
 
-def build_gemini_generator(prompt: str, model: str, limit: int = 5) -> AIGenerator:
-    """
-    Build a Gemini generator.
-    Args:
-        prompt (str): The prompt to use for summarization.
-        model (str): The model to use for summarization.
-        limit (int): The maximum number of articles to summarize.
-    Returns:
-        AIGenerator: An instance of the GeminiGenerator class.
-    """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable is not set.")
+def build_generator(model_name: str = None) -> AIGenerator:
+    model = llm.get_model(model_name)
+    prompt = llm.get_prompt()
+    # TODO: Limit is not used
     return _build_generator(
-        GeneratorType.GEMINI,
+        generator_type=GeneratorType(model["provider"]),
         prompt=prompt,
-        api_key=api_key,
-        base_url=None,
-        model=model,
-        limit=limit,
+        api_key=model["api_key"],
+        base_url=model["base_url"],
+        model=model["model"],
+        limit=5,
     )
-
-
-def build_deepseek_generator(prompt: str, model: str, limit: int = 5) -> AIGenerator:
-    """
-    Build a DeepSeek generator.
-    Args:
-        prompt (str): The prompt to use for summarization.
-        model (str): The model to use for summarization.
-        limit (int): The maximum number of articles to summarize.
-    Returns:
-        AIGenerator: An instance of the OpenAIGenerator class.
-    """
-    api_key = os.getenv("DEEPSEEK_API_KEY")
-    if not api_key:
-        raise ValueError("DEEPSEEK_API_KEY environment variable is not set.")
-    base_url = "https://api.deepseek.com"
-    return _build_generator(
-        generator_type=GeneratorType.DEEPSEEK,
-        prompt=prompt,
-        api_key=api_key,
-        base_url=base_url,
-        model=model,
-        limit=limit,
-    )
-
 
 def _build_generator(
         generator_type: GeneratorType,

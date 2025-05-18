@@ -28,23 +28,42 @@ PS: It's another round of information moisture. Be careful about what you see.
 - Docker and Docker Compose
 - Google API Key / Deepseek API Key for news summarization (Support more models in the future)
 
-## Environment Variables
+## Config
 
 Create a `.env` file in the root directory with the following variables:
 
 ```env
 # Database
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
+POSTGRES_USER=your_pg_username
+POSTGRES_PASSWORD=your_password
 POSTGRES_DB=ainews
 POSTGRES_HOST=xxx
 
-# API Keys
-GOOGLE_API_KEY=your_google_api_key_here
-DEEPSEEK_API_KEY=xxx
 ```
 
-ps: the app only use deepseek now. If you want to use gemini, replace `build_deepseek_generator` with `build_gemini_generator` in `backend/app/services/brief_service.py`
+Create a `config.toml` file under `backend` directory. The provider only supports `openai`, `gemini`, `deepseek` now.
+
+```toml
+[global]
+default_model = "deepseek-r1"
+prompt = ""
+
+[models.deepseek-r1]
+model = "deepseek-reasoner"
+api_key = "your_api_key"
+base_url = "https://api.deepseek.com"
+provider = "deepseek"
+
+[models.gemini-flash]
+model = "your model"
+api_key = "your_api_key"
+provider = "gemini"
+
+[models.name]
+model = "model"
+api_key = "api_key"
+provider = "provider"
+```
 
 ## Deployment
 

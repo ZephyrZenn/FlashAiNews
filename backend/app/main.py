@@ -5,6 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config.llm import init_llm_config
 import app.services.brief_service as brief_service
 from app.config.thread import init_thread_pool, shutdown_thread_pool
 from app.crons import generate_daily_brief
@@ -32,6 +33,7 @@ scheduler = BackgroundScheduler()
 async def lifespan(app: FastAPI):
     logger.info("Initialize scheduler, thread pool")
     init_thread_pool()
+    init_llm_config()
     scheduler.add_job(generate_daily_brief, "cron", hour=0, minute=0)
     scheduler.start()
     yield

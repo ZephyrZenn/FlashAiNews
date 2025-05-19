@@ -5,7 +5,6 @@ from app.models.common import CamelModel, CommonResult
 
 
 
-
 class FeedVO(CamelModel):
     id: int
     title: str
@@ -28,6 +27,18 @@ class FeedBriefVO(CamelModel):
     group: Optional[FeedGroupVO] = None
 
 
+class ModelSettingVO(CamelModel):
+    name: str
+    model: str
+    provider: str
+    api_key: str
+    base_url: str
+
+class SettingVO(CamelModel):
+    model: ModelSettingVO
+    prompt: str
+
+
 class FeedBriefResponse(CommonResult[FeedBriefVO]):
     pass
 
@@ -44,4 +55,7 @@ class FeedGroupDetailResponse(CommonResult[FeedGroupVO]):
 
 
 class FeedListResponse(CommonResult[List[FeedVO]]):
+    pass
+
+class SettingResponse(CommonResult[SettingVO]):
     pass

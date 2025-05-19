@@ -4,6 +4,7 @@ import BriefPage from "./pages/BriefPage";
 import FeedPage from "./pages/FeedPage";
 import GroupPage from "./pages/GroupPage";
 import HomePage from "./pages/HomePage";
+import SettingsPage from "./pages/SettingsPage";
 
 function App() {
   return (
@@ -27,10 +28,7 @@ function App() {
             <Link to="/brief" className="text-gray-800 hover:text-gray-600">
               Brief
             </Link>
-            <Link
-              to="/group/new"
-              className="text-gray-800 hover:text-gray-600"
-            >
+            <Link to="/group/new" className="text-gray-800 hover:text-gray-600">
               Group
             </Link>
             <Link to="/feed" className="text-gray-800 hover:text-gray-600">
@@ -48,6 +46,7 @@ function App() {
           <Route path="/brief" element={<BriefPage />} />
           <Route path="/brief/:id" element={<BriefPage />} />
           <Route path="/feed" element={<FeedPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </BrowserRouter>
     </div>

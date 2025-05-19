@@ -13,7 +13,7 @@ from app.exception import BizException, handle_biz_exception, handle_exception
 from app.middleware import LogMiddleware
 from app.models.common import success_with_data
 from app.models.view_model import FeedBriefResponse
-from app.router import brief, feed, group
+from app.router import brief, feed, group, setting
 from app.services import group_service, retrieve_and_generate_brief
 from app.utils.thread_utils import submit_to_thread
 
@@ -48,6 +48,7 @@ app = FastAPI(lifespan=lifespan, root_path="/api")
 app.include_router(feed.router)
 app.include_router(group.router)
 app.include_router(brief.router)
+app.include_router(setting.router)
 
 # CORS
 app.add_middleware(

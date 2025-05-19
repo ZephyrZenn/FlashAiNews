@@ -1,7 +1,7 @@
 interface CommonResult<T> {
-    success: boolean;
-    message: string;
-    data: T;
+  success: boolean;
+  message: string;
+  data: T;
 }
 
 interface FeedBrief {
@@ -27,4 +27,24 @@ interface Feed {
   desc: string;
 }
 
-export type { FeedBrief, FeedGroup, Feed, CommonResult };
+export enum LLMProvider {
+  OPENAI = "openai",
+  GEMINI = "gemini",
+  DEEPSEEK = "deepseek",
+}
+
+interface ModelConfig {
+  name: string;
+  model: string;
+  provider: LLMProvider;
+  apiKey: string;
+  baseUrl: string;
+  isDefault: boolean;
+}
+
+interface Settings {
+  prompt: string;
+  model: ModelConfig;
+}
+
+export type { CommonResult, Feed, FeedBrief, FeedGroup, ModelConfig, Settings };

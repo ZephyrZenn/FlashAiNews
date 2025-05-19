@@ -1,6 +1,7 @@
 from typing import Optional
 
-from app.models.common import CamelModel
+from .common import CamelModel
+from .setting import ModelSetting
 
 
 class ModifyGroupRequest(CamelModel):
@@ -18,3 +19,7 @@ class ModifyFeedRequest(CamelModel):
     title: str
     desc: str
     url: str
+
+class ModifySettingRequest(CamelModel):
+    model: Optional[ModelSetting] = None
+    prompt: Optional[str] = None

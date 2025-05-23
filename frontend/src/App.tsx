@@ -12,6 +12,7 @@ function App() {
       className="
       min-h-screen
       flex
+      flex-col
       items-center
       justify-center
       p-4 sm:p-8
@@ -20,7 +21,7 @@ function App() {
     >
       <ToastProvider />
       <BrowserRouter>
-        <div className="fixed top-0 left-0 right-0 bg-white bg-opacity-20 p-4 flex justify-end">
+        <div className="fixed top-0 left-0 right-0 bg-white bg-opacity-20 p-4 flex justify-end z-10">
           <nav className="space-x-6 mr-28">
             <Link to="/" className="text-gray-800 hover:text-gray-600">
               Home
@@ -39,15 +40,17 @@ function App() {
             </Link>
           </nav>
         </div>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/group/:id" element={<GroupPage />} />
-          <Route path="/group/new" element={<GroupPage />} />
-          <Route path="/brief" element={<BriefPage />} />
-          <Route path="/brief/:id" element={<BriefPage />} />
-          <Route path="/feed" element={<FeedPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Routes>
+        <div className="flex-1 w-full flex items-center justify-center h-[60vh]">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/group/:id" element={<GroupPage />} />
+            <Route path="/group/new" element={<GroupPage />} />
+            <Route path="/brief" element={<BriefPage />} />
+            <Route path="/brief/:id" element={<BriefPage />} />
+            <Route path="/feed" element={<FeedPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </div>
       </BrowserRouter>
     </div>
   );

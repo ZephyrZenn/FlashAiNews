@@ -99,7 +99,7 @@ class OpenAIGenerator(AIGenerator):
 
 def build_generator(model_name: str = None) -> AIGenerator:
     name, model = llm.get_model(model_name)
-    prompt = llm.get_prompt()
+    prompt = llm.get_full_prompt()
     # TODO: Limit is not used
     return _build_generator(
         generator_type=GeneratorType(model["provider"]),

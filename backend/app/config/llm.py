@@ -2,7 +2,7 @@ import os
 from typing import Optional
 import toml
 
-from app.constants import DEFAULT_PROMPT
+from app.constants import DEFAULT_INSTRUCTION_PROMPT, PROMPT_TEMPLATE
 
 import logging
 
@@ -46,7 +46,9 @@ class LLMConfig:
         return self.get_model(name)
 
     def get_prompt(self) -> str:
-        return self.config["global"].get("prompt", DEFAULT_PROMPT)
+        if "prompt" not in self.config["global"] or not self.config["global"]["prompt"]:
+            return DEFAULT_INSTRUCTION_PROMPT
+        return self.config["global"]["prompt"]
 
     def has_inited(self) -> bool:
         try:
@@ -93,6 +95,12 @@ def get_model(name: str = None) -> tuple[str, dict]:
 def get_prompt() -> str:
     global llm_config
     return llm_config.get_prompt()
+
+
+def get_full_prompt() -> str:
+    global llm_config
+    prompt = llm_config.get_prompt()
+    return PROMPT_TEMPLATE.format(instruction=prompt)
 
 
 def update_setting(prompt: Optional[str] = None, model: Optional[ModelSetting] = None):

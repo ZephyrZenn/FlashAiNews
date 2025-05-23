@@ -11,6 +11,7 @@ from app.services.group_service import create_group
 class FeedServiceTest(unittest.TestCase):
 
     def test_generate_today_feed(self):
+        init_llm_config()
         retrieve_new_feeds()
         generate_today_brief()
 

@@ -4,13 +4,12 @@ import re
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from app.config import llm
-from app.models.feed import FeedArticle
 from google import genai
 from google.genai import types
 from openai import OpenAI
 
-
+from app.config import llm
+from app.models.feed import FeedArticle
 from app.models.generator import GeneratorType
 
 logger = logging.getLogger(__name__)
@@ -21,7 +20,7 @@ This module provides an abstract base class for AI generators and concrete imple
 
 class AIGenerator(ABC):
     def __init__(
-            self, prompt: str, api_key: str, base_url: str, model: str, limit: int = 5
+        self, prompt: str, api_key: str, base_url: str, model: str, limit: int = 5
     ):
         """
         Initialize the AIGenerator with a prompt and limit.
@@ -74,7 +73,9 @@ class GeminiGenerator(AIGenerator):
 
 class OpenAIGenerator(AIGenerator):
     def __init__(self, prompt, base_url, model, api_key, limit=5):
-        super().__init__(prompt=prompt, base_url=base_url, model=model, api_key=api_key, limit=limit)
+        super().__init__(
+            prompt=prompt, base_url=base_url, model=model, api_key=api_key, limit=limit
+        )
 
     def sum_up(self, articles: list[FeedArticle]) -> dict[str, str]:
         try:
@@ -97,7 +98,7 @@ class OpenAIGenerator(AIGenerator):
 
 
 def build_generator(model_name: str = None) -> AIGenerator:
-    model = llm.get_model(model_name)
+    name, model = llm.get_model(model_name)
     prompt = llm.get_prompt()
     # TODO: Limit is not used
     return _build_generator(
@@ -109,13 +110,14 @@ def build_generator(model_name: str = None) -> AIGenerator:
         limit=5,
     )
 
+
 def _build_generator(
-        generator_type: GeneratorType,
-        prompt: str,
-        api_key: str,
-        base_url: Optional[str],
-        model: str,
-        limit: int = 5,
+    generator_type: GeneratorType,
+    prompt: str,
+    api_key: str,
+    base_url: Optional[str],
+    model: str,
+    limit: int = 5,
 ) -> AIGenerator:
     """
     Build an AI generator based on the model type.
@@ -131,8 +133,13 @@ def _build_generator(
     """
     if generator_type == GeneratorType.GEMINI:
         return GeminiGenerator(prompt=prompt, api_key=api_key, model=model, limit=limit)
-    elif generator_type == GeneratorType.DEEPSEEK or generator_type == GeneratorType.OPENAI:
-        return OpenAIGenerator(prompt=prompt, base_url=base_url, model=model, api_key=api_key, limit=limit)
+    elif (
+        generator_type == GeneratorType.DEEPSEEK
+        or generator_type == GeneratorType.OPENAI
+    ):
+        return OpenAIGenerator(
+            prompt=prompt, base_url=base_url, model=model, api_key=api_key, limit=limit
+        )
     else:
         raise ValueError(f"Unsupported generator type: {generator_type}")
 

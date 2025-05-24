@@ -1,11 +1,12 @@
 import logging
 from contextlib import asynccontextmanager
+import os
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config.llm import init_llm_config
+from app.config.llm import close_config_watcher, init_llm_config
 import app.services.brief_service as brief_service
 from app.config.thread import init_thread_pool, shutdown_thread_pool
 from app.crons import generate_daily_brief
@@ -31,6 +32,7 @@ scheduler = BackgroundScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Start app. Current env: %s", os.getenv("ENV"))
     logger.info("Initialize scheduler, thread pool")
     init_thread_pool()
     init_llm_config()
@@ -41,6 +43,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     # Shutdown: Clean up thread pool
     shutdown_thread_pool()
+    close_config_watcher()
 
 
 # Router

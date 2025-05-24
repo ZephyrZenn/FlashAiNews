@@ -1,4 +1,8 @@
 import uvicorn
+import os
+
+# Set environment variable for development
+os.environ.setdefault("ENV", "dev")
 
 if __name__ == "__main__":
     uvicorn.run(

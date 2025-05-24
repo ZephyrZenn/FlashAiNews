@@ -39,5 +39,5 @@ async def handle_exception(request, exc):
     :param exc: The exception object.
     :return: JSON response with error message and status code 500.
     """
-    logger.error("An unexpected error occurred: %s", str(exc))
+    logger.error("An unexpected error occurred: %s", str(exc), exc_info=True)
     return failure_with_message(str(exc))

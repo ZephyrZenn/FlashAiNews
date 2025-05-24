@@ -1,11 +1,12 @@
-import os
+import logging
+from pathlib import Path
 from typing import Optional
+
 import toml
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
+from watchdog.observers import Observer
 
 from app.constants import DEFAULT_INSTRUCTION_PROMPT, PROMPT_TEMPLATE
-
-import logging
-
 from app.models.setting import ModelSetting
 
 logger = logging.getLogger(__name__)
@@ -19,18 +20,28 @@ def _validate_llm_config(config: dict):
     if "provider" not in config:
         raise ValueError("provider is required")
 
+# TODO: The watcher doesn't work in the container, need to fix it
 
-class LLMConfig:
-    def __init__(self, config_path):
-        if not os.path.exists(config_path):
-            raise ValueError(f"Config file {config_path} not found")
+class ConfigManager(FileSystemEventHandler):
+    def __init__(self, config_path: Path):
         self.config_path = config_path
-        self.config = toml.load(config_path)
+        self.config = None
+        self.load()
+
+    def load(self):
+        self.config = toml.load(self.config_path)
         if "models" not in self.config:
             self.config["models"] = {}
         if "global" not in self.config:
             self.config["global"] = {}
-        self.save()
+
+    def on_modified(self, event):
+        logger.info(f"Config file modified: {event.src_path}")
+        # Convert both paths to absolute paths for consistent comparison
+        event_path = Path(event.src_path).resolve()
+        config_path = Path(self.config_path).resolve()
+        if event_path == config_path:
+            self.load()
 
     def get_model(self, name: str) -> tuple[str, dict]:
         if name not in self.config["models"]:
@@ -70,19 +81,36 @@ class LLMConfig:
             self.config["models"][model.name]["base_url"] = model.base_url
         self.config["global"]["default_model"] = model.name
 
-    def save(self):
-        with open(self.config_path, "w") as f:
-            toml.dump(self.config, f)
-
 
 llm_config = None
+_observer = None
 
 
 def init_llm_config(config_path: str = "config.toml"):
-    global llm_config
-    llm_config = LLMConfig(config_path)
+    global llm_config, _observer
+    path = Path(config_path).resolve()
+    llm_config = ConfigManager(path)
     if "models" in llm_config.config:
         logger.info(f"Loaded Models: {[name for name in llm_config.config['models']]}")
+
+    if _observer is not None:
+        logger.info("LLM config watcher already initialized")
+        return
+
+    logger.info(f"Initializing LLM config watcher for file: {path}")
+    _observer = Observer()
+    _observer.schedule(llm_config, path, recursive=True)
+    _observer.start()
+    logger.info(f"LLM config initialized. Watching config file: {path}")
+
+
+def close_config_watcher():
+    global _observer
+    if _observer:
+        _observer.stop()
+        _observer.join()
+        _observer = None
+        logger.info("LLM config watcher closed")
 
 
 def get_model(name: str = None) -> tuple[str, dict]:

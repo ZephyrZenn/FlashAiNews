@@ -43,6 +43,8 @@ POSTGRES_HOST=xxx
 
 Create a `config.toml` file under `backend` directory. The provider only supports `openai`, `gemini`, `deepseek` now.
 
+You only need to provide one model configuration here. The app would choose the model with same name as `global.default_model`. Eg. In `models.deepseek-r1`, `deepseek-r1` is the model name.
+
 ```toml
 [global]
 default_model = "deepseek-r1"
@@ -54,15 +56,6 @@ api_key = "your_api_key"
 base_url = "https://api.deepseek.com"
 provider = "deepseek"
 
-[models.gemini-flash]
-model = "your model"
-api_key = "your_api_key"
-provider = "gemini"
-
-[models.name]
-model = "model"
-api_key = "api_key"
-provider = "provider"
 ```
 
 ## Deployment

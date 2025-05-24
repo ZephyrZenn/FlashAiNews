@@ -3,12 +3,15 @@ import os
 from contextlib import contextmanager
 from typing import Callable
 
-from dotenv import load_dotenv
 from psycopg2 import InterfaceError, OperationalError
 from psycopg2.pool import ThreadedConnectionPool
 
 logger = logging.getLogger(__name__)
-load_dotenv()
+
+if os.getenv("ENV") == "dev":
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
 user = os.getenv("POSTGRES_USER")
 password = os.getenv("POSTGRES_PASSWORD")

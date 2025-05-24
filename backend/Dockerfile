@@ -22,10 +22,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY run.py .
 
-# Create a non-root user and switch to it
-RUN adduser --disabled-password --gecos "" appuser
-USER appuser
-
 # Expose the port the app runs on
 EXPOSE $PORT
 

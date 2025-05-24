@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import MainCard from "../components/MainCard";
 import { useToast } from "../components/toast/useToast";
-import { LLMProvider, ModelConfig, Settings } from "../types";
 import { getSetting, updateSetting } from "../services/SettingService";
-import React from "react";
+import { LLMProvider, ModelConfig, Settings } from "../types";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
@@ -17,7 +16,7 @@ export default function SettingsPage() {
       isDefault: false,
     },
   });
-  const [isEditing, setIsEditing] = useState<boolean>(false);
+//   const [isEditing, setIsEditing] = useState<boolean>(false);
   const { success, error } = useToast();
 
   useEffect(() => {
@@ -136,17 +135,14 @@ export default function SettingsPage() {
             </div>
             <div className="flex justify-between items-center mb-4"></div>
             <div className="space-y-4">
-              <div
-                key={0}
-                className="p-4 border rounded-lg space-y-4"
-              >
+              <div key={0} className="p-4 border rounded-lg space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <ModelItem
                     label="Name"
                     itemType="text"
                     value={settings.model.name}
                     onChange={(e) => handleModelChange("name", e.target.value)}
-                    disabled={!isEditing}
+                    disabled={true}
                   />
                   <ModelItem
                     label="Provider"
@@ -155,16 +151,7 @@ export default function SettingsPage() {
                     onChange={(e) =>
                       handleModelChange("provider", e.target.value)
                     }
-                    disabled={!isEditing}
-                  />
-                  <ModelItem
-                    label="API Key"
-                    itemType="text"
-                    value={settings.model.apiKey}
-                    onChange={(e) =>
-                      handleModelChange("apiKey", e.target.value)
-                    }
-                    disabled={!isEditing}
+                    disabled={true}
                   />
                   <ModelItem
                     label="Base URL"
@@ -173,7 +160,7 @@ export default function SettingsPage() {
                     onChange={(e) =>
                       handleModelChange("baseUrl", e.target.value)
                     }
-                    disabled={!isEditing}
+                    disabled={true}
                   />
                 </div>
                 <div className="flex justify-between items-center">
@@ -189,7 +176,7 @@ export default function SettingsPage() {
                         Set as default
                       </span>
                     </label> */}
-                  {isEditing ? (
+                  {/* {isEditing ? (
                     <button
                       onClick={handleSave}
                       className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -203,7 +190,7 @@ export default function SettingsPage() {
                     >
                       Edit
                     </button>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>

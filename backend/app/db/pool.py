@@ -8,35 +8,33 @@ from psycopg2.pool import ThreadedConnectionPool
 
 logger = logging.getLogger(__name__)
 
-if os.getenv("ENV") == "dev":
-    from dotenv import load_dotenv
-
-    load_dotenv()
-
-user = os.getenv("POSTGRES_USER")
-password = os.getenv("POSTGRES_PASSWORD")
-host = os.getenv("POSTGRES_HOST")
-port = int(os.getenv("POSTGRES_PORT", 5432))
-database = os.getenv("POSTGRES_DB")
+# Remove global pool variable
+_pool = None
 
 
-def create_pool():
-    try:
-        return ThreadedConnectionPool(
-            minconn=1,
-            maxconn=10,
-            user=user,
-            password=password,
-            host=host,
-            port=port,
-            database=database,
-        )
-    except Exception as e:
-        logger.error(f"Error creating connection pool: {e}")
-        return None
+def get_pool():
+    global _pool
+    if _pool is None:
+        user = os.getenv("POSTGRES_USER")
+        password = os.getenv("POSTGRES_PASSWORD")
+        host = os.getenv("POSTGRES_HOST")
+        port = int(os.getenv("POSTGRES_PORT", 5432))
+        database = os.getenv("POSTGRES_DB")
 
-
-pool = create_pool()
+        try:
+            _pool = ThreadedConnectionPool(
+                minconn=1,
+                maxconn=10,
+                user=user,
+                password=password,
+                host=host,
+                port=port,
+                database=database,
+            )
+        except Exception as e:
+            logger.error(f"Error creating connection pool: {e}")
+            return None
+    return _pool
 
 
 def validate_connection(conn):
@@ -52,17 +50,15 @@ def validate_connection(conn):
 @contextmanager
 def get_connection():
     """Get a connection from the pool with validation and retry logic"""
-    global pool
     conn = None
     max_retries = 3
     retry_count = 0
 
     while retry_count < max_retries:
         try:
+            pool = get_pool()
             if pool is None:
-                pool = create_pool()
-                if pool is None:
-                    raise Exception("Failed to create connection pool")
+                raise Exception("Failed to create connection pool")
 
             conn = pool.getconn()
 

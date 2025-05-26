@@ -1,0 +1,16 @@
+[global]
+email_enabled = false
+default_model = "default_model_name"
+prompt = ""
+
+[email]
+sender = "your email address for sending"
+password = "password"
+receiver = "receiver"
+smtp_server = "smtp server address"
+
+[models.default_model_name]
+model = "model"
+provider = "openai | deepseek | gemini"
+api_key = "your api key"
+base_url = "base url of model provider"

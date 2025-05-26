@@ -14,12 +14,10 @@ def get_today_brief() -> Optional[FeedBrief]:
     sql = """
           SELECT id, group_id, title, content, created_at
           FROM feed_brief
-          WHERE group_id = (
-              SELECT id
-              FROM feed_groups
-              WHERE is_default = TRUE
-          )
-          AND created_at::date = CURRENT_DATE
+          WHERE group_id = (SELECT id
+                            FROM feed_groups
+                            WHERE is_default = TRUE)
+            AND created_at::date = CURRENT_DATE
           ORDER BY created_at DESC
           LIMIT 1
           """
@@ -39,11 +37,31 @@ def get_today_brief() -> Optional[FeedBrief]:
             return brief
 
 
+def get_today_all_briefs() -> List[tuple[FeedBrief, str]]:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT fb.id, fb.title, fb.content, fb.created_at, fb.group_id, fg.title
+                   FROM feed_brief fb,
+                        feed_groups fg
+                   WHERE fb.group_id = fg.id
+                     AND fb.created_at::date = CURRENT_DATE"""
+            )
+            rows = cur.fetchall()
+            return [
+                (FeedBrief(id=row[0], title=row[1], content=row[2], pub_date=row[3], group_id=row[4]), row[5])
+                for row in rows
+            ]
+
+
 def get_group_brief(group_id: int, date: datetime.date):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT id, title, content, created_at FROM feed_brief WHERE group_id = %s AND created_at::date = %s""",
+                """SELECT id, title, content, created_at
+                   FROM feed_brief
+                   WHERE group_id = %s
+                     AND created_at::date = %s""",
                 (group_id, date),
             )
             res = cur.fetchone()
@@ -68,7 +86,10 @@ def get_history_brief(group_id: int):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT id, title, content, created_at FROM feed_brief WHERE group_id = %s ORDER BY created_at DESC""",
+                """SELECT id, title, content, created_at
+                   FROM feed_brief
+                   WHERE group_id = %s
+                   ORDER BY created_at DESC""",
                 (group_id,),
             )
             rows = cur.fetchall()
@@ -126,7 +147,10 @@ def get_default_group_briefs() -> Optional[List[FeedBrief]]:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT id, title, content, group_id, created_at FROM feed_brief WHERE group_id = (SELECT id FROM feed_groups WHERE is_default = TRUE) ORDER BY created_at DESC"""
+                """SELECT id, title, content, group_id, created_at
+                   FROM feed_brief
+                   WHERE group_id = (SELECT id FROM feed_groups WHERE is_default = TRUE)
+                   ORDER BY created_at DESC"""
             )
             rows = cur.fetchall()
             if not rows:

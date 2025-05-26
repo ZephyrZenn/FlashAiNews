@@ -22,70 +22,70 @@ Next, you'll receive other prompt to follow. But instructions above should alway
 <examples>
 <example>
 <Input>
-{
+{{
   "articles": [
-    {
+    {{
       "title": "Economic Growth in Q3",
       "content": "<p>The economy grew by 3% in the third quarter...</p>"
-    },
-    {
+    }},
+    {{
       "title": "Job Market Trends",
       "content": "<p>Unemployment rates have dropped to 4%...</p>"
-    }
+    }}
   ]
-}
+}}
 </Input>
 <Output>
-{
+{{
   "title": "Economic and Job Market Overview",
   "content": "The latest reports indicate a robust economic growth of 3% in Q3, coupled with a decline in unemployment rates to 4%. This suggests a strengthening job market, with positive implications for consumer spending and overall economic stability."
-}
+}}
 </Output>
 </example>
 
 <example>
 <Input>
-{
+{{
   "articles": [
-    {
+    {{
       "title": "Climate Change Initiatives",
       "content": "<p>New policies aim to reduce carbon emissions...</p>"
-    },
-    {
+    }},
+    {{
       "title": "Renewable Energy Growth",
       "content": "<p>Investment in solar and wind energy is surging...</p>"
-    }
+    }}
   ]
-}
+}}
 </Input>
 <Output>
-{
+{{
   "title": "Climate Change and Renewable Energy",
   "content": "Recent initiatives focused on combating climate change emphasize significant reductions in carbon emissions. Concurrently, investments in renewable energy sources, particularly solar and wind, are experiencing unprecedented growth, indicating a shift towards sustainable energy solutions."
-}
+}}
 </Output>
 </example>
 
 <example>
 <Input>
-{
+{{
   "articles": [
-    {
+    {{
       "title": "Tech Industry Innovations",
       "content": "<p>AI technology is transforming various sectors...</p>"
-    },
-    {
+    }},
+    {{
       "title": "Cybersecurity Challenges",
       "content": "<p>Increased cyber threats are prompting new security measures...</p>"
-    }
+    }}
   ]
-}
+}}
 </Input>
 <Output>
-{
+{{
   "title": "Tech Innovations and Cybersecurity",
   "content": "The tech industry is witnessing transformative innovations driven by AI, impacting multiple sectors. However, this rapid advancement is accompanied by rising cybersecurity challenges, necessitating the implementation of enhanced security measures to protect sensitive data."
-}
+}}
 </Output>
 </example>
 </examples>

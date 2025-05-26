@@ -66,7 +66,9 @@ provider = "deepseek"
 
 3. Create a PostgresSQL and execute sql script `backend/sql/schema.sql`
 
-4. Build and start the containers:
+4. Create `config.toml` like `config.toml.example` and configure it.
+
+5. Build and start the containers:
 
 ```bash
 docker-compose up -d

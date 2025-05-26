@@ -1,16 +1,17 @@
-from typing import Optional
-from .generator import GeneratorType
 from dataclasses import dataclass
 
+from app.models.generator import ModelProvider
+
+
 @dataclass
-class ModelSetting:
+class ModelConfig:
     name: str
     model: str
-    provider: GeneratorType
+    provider: ModelProvider
     api_key: str
-    base_url: Optional[str] = None
+    base_url: str
 
 @dataclass
 class Setting:
-    model: ModelSetting
+    model: ModelConfig
     prompt: str

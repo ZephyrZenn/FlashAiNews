@@ -8,9 +8,10 @@ from google import genai
 from google.genai import types
 from openai import OpenAI
 
-from app.config import llm
+from app.config.loader import get_config
+from app.constants import PROMPT_TEMPLATE
 from app.models.feed import FeedArticle
-from app.models.generator import GeneratorType
+from app.models.generator import ModelProvider
 
 logger = logging.getLogger(__name__)
 
@@ -97,22 +98,23 @@ class OpenAIGenerator(AIGenerator):
             raise e
 
 
-def build_generator(model_name: str = None) -> AIGenerator:
-    name, model = llm.get_model(model_name)
-    prompt = llm.get_full_prompt()
+def build_generator() -> AIGenerator:
+    config = get_config()
+    model_cfg = config.models[config.global_.default_model]
+    prompt = PROMPT_TEMPLATE.format(instruction=config.global_.prompt)
     # TODO: Limit is not used
     return _build_generator(
-        generator_type=GeneratorType(model["provider"]),
+        generator_type=model_cfg.provider,
         prompt=prompt,
-        api_key=model["api_key"],
-        base_url=model["base_url"],
-        model=model["model"],
+        api_key=model_cfg.api_key,
+        base_url=model_cfg.base_url,
+        model=model_cfg.model,
         limit=5,
     )
 
 
 def _build_generator(
-    generator_type: GeneratorType,
+    generator_type: ModelProvider,
     prompt: str,
     api_key: str,
     base_url: Optional[str],
@@ -131,11 +133,11 @@ def _build_generator(
     Returns:
         AIGenerator: An instance of the appropriate AIGenerator subclass.
     """
-    if generator_type == GeneratorType.GEMINI:
+    if generator_type == ModelProvider.GEMINI:
         return GeminiGenerator(prompt=prompt, api_key=api_key, model=model, limit=limit)
     elif (
-        generator_type == GeneratorType.DEEPSEEK
-        or generator_type == GeneratorType.OPENAI
+        generator_type == ModelProvider.DEEPSEEK
+        or generator_type == ModelProvider.OPENAI
     ):
         return OpenAIGenerator(
             prompt=prompt, base_url=base_url, model=model, api_key=api_key, limit=limit

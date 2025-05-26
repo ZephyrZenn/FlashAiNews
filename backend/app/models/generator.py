@@ -1,7 +1,8 @@
 from enum import Enum
 
-class GeneratorType(Enum):
-    """Enum for generator types."""
+
+class ModelProvider(Enum):
+    """Enum for model providers."""
     GEMINI = "gemini"
     OPENAI = "openai"
     DEEPSEEK = "deepseek"

@@ -12,7 +12,10 @@ def init_smtp(config: EmailConfig):
         return
     smtp_server = config.smtp_server
 
-    server = smtplib.SMTP(smtp_server)
+    server = smtplib.SMTP_SSL(smtp_server, 465)
+    # server.ehlo()
+    # server.starttls()
+    # server.ehlo()
     server.set_debuglevel(1)
     server.login(config.sender, config.password)
 

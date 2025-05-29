@@ -173,18 +173,19 @@ def _extract_json(text: str) -> dict[str, str]:
     pattern = r"```json\s*(\{.*?\}|\[.*?\])\s*```"
     matches = re.findall(pattern, text, re.DOTALL)
 
-    json_objects = []
-    for match in matches:
-        try:
-            obj = json.loads(match)
-            json_objects.append(obj)
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse json: {e}, Text: {text}")
-            continue
-    if not json_objects or len(json_objects) == 0:
-        raise ValueError(f"Failed to parse json {json_objects}. Text: {text}")
-    ans = json_objects[0]
-    return {
-        "title": ans.get("title", ""),
-        "content": ans.get("content", ""),
-    }
+    json_text = ""
+    if matches:
+        json_text = matches[0].strip()
+    else:
+        json_text = text.strip()
+
+    try:
+        obj = json.loads(json_text)
+        return {
+            "title": obj.get("title", ""),
+            "content": obj.get("content", ""),
+        }
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse json: {e}, Text: {text}")
+        raise ValueError(f"Failed to parse json {json_text}. Text: {text}")
+

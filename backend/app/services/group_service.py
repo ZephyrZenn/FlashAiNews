@@ -104,7 +104,7 @@ def update_group(group_id: int, title: str, desc: str, feed_ids: list[int]):
             )
             if removed_feed_ids:
                 cur.execute(
-                    """DELETE FROM feed_group_items WHERE feed_id IN (%s) AND feed_group_id = %s""",
+                    """DELETE FROM feed_group_items WHERE feed_id IN %s AND feed_group_id = %s""",
                     (tuple(removed_feed_ids), group_id),
                 )
             if new_feed_ids:

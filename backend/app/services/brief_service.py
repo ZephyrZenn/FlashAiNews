@@ -113,7 +113,7 @@ def generate_today_brief():
                            FROM feed_items f
                                     LEFT JOIN feed_item_contents fic ON f.id = fic.feed_item_id
                                     JOIN feed_group_items fgi ON f.feed_id = fgi.feed_id
-                           WHERE fgi.feed_group_id NOT IN (SELECT feed_group_id
+                           WHERE fgi.feed_group_id NOT IN (SELECT group_id
                                                            FROM feed_brief
                                                            WHERE created_at::date = CURRENT_DATE)
                              AND f.pub_date::date = CURRENT_DATE;

@@ -1,31 +1,8 @@
-import smtplib
-from typing import Optional
 
-from app.exception import BizException
+import resend
+
 from app.models.config import EmailConfig
 
-server: Optional[smtplib.SMTP] = None
 
-def init_smtp(config: EmailConfig):
-    global server
-    if server:
-        return
-    smtp_server = config.smtp_server
-
-    server = smtplib.SMTP_SSL(smtp_server, 465)
-    # server.ehlo()
-    # server.starttls()
-    # server.ehlo()
-    server.set_debuglevel(1)
-    server.login(config.sender, config.password)
-
-def get_server() -> smtplib.SMTP:
-    if not server:
-        raise BizException("STMP server not initialized")
-    return server
-
-def shutdown_smtp():
-    global server
-    if server:
-        server.quit()
-        server = None
+def init_email(config: EmailConfig):
+    resend.api_key = config.api_key

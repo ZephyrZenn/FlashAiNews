@@ -14,9 +14,8 @@ class GlobalConfig:
 @dataclass
 class EmailConfig:
     sender: str
-    password: str
     receiver: str
-    smtp_server: str
+    api_key: str
 
 
 @dataclass

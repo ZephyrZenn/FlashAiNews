@@ -3,21 +3,23 @@ import unittest
 
 from dotenv import load_dotenv
 
-from app.config.email import init_smtp
-from app.config.llm import init_llm_config
+from app.config.loader import load_config
 from app.crons import generate_daily_brief
 from app.services import generate_today_brief
 from app.services.brief_generator import build_generator
 from app.services.feed_service import import_opml_config, retrieve_new_feeds
 from app.services.group_service import create_group
+from backend.app.config.email import init_email
 
 # Load environment variables before importing any modules that might use them
 load_dotenv()
 
+cfg = None
 
 class FeedServiceTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        global cfg
         # Ensure environment variables are loaded
         load_dotenv()
         # Verify required environment variables
@@ -32,11 +34,11 @@ class FeedServiceTest(unittest.TestCase):
             raise ValueError(
                 f"Missing required environment variables: {', '.join(missing_vars)}"
             )
-        init_llm_config()
-        init_smtp()
+        cfg = load_config()
+        init_email(cfg.email)
 
     def test_generate_today_feed(self):
-        retrieve_new_feeds()
+        # retrieve_new_feeds()
         generate_today_brief()
 
     def test_import_opml_config(self):

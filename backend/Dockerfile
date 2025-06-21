@@ -15,6 +15,7 @@ RUN apt-get update \
 
 # Install Python dependencies
 COPY requirements.txt .
+RUN pip3 config set global.index-url https://mirrors.aliyun.com/pypi/simple/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code

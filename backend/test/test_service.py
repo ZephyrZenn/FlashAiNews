@@ -9,7 +9,7 @@ from app.services import generate_today_brief
 from app.services.brief_generator import build_generator
 from app.services.feed_service import import_opml_config, retrieve_new_feeds
 from app.services.group_service import create_group
-from backend.app.config.email import init_email
+from app.config.email import init_email
 
 # Load environment variables before importing any modules that might use them
 load_dotenv()

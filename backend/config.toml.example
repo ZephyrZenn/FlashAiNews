@@ -1,16 +1,79 @@
+# NewsCollector Configuration Example
+# Copy this file to config.toml and update with your settings
+
 [global]
+# Enable or disable email notifications
 email_enabled = false
-default_model = "default_model_name"
-prompt = ""
+
+# Default model to use for generating briefs
+default_model = "openai-gpt4"
+
+# Default prompt template for brief generation
+prompt = """
+1. **Identify Core Themes**: As you read through the articles, look for common themes, major updates, and significant points of consensus or disagreement across the articles.
+
+2. **Synthesize Information**: Combine the insights from all articles into one integrated summary. Focus on the bigger picture rather than detailing individual articles.
+"""
 
 [email]
-sender = "your email address for sending"
-password = "password"
-receiver = "receiver"
-smtp_server = "smtp server address"
+# Email sender address (must be verified with your email provider)
+sender = "FlashAiNews <no-reply@yourdomain.com>"
 
-[models.default_model_name]
-model = "model"
-provider = "openai | deepseek | gemini"
-api_key = "your api key"
-base_url = "base url of model provider"
+# Email recipient address
+receiver = "your-email@example.com"
+
+# Email service API key (Resend, SendGrid, etc.)
+api_key = "your-email-api-key"
+
+# Optional: SMTP configuration (if not using API)
+# smtp_server = "smtp.gmail.com"
+# smtp_port = 587
+# smtp_username = "your-email@gmail.com"
+# smtp_password = "your-app-password"
+
+# OpenAI GPT-4 Configuration
+[models.openai-gpt4]
+model = "gpt-4"
+provider = "openai"
+api_key = "sk-your-openai-api-key"
+base_url = "https://api.openai.com/v1"
+
+# OpenAI GPT-3.5 Configuration (fallback)
+[models.openai-gpt35]
+model = "gpt-3.5-turbo"
+provider = "openai"
+api_key = "sk-your-openai-api-key"
+base_url = "https://api.openai.com/v1"
+
+# DeepSeek Configuration
+[models.deepseek-reasoner]
+model = "deepseek-reasoner"
+provider = "deepseek"
+api_key = "sk-your-deepseek-api-key"
+base_url = "https://api.deepseek.com"
+
+# Google Gemini Configuration
+[models.gemini-pro]
+model = "gemini-pro"
+provider = "gemini"
+api_key = "your-gemini-api-key"
+base_url = "https://generativelanguage.googleapis.com"
+
+# Optional: Database Configuration (if not using environment variables)
+# [database]
+# host = "localhost"
+# port = 5432
+# database = "ainews"
+# username = "postgres"
+# password = "your-password"
+
+# Optional: Logging Configuration
+# [logging]
+# level = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+# format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# file = "logs/app.log"
+
+# Optional: Thread Pool Configuration
+# [thread_pool]
+# max_workers = 4
+# thread_name_prefix = "NewsCollector"

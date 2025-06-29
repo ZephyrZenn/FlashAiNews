@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
         logger.info("Email enabled. Initializing")
         init_email(config.email)
     init_thread_pool()
-    scheduler.add_job(generate_daily_brief, "cron", hour=0, minute=0)
+    scheduler.add_job(generate_daily_brief, "cron", hour=8, minute=0)
     scheduler.start()
     yield
     logger.info("Shutdown scheduler, thread pool")

@@ -138,6 +138,7 @@ def generate_today_brief():
         for group_id, arts in articles.items():
             if not arts:
                 continue
+            logger.info("Generating brief for group %s with %d articles", group_id, len(arts))
             brief = generator.sum_up(arts)
             execute_transaction(_insert_brief, group_id, brief)
     logger.info("Today brief generated")

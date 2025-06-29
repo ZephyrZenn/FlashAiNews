@@ -85,6 +85,7 @@ def retrieve_new_feeds(group_ids: list[int] = None):
             if feed.title not in articles:
                 continue
             feed_articles = articles[feed.title]
+            logger.info("Retrieving %d articles for feed %s", len(feed_articles), feed.title)
             item_sql = """
                        INSERT INTO feed_items (id, feed_id, title, link, pub_date, summary)
                        VALUES (%s, %s, %s, %s, %s, %s)

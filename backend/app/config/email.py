@@ -45,9 +45,6 @@ def init_email(config: EmailConfig, force_reinit: bool = False) -> None:
         # Initialize Resend
         resend.api_key = config.api_key
 
-        # Test the configuration by making a simple API call
-        # This will fail if the API key is invalid
-        resend.domains.list()
 
         _email_initialized = True
         logger.info(f"Email service initialized successfully. Sender: {config.sender}")

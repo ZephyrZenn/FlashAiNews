@@ -17,7 +17,6 @@ from app.models.config import (
 from app.models.generator import ModelProvider
 
 from .utils import (
-    backup_config,
     get_config_summary,
     get_environment_config,
     merge_configs,
@@ -173,14 +172,6 @@ def load_config(reload: bool = False, use_env_overrides: bool = True) -> AppConf
     logger.info(
         f"Configuration loaded successfully. Default model: {global_cfg.default_model}"
     )
-
-    # Create backup of configuration
-    try:
-        backup_path = backup_config(config_path)
-        if backup_path:
-            logger.debug(f"Configuration backed up to: {backup_path}")
-    except Exception as e:
-        logger.warning(f"Failed to backup configuration: {e}")
 
     return _config
 

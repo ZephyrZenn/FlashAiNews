@@ -30,12 +30,10 @@ from .thread import (
     shutdown_thread_pool,
 )
 from .utils import (
-    backup_config,
     create_default_config,
     get_config_summary,
     get_environment_config,
     merge_configs,
-    restore_config,
     validate_config_file_exists,
     validate_model_configs,
 )
@@ -69,6 +67,4 @@ __all__ = [
     "validate_model_configs",
     "get_config_summary",
     "create_default_config",
-    "backup_config",
-    "restore_config",
 ]

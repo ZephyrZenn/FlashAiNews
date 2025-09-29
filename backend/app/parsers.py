@@ -9,6 +9,11 @@ from bs4 import BeautifulSoup
 from app.models.feed import Feed, FeedArticle
 from app.constants import SUMMARY_LENGTH
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Firefox/128.0",
+    "Accept": "application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Referer": "https://www.google.com/",
+}
 
 def parse_opml(file_text: str) -> list[Feed]:
     """
@@ -48,11 +53,17 @@ def parse_feed(feeds: list[Feed]) -> dict[str, list[FeedArticle]]:
     """
     articles = defaultdict(list)
     for feed in feeds:
-        data = feedparser.parse(feed.url)
+        data = feedparser.parse(feed.url, request_headers=HEADERS)
         if not data.entries:
             continue
         for entry in data.entries:
             # TODO: deal with other article metadata
+            published_struct = getattr(entry, "published_parsed", None)
+            if not published_struct:
+                continue
+            pub_date = _convert_to_datetime(published_struct)
+            if pub_date.date() != datetime.datetime.today().date():
+                continue
             guid = None
             if not hasattr(entry, "id"):
                 guid = entry.link
@@ -61,16 +72,15 @@ def parse_feed(feeds: list[Feed]) -> dict[str, list[FeedArticle]]:
             title = entry.title
             url = entry.link
             content, has_full_content = _extract_text_from_entry(entry)
+            summary = content[:SUMMARY_LENGTH] if content else ""
             articles[feed.title].append(
                 FeedArticle(
                     id=guid,
                     title=title[:256],
-                    content=content,
                     url=url,
-                    summary=content[:SUMMARY_LENGTH] if content else "",
-                    pub_date=_convert_to_datetime(entry.published_parsed)
-                    if hasattr(entry, "published_parsed")
-                    else None,
+                    content=content,
+                    pub_date=pub_date,
+                    summary=summary,
                     has_full_content=has_full_content,
                 )
             )

@@ -50,6 +50,7 @@ def retrieve_new_feeds(group_ids: list[int] = None):
                     Feed(row[0], row[1], row[2], row[3], row[4], row[5])
                     for row in cur.fetchall()
                 ]
+                # logger.info("Get feeds: {}", feeds)
             else:
                 cur.execute(
                     """

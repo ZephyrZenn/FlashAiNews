@@ -9,7 +9,6 @@ The NewsCollector configuration system provides:
 - **Environment-aware configuration**: Different config files for dev/prod/test
 - **Validation**: Comprehensive validation of all configuration values
 - **Environment overrides**: Ability to override config with environment variables
-- **Backup and restore**: Automatic backup and manual restore capabilities
 - **Type safety**: Pydantic models for runtime validation
 
 ## Quick Start
@@ -117,15 +116,6 @@ python manage_config.py show
 
 # Create default configuration
 python manage_config.py create
-
-# Create backup of current configuration
-python manage_config.py backup
-
-# Restore configuration from backup
-python manage_config.py restore backups/config_backup_20231201_120000.toml
-
-# List available backups
-python manage_config.py list-backups
 ```
 
 ### Programmatic Usage
@@ -189,30 +179,11 @@ Common validation errors and solutions:
 
 **Solution**: Either add the missing model configuration or change the default model.
 
-## Backup and Restore
-
-### Automatic Backups
-
-The system automatically creates backups when loading configuration. Backups are stored in the `backups/` directory with timestamps.
-
-### Manual Backup
-
-```bash
-python manage_config.py backup
-```
-
-### Manual Restore
-
-```bash
-python manage_config.py restore backups/config_backup_20231201_120000.toml
-```
-
 ## Security Considerations
 
 1. **API Keys**: Never commit API keys to version control
 2. **File Permissions**: Ensure configuration files have appropriate permissions
 3. **Environment Variables**: Use environment variables for sensitive data in production
-4. **Backup Security**: Backup files may contain sensitive data
 
 ## Troubleshooting
 
@@ -302,7 +273,5 @@ on_config_loaded(config)
 
 ### Utility Functions
 
-- `backup_config(config_path)`: Create configuration backup
-- `restore_config(backup_path, config_path)`: Restore configuration
 - `create_default_config()`: Create default configuration template
 - `get_config_summary(config)`: Get configuration summary

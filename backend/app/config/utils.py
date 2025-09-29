@@ -7,8 +7,7 @@ including validation, transformation, and helper methods.
 
 import logging
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -143,53 +142,3 @@ def create_default_config() -> Dict[str, Any]:
         },
     }
 
-
-def backup_config(config_path: str, backup_dir: str = "backups") -> Optional[str]:
-    """Create a backup of the configuration file"""
-    try:
-        import shutil
-        from datetime import datetime
-
-        # Create backup directory if it doesn't exist
-        Path(backup_dir).mkdir(exist_ok=True)
-
-        # Generate backup filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"config_backup_{timestamp}.toml"
-        backup_path = os.path.join(backup_dir, backup_filename)
-
-        # Copy the file
-        shutil.copy2(config_path, backup_path)
-
-        logger.info(f"Configuration backed up to: {backup_path}")
-        return backup_path
-
-    except Exception as e:
-        logger.error(f"Failed to backup configuration: {e}")
-        return None
-
-
-def restore_config(backup_path: str, config_path: str) -> bool:
-    """Restore configuration from backup"""
-    try:
-        import shutil
-
-        if not os.path.exists(backup_path):
-            logger.error(f"Backup file not found: {backup_path}")
-            return False
-
-        # Create backup of current config before restoring
-        current_backup = backup_config(config_path)
-
-        # Restore from backup
-        shutil.copy2(backup_path, config_path)
-
-        logger.info(f"Configuration restored from: {backup_path}")
-        if current_backup:
-            logger.info(f"Previous configuration backed up to: {current_backup}")
-
-        return True
-
-    except Exception as e:
-        logger.error(f"Failed to restore configuration: {e}")
-        return False

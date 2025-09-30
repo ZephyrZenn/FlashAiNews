@@ -1,37 +1,39 @@
-import asyncio
+import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
-import httpx
-import logging
-
-from app.parsers import parse_html_content
+from newspaper import Article
+import html2text
+from readability import Document
 
 logger = logging.getLogger(__name__)
 
-async def get_content(url: str, client: httpx.AsyncClient) -> Optional[str]:
-    """
-    Get the content of a URL.
-    """
+
+def get_content(url: str) -> tuple[str, Optional[str]]:
+    """Fetch article HTML content for a single URL."""
     try:
-        resp = await client.get(url, headers={'User-Agent': 'Mozilla/5.0'})
-        if not resp.is_success:
-            print("Failed to fetch URL:", url, resp.status_code)
-            return None
-        return parse_html_content(resp.text)
-    except httpx.RequestError as e:
-        print(f"An error occurred while requesting {url}: {e}")
-        return None
-    except httpx.HTTPError as e:
-        print(f"HTTP error occurred while requesting {url}: {e}")
-        return None
+        article = Article(url)
+        article.download()
+        article.parse()
+        doc = Document(article.html)
+        return url, doc.summary()
+    except Exception as exc:
+        logger.error("Failed to download %s: %s", url, exc)
+        return url, None
 
 
-async def fetch_all_contents(urls: list[str]) -> dict[str, Optional[str]]:
-    """
-    Fetch content from a list of URLs concurrently.
-    """
-    logger.info(f"Fetching {len(urls)} URLs concurrently")
-    async with httpx.AsyncClient() as client:
-        tasks = [get_content(url, client) for url in urls]
-        result = await asyncio.gather(*tasks)
-        return {url: content for url, content in zip(urls, result)}
+def fetch_all_contents(urls: list[str]) -> dict[str, Optional[str]]:
+    """Fetch content from a list of URLs concurrently using worker threads."""
+    if not urls:
+        return {}
+
+    logger.info("Fetching %d URLs concurrently", len(urls))
+    results: dict[str, Optional[str]] = {}
+    max_workers = min(10, len(urls))
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for fetched_url, html in executor.map(get_content, urls):
+            if html:
+                results[fetched_url] = html2text.html2text(html)
+
+    return results

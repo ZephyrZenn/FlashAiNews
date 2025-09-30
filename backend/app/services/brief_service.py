@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from app.db.pool import execute_transaction, get_connection
 from app.models.feed import FeedArticle, FeedBrief
-from app.services.brief_generator import build_generator
+from app.pipeline.pipeline import sum_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -134,12 +134,11 @@ def generate_today_brief():
                         has_full_content=True,
                     )
                 )
-        generator = build_generator()
         for group_id, arts in articles.items():
             if not arts:
                 continue
             logger.info("Generating brief for group %s with %d articles", group_id, len(arts))
-            brief = generator.sum_up(arts)
+            brief = sum_pipeline(arts)
             execute_transaction(_insert_brief, group_id, brief)
     logger.info("Today brief generated")
 

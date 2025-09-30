@@ -3,9 +3,9 @@ from datetime import datetime
 
 
 from app.config.loader import get_config
-from app.services.brief_service import generate_today_brief, get_today_all_briefs
+from app.services.brief_service import get_today_all_briefs
 from app.services.email_service import send_brief_email
-from app.services.feed_service import retrieve_new_feeds
+from app.services import retrieve_and_generate_brief
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +15,7 @@ def generate_daily_brief():
     """
     config = get_config()
     logger.info(f"Generating daily brief. Current time: {datetime.now()}")
-    retrieve_new_feeds()
-    logger.info(f"Retrieved new feeds. Current time: {datetime.now()}")
-    generate_today_brief()
+    retrieve_and_generate_brief()
     logger.info(f"Finished generating daily brief. Current time: {datetime.now()}")
     
     briefs = get_today_all_briefs()

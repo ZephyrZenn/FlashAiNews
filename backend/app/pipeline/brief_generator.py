@@ -9,7 +9,6 @@ from google.genai import types
 from openai import OpenAI
 
 from app.config.loader import get_config
-from app.constants import PROMPT_TEMPLATE
 from app.models.feed import FeedArticle
 from app.models.generator import ModelProvider
 
@@ -21,78 +20,60 @@ This module provides an abstract base class for AI generators and concrete imple
 
 class AIGenerator(ABC):
     def __init__(
-        self, prompt: str, api_key: str, base_url: str, model: str, limit: int = 5
+        self, api_key: str, base_url: Optional[str], model: str
     ):
         """
         Initialize the AIGenerator with a prompt and limit.
         Args:
-            prompt (str): The prompt to use for summarization.
-            limit (int): The maximum number of articles to summarize.
             api_key (str): The API key for the AI service.
             base_url (str): The base URL for the AI service.
             model (str): The model to use for summarization.
         """
-        self.prompt = prompt
-        self.limit = limit
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
-
+        
     @abstractmethod
-    def sum_up(self, articles: list[FeedArticle]) -> dict[str, str]:
-        """
-        Summarize the articles using Gemini API.
-        Args:
-            articles (list[FeedArticle]): List of articles to summarize.
-        Returns:
-            dict[str, str]: A dictionary containing the title and content of the summary.
-        """
-        raise NotImplementedError()
+    def completion(self, prompt, **kwargs) -> str:
+        raise NotImplementedError() 
 
 
 class GeminiGenerator(AIGenerator):
-    def __init__(self, prompt: str, api_key: str, model: str, limit: int = 5):
-        super().__init__(prompt, api_key, base_url=None, model=model, limit=limit)
-
-    def sum_up(self, articles: list[FeedArticle]) -> dict[str, str]:
+    def __init__(self, api_key: str, model: str):
+        super().__init__(api_key=api_key, base_url=None, model=model)
+        
+    def completion(self, prompt, **kwargs) -> str:
         try:
             client = genai.Client(
                 api_key=self.api_key,
                 http_options=types.HttpOptions(api_version="v1alpha"),
             )
-
-            input_articles = _format_articles(articles, self.limit)
-            inputs = f"{self.prompt}\n ----Input Articles---- \n{input_articles}"
             resp = client.models.generate_content(
-                model="gemini-2.0-flash", contents=inputs
+                model="gemini-2.0-flash", contents=prompt
             )
-            return _extract_json(resp.text)
+            return resp.text
         except Exception as e:
             logger.error(f"Error in GeminiGenerator: {e}")
             raise e
 
 
 class OpenAIGenerator(AIGenerator):
-    def __init__(self, prompt, base_url, model, api_key, limit=5):
+    def __init__(self, base_url, model, api_key):
         super().__init__(
-            prompt=prompt, base_url=base_url, model=model, api_key=api_key, limit=limit
+            base_url=base_url, model=model, api_key=api_key
         )
-
-    def sum_up(self, articles: list[FeedArticle]) -> dict[str, str]:
+    
+    def completion(self, prompt, **kwargs) -> str:
         try:
-            input_articles = _format_articles(articles, self.limit)
             client = OpenAI(api_key=self.api_key, base_url=self.base_url)
-            logger.info("Generating summary for articles.")
             resp = client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": self.prompt},
-                    {"role": "user", "content": input_articles},
+                    {"role": "user", "content": prompt},
                 ],
                 stream=False,
             )
-            logger.info("Summary generated successfully.")
-            return _extract_json(resp.choices[0].message.content)
+            return resp.choices[0].message.content
         except Exception as e:
             logger.error(f"Error in OpenAIGenerator: {e}")
             raise e
@@ -101,46 +82,39 @@ class OpenAIGenerator(AIGenerator):
 def build_generator() -> AIGenerator:
     config = get_config()
     model_cfg = config.models[config.global_.default_model]
-    prompt = PROMPT_TEMPLATE.format(instruction=config.global_.prompt)
     # TODO: Limit is not used
     return _build_generator(
         generator_type=model_cfg.provider,
-        prompt=prompt,
         api_key=model_cfg.api_key,
         base_url=model_cfg.base_url,
         model=model_cfg.model,
-        limit=5,
     )
 
 
 def _build_generator(
     generator_type: ModelProvider,
-    prompt: str,
     api_key: str,
     base_url: Optional[str],
     model: str,
-    limit: int = 5,
 ) -> AIGenerator:
     """
     Build an AI generator based on the model type.
     Args:
         generator_type (GeneratorType): The type of generator to create
-        prompt (str): The prompt to use for summarization.
         api_key (str): The API key for the AI service.
         base_url (str): The base URL for the AI service.
         model (str): The model to use for summarization.
-        limit (int): The maximum number of articles to summarize.
     Returns:
         AIGenerator: An instance of the appropriate AIGenerator subclass.
     """
     if generator_type == ModelProvider.GEMINI:
-        return GeminiGenerator(prompt=prompt, api_key=api_key, model=model, limit=limit)
+        return GeminiGenerator(api_key=api_key, model=model)
     elif (
         generator_type == ModelProvider.DEEPSEEK
         or generator_type == ModelProvider.OPENAI
     ):
         return OpenAIGenerator(
-            prompt=prompt, base_url=base_url, model=model, api_key=api_key, limit=limit
+            base_url=base_url, model=model, api_key=api_key
         )
     else:
         raise ValueError(f"Unsupported generator type: {generator_type}")

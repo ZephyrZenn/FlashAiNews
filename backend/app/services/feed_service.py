@@ -1,6 +1,6 @@
-import asyncio
 import datetime
 import logging
+import html2text
 from typing import Optional
 
 from app.constants import SUMMARY_LENGTH
@@ -12,10 +12,6 @@ from app.parsers import parse_feed, parse_opml
 from ..exception import BizException
 
 logger = logging.getLogger(__name__)
-
-# A flag to prevent multiple brief generation at the same time
-# TODO: Use a more elegant way to handle this
-is_generating_brief = False
 
 
 def import_opml_config(file_url: Optional[str] = None, content: Optional[str] = None):
@@ -72,7 +68,7 @@ def retrieve_new_feeds(group_ids: list[int] = None):
     urls = {
         a.url: a for arts in articles.values() for a in arts if not a.has_full_content
     }
-    contents = asyncio.run(fetch_all_contents(list(urls.keys())))
+    contents = fetch_all_contents(list(urls.keys()))
     for url, content in contents.items():
         if not content:
             continue
@@ -81,12 +77,20 @@ def retrieve_new_feeds(group_ids: list[int] = None):
         if not article.summary:
             article.summary = content[:SUMMARY_LENGTH]
 
+    for _, al in articles.items():
+        for article in al:
+            article.summary = _html2md(article.summary)
+            if article.content:
+                article.content = _html2md(article.content)
+
     def insert_new_articles(cursor):
         for feed in feeds:
             if feed.title not in articles:
                 continue
             feed_articles = articles[feed.title]
-            logger.info("Retrieving %d articles for feed %s", len(feed_articles), feed.title)
+            logger.info(
+                "Retrieving %d articles for feed %s", len(feed_articles), feed.title
+            )
             item_sql = """
                        INSERT INTO feed_items (id, feed_id, title, link, pub_date, summary)
                        VALUES (%s, %s, %s, %s, %s, %s)
@@ -180,3 +184,7 @@ def _insert_feeds(cur, feeds):
         for feed in feeds
     ]
     cur.executemany(insert_sql, data_to_insert)
+
+
+def _html2md(content: str):
+    return html2text.html2text(content)

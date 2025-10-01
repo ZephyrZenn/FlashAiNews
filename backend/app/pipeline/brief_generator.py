@@ -49,7 +49,7 @@ class GeminiGenerator(AIGenerator):
                 http_options=types.HttpOptions(api_version="v1alpha"),
             )
             resp = client.models.generate_content(
-                model="gemini-2.0-flash", contents=prompt
+                model=self.model, contents=prompt
             )
             return resp.text
         except Exception as e:
@@ -82,7 +82,6 @@ class OpenAIGenerator(AIGenerator):
 def build_generator() -> AIGenerator:
     config = get_config()
     model_cfg = config.models[config.global_.default_model]
-    # TODO: Limit is not used
     return _build_generator(
         generator_type=model_cfg.provider,
         api_key=model_cfg.api_key,

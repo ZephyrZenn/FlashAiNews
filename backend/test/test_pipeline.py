@@ -2,6 +2,8 @@ import unittest
 from collections import defaultdict
 
 from dotenv import load_dotenv
+from sklearn.metrics.pairwise import cosine_similarity
+import pandas as pd
 
 from app.db import get_connection
 from app.models.feed import FeedArticle
@@ -43,3 +45,11 @@ class PipelineTest(unittest.TestCase):
                 for group, alist in articles.items():
                     report = sum_pipeline(alist)
                     print(f"Group {group} Report:\n{report}\n")
+
+    def test_embed_similarity(self):
+        titles = ['U.S. government takes stake in Canadian lithium miner and its Nevada mining project', 'Meta 发布新模型 CWM，助力代码理解与生成', '​前 OpenAI 与 DeepMind 研究者获 3 亿美元种子融资，力图实现科学自动化', '​特朗普签署命令投资5000万美元助力儿童癌症人工智能研究', '英伟达市值突破 4.5 万亿美元，AI 基础设施交易频频达成', 'Opera 推出 AI 驱动的 Neon 浏览器，助力高效工作与智能任务管理', 'OpenAI 推出 Sora 短视频应用，升级视频生成模型 Sora 2']
+        from app.pipeline.pipeline import embedding, perform_cluster
+        embs = embedding(titles)
+        sim = cosine_similarity(embs)
+        df = pd.DataFrame(sim)
+        print(df)

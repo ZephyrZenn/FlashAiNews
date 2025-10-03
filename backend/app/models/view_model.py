@@ -27,7 +27,6 @@ class FeedBriefVO(CamelModel):
 
 
 class ModelSettingVO(CamelModel):
-    name: str
     model: str
     provider: str
     api_key: str

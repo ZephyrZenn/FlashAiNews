@@ -1,80 +1,73 @@
 # FlashNews
 
-We are now in the era of information explosion. It becomes impossible to know what happened in the world comprehensively as there are too many things happened and being spread at one moment.
-
-FlashNews is a modern news aggregation and summarization platform that helps you stay informed by providing concise daily summaries of news grouped by topics of your interest.
-
-You can categorize topics that interest you into groups. LLM will conclude daily news based on your groups. You can get all you need to know in just one page.
+FlashNews is a daily intelligence assistant that turns noisy RSS subscriptions into curated, AI-written briefings. Organize your sources into topical groups, let the built-in crawler gather fresh articles, and rely on modern LLMs to produce concise summaries you can skim in minutes.
 
 PS: It's another round of information moisture. Be careful about what you see.
 
 ## Features
 
-- **News Aggregation**: Automatically collects news from various RSS feeds
-- **Smart Grouping**: Organize news sources into custom groups (e.g., Tech, Finance, Sports)
-- **Daily Summaries**: Generates concise summaries of news articles for each group
-
-![Showcase](https://raw.githubusercontent.com/FaustsRep/picbed/main/notes/CleanShot%202025-05-17%20at%2012.03.32%402x.png)
-
-## TODO
-
-- [ ] Customized LLM Configuration. Support cutomized prompt.
-- [ ] Support more models. Can switch models easily.
-- [ ] Trigger generating manually
-- [ ] Cutomized time to generate the report
+- **LLM-quality briefs without prompt fatigue** – Craft a single prompt once, and FlashNews uses it to generate daily group-level summaries and per-article highlights.
+- **Topic-driven organization** – Split large OPML collections into thematic groups so the briefing you read reflects the way you think about news.
+- **Smart clustering** – Sentence Transformers + HDBSCAN automatically cluster similar stories, helping the model elevate trends rather than repeat duplicates.
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- Google API Key / Deepseek API Key for news summarization (Support more models in the future)
+- Docker 24+ and Docker Compose v2
+- OpenAI-compatible or Google Gemini API key (place in `backend/config.toml`). You can also configure it in frontend.
+- Optional: Google API key if you swap models
 
-## Config
-
-Create a `.env` file in the root directory with the following variables:
-
-```env
-# Database
-POSTGRES_USER=your_pg_username
-POSTGRES_PASSWORD=your_password
-POSTGRES_DB=ainews
-POSTGRES_HOST=xxx
-
-```
-
-Create a `config.toml` file under `backend` directory. The provider only supports `openai`, `gemini`, `deepseek` now.
-
-You only need to provide one model configuration here. The app would choose the model with same name as `global.default_model`. Eg. In `models.deepseek-r1`, `deepseek-r1` is the model name.
-
-```toml
-[global]
-default_model = "deepseek-r1"
-prompt = ""
-
-[models.deepseek-r1]
-model = "deepseek-reasoner"
-api_key = "your_api_key"
-base_url = "https://api.deepseek.com"
-provider = "deepseek"
-
-```
-
-## Deployment
-
-1. Clone the repository:
-
-2. Create and configure the `.env` file as shown above.
-
-3. Create a PostgresSQL and execute sql script `backend/sql/schema.sql`
-
-4. Create `config.toml` like `config.toml.example` and configure it.
-
-5. Build and start the containers:
+## Quick Start (Docker Compose)
 
 ```bash
-docker-compose up -d
+# 1. Clone the repo
+ git clone https://github.com/your-org/FlashNews.git
+ cd FlashNews
+
+# 2. Create environment variables (optional – defaults provided)
+ cat <<'ENV' > .env
+ POSTGRES_USER=flashnews
+ POSTGRES_PASSWORD=flashnews
+ POSTGRES_DB=flashnews
+ ENV
+
+# 3. Provide LLM configuration
+ cat <<'TOML' > backend/config.toml
+ [global]
+ prompt = "Summarize the following news items, highlight big themes, and list actionable insights."
+
+ [model]
+ model = "gpt-4.1-mini"
+ provider = "openai"
+ api_key = "sk-..."
+ base_url = "https://api.openai.com/v1"
+ TOML
+
+# 4. Launch everything
+ docker compose up --build -d
 ```
 
-## Development Setup
+Compose provisions three services:
+
+- `backend` – FastAPI app on port `8000`
+- `frontend` – Nginx-served SPA on port `80`
+- `db` – Postgres 16 with schema seeded from `backend/sql/schema.sql`
+
+Access the app at `http://localhost`. All `/api` calls proxy to the backend container. Logs are available via `docker compose logs -f <service>`.
+
+## Manual Development
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+export POSTGRES_HOST=localhost  # configure database connection
+python run.py
+```
+
+Run tests or scripts with the virtualenv active. The server reloads thanks to `uvicorn` when `ENV=dev`.
 
 ### Frontend
 
@@ -84,19 +77,17 @@ npm install
 npm run dev
 ```
 
-### Backend
+Vite serves the SPA at `http://localhost:5173` and proxies `/api` to `http://localhost:8000` when `.env` contains `VITE_API_BASE_URL=http://localhost:8000/api`.
 
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python run.py
-```
+## Roadmap Highlights
+
+- Multi-model switching with per-group overrides
+- Feed health monitoring & retry strategies
+- Webhook integrations (Discord, Telegram) for daily brief delivery
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Issues and PRs welcome! Please run linting (`npm run lint` for frontend, formatters for backend) and provide test coverage for pipeline or service changes.
 
 ## License
 

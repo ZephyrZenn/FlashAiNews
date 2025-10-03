@@ -10,7 +10,6 @@ def get_setting():
     model_cfg = config.model
     return Setting(
         model=ModelConfig(
-            name=model_cfg.model,
             model=model_cfg.model,
             provider=model_cfg.provider,
             api_key=model_cfg.api_key,

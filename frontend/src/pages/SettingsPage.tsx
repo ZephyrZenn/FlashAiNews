@@ -1,229 +1,194 @@
-import React, { useCallback, useEffect, useState } from "react";
-import MainCard from "../components/MainCard";
-import { useToast } from "../components/toast/useToast";
-import { getSetting, updateSetting } from "../services/SettingService";
-import { LLMProvider, ModelConfig, Settings } from "../types";
+import { FormEvent, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
-export default function SettingsPage() {
-  const [settings, setSettings] = useState<Settings>({
-    prompt: "",
-    model: {
-      name: "",
-      model: "",
-      provider: LLMProvider.OPENAI,
-      apiKey: "",
-      baseUrl: "",
-      isDefault: false,
-    },
-  });
-//   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const { success, error } = useToast();
+import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
+import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApiMutation } from '@/hooks/useApiMutation';
+import { Loader } from '@/components/Loader';
+import type { Setting } from '@/types/api';
+
+const providerOptions = [
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'gemini', label: 'Google Gemini' },
+];
+
+const SettingsPage = () => {
+  const queryClient = useQueryClient();
+  const { data: setting, isLoading } = useApiQuery<Setting>(queryKeys.setting, api.getSetting);
+
+  const [prompt, setPrompt] = useState('');
+  const [modelId, setModelId] = useState('');
+  const [provider, setProvider] = useState('openai');
+  const [baseUrl, setBaseUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      const settings = await getSetting();
-      setSettings(settings);
-    };
-    fetchSettings();
-  }, []);
-
-  const handlePromptChange = (newPrompt: string) => {
-    setSettings((prev) => ({ ...prev, prompt: newPrompt }));
-  };
-
-  const handleSave = async () => {
-    try {
-      await updateSetting(settings);
-      success("Prompt saved successfully");
-    } catch (err) {
-      console.error(err);
-      error(`Failed to save prompt ${err}`);
+    if (setting) {
+      setPrompt(setting.prompt);
+      setModelId(setting.model.model);
+      setProvider(setting.model.provider);
+      setBaseUrl(setting.model.baseUrl ?? '');
+      setApiKey('');
     }
+  }, [setting]);
+
+  const promptMutation = useApiMutation(async (nextPrompt: string) => {
+    await api.updateSetting({ prompt: nextPrompt });
+  }, {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.setting });
+    },
+  });
+
+  const modelMutation = useApiMutation(async () => {
+    await api.updateSetting({
+      model: {
+        model: modelId,
+        provider,
+        apiKey,
+        baseUrl: baseUrl || undefined,
+      },
+    });
+  }, {
+    onSuccess: () => {
+      setApiKey('');
+      queryClient.invalidateQueries({ queryKey: queryKeys.setting });
+    },
+  });
+
+  const handlePromptSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    promptMutation.mutate(prompt);
   };
 
-  const handleModelChange = useCallback(
-    (field: keyof ModelConfig, value: string | boolean) => {
-      setSettings((prev) => ({
-        ...prev,
-        model: { ...prev.model, [field]: value },
-      }));
-    },
-    []
-  );
+  const handleModelSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    modelMutation.mutate();
+  };
 
   return (
-    <div className="w-2/3">
-      <MainCard>
-        <div className="space-y-8">
-          {/* Prompt Section */}
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Prompt Configuration</h2>
-            <div className="space-y-4">
-              <textarea
-                value={settings.prompt}
-                onChange={(e) => handlePromptChange(e.target.value)}
-                className="w-full h-32 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter your prompt template..."
-              />
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Save Prompt
-              </button>
-            </div>
-          </div>
-
-          {/* Models Section */}
-          <div className="flex-col">
-            <h2 className="text-xl font-semibold">Model Configuration</h2>
-            <div className="flex justify-between items-center mt-4">
-              {/* <Select.Root
-                value={selectedProvider}
-                onValueChange={(value) =>
-                  setSelectedProvider(value as LLMProvider)
-                }
-              >
-                <Select.Trigger className="inline-flex items-center justify-between px-4 py-2 text-sm font-medium border rounded-md shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                  <Select.Value placeholder="Select a provider" />
-                  <Select.Icon>
-                    <ChevronDownIcon />
-                  </Select.Icon>
-                </Select.Trigger>
-                <Select.Portal>
-                  <Select.Content className="overflow-hidden bg-white rounded-md shadow-lg border">
-                    <Select.Viewport className="p-1">
-                      <Select.Group>
-                        <Select.Item
-                          value={LLMProvider.OPENAI}
-                          className="relative flex items-center px-8 py-2 text-sm text-gray-700 rounded hover:bg-gray-100 cursor-pointer"
-                        >
-                          <Select.ItemText>OpenAI</Select.ItemText>
-                          <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
-                            <span className="h-2 w-2 rounded-full bg-blue-500" />
-                          </Select.ItemIndicator>
-                        </Select.Item>
-                        <Select.Item
-                          value={LLMProvider.GEMINI}
-                          className="relative flex items-center px-8 py-2 text-sm text-gray-700 rounded hover:bg-gray-100 cursor-pointer"
-                        >
-                          <Select.ItemText>Gemini</Select.ItemText>
-                          <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
-                            <span className="h-2 w-2 rounded-full bg-blue-500" />
-                          </Select.ItemIndicator>
-                        </Select.Item>
-                        <Select.Item
-                          value={LLMProvider.DEEPSEEK}
-                          className="relative flex items-center px-8 py-2 text-sm text-gray-700 rounded hover:bg-gray-100 cursor-pointer"
-                        >
-                          <Select.ItemText>DeepSeek</Select.ItemText>
-                          <Select.ItemIndicator className="absolute left-2 inline-flex items-center">
-                            <span className="h-2 w-2 rounded-full bg-blue-500" />
-                          </Select.ItemIndicator>
-                        </Select.Item>
-                      </Select.Group>
-                    </Select.Viewport>
-                  </Select.Content>
-                </Select.Portal>
-              </Select.Root> */}
-              {/* <button
-                onClick={handleAddModel}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-              >
-                Add Model
-              </button> */}
-            </div>
-            <div className="flex justify-between items-center mb-4"></div>
-            <div className="space-y-4">
-              <div key={0} className="p-4 border rounded-lg space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <ModelItem
-                    label="Name"
-                    itemType="text"
-                    value={settings.model.name}
-                    onChange={(e) => handleModelChange("name", e.target.value)}
-                    disabled={true}
-                  />
-                  <ModelItem
-                    label="Provider"
-                    itemType="text"
-                    value={settings.model.provider}
-                    onChange={(e) =>
-                      handleModelChange("provider", e.target.value)
-                    }
-                    disabled={true}
-                  />
-                  <ModelItem
-                    label="Base URL"
-                    itemType="text"
-                    value={settings.model.baseUrl}
-                    onChange={(e) =>
-                      handleModelChange("baseUrl", e.target.value)
-                    }
-                    disabled={true}
-                  />
-                </div>
-                <div className="flex justify-between items-center">
-                  {/* <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={model.isDefault}
-                        onChange={() => handleSetDefault(model.id)}
-                        className="rounded focus:ring-blue-500"
-                        disabled={isEditing !== model.id}
-                      />
-                      <span className="text-sm text-gray-700">
-                        Set as default
-                      </span>
-                    </label> */}
-                  {/* {isEditing ? (
-                    <button
-                      onClick={handleSave}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    >
-                      Save
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                    >
-                      Edit
-                    </button>
-                  )} */}
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="page page-fill settings-page">
+      <header className="main-header">
+        <div>
+          <h1>LLM Settings</h1>
+          <p className="muted">Control the prompt and model used for generating summaries.</p>
         </div>
-      </MainCard>
+      </header>
+
+      {isLoading || !setting ? (
+        <section className="card card-scroll">
+          <div className="card-body-scroll">
+            <Loader label="Loading settings" />
+          </div>
+        </section>
+      ) : (
+        <div className="settings-layout">
+          <section className="card card-scroll">
+            <div className="card-header">
+              <h3 className="section-title">Prompt template</h3>
+            </div>
+            <div className="card-body-scroll">
+              <form className="form-grid prompt-form" onSubmit={handlePromptSubmit}>
+                <div className="form-row fill">
+                  <label htmlFor="prompt">Prompt</label>
+                  <textarea
+                    id="prompt"
+                    className="textarea"
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    required
+                  />
+                </div>
+                <p className="muted form-help">
+                  The prompt guides how the LLM summarizes daily content. Adjust instructions if you need
+                  shorter headlines, detailed overviews, or a different tone.
+                </p>
+                <div className="page-actions sticky-actions">
+                  <button className="button" type="submit" disabled={promptMutation.isPending}>
+                    {promptMutation.isPending ? 'Saving…' : 'Update prompt'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section className="card card-scroll">
+            <div className="card-header">
+              <h3 className="section-title">Model configuration</h3>
+            </div>
+            <div className="card-body-scroll">
+              <form className="form-grid model-form" onSubmit={handleModelSubmit}>
+                <div className="form-row">
+                  <label htmlFor="model-id">Model ID</label>
+                  <input
+                    id="model-id"
+                    className="input"
+                    value={modelId}
+                    onChange={(event) => setModelId(event.target.value)}
+                    placeholder="The identifier expected by the provider"
+                    required
+                  />
+                </div>
+
+                <div className="form-row two-column">
+                  <div className="form-field">
+                    <label htmlFor="provider">Provider</label>
+                    <select
+                      id="provider"
+                      className="select"
+                      value={provider}
+                      onChange={(event) => setProvider(event.target.value)}
+                      required
+                    >
+                      {providerOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="base-url">Base URL</label>
+                    <input
+                      id="base-url"
+                      className="input"
+                      value={baseUrl}
+                      onChange={(event) => setBaseUrl(event.target.value)}
+                      placeholder="https://api.provider.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <label htmlFor="api-key">API key</label>
+                  <input
+                    id="api-key"
+                    className="input"
+                    value={apiKey}
+                    onChange={(event) => setApiKey(event.target.value)}
+                    placeholder="Paste a new key to update"
+                    required
+                    type="password"
+                  />
+                </div>
+
+                <p className="muted form-help">
+                  The existing API key is hidden. Provide the key again whenever you update the model settings.
+                </p>
+
+                <div className="page-actions sticky-actions">
+                  <button className="button" type="submit" disabled={modelMutation.isPending}>
+                    {modelMutation.isPending ? 'Saving…' : 'Update model'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
-}
+};
 
-interface ModelItemProps {
-  label: string;
-  itemType: "text" | "url";
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  disabled: boolean;
-}
-
-const ModelItem = React.memo(
-  ({ label, itemType, value, onChange, disabled }: ModelItemProps) => {
-    return (
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {label}
-        </label>
-        <input
-          type={itemType}
-          value={value}
-          onChange={onChange}
-          className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          disabled={disabled}
-        />
-      </div>
-    );
-  }
-);
+export default SettingsPage;

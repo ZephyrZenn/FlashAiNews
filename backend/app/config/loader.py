@@ -6,9 +6,6 @@ from typing import Optional
 import toml
 
 from app.models.config import (
-    AppConfig,
-    EmailConfig,
-    EmailConfigModel,
     GlobalConfig,
     GlobalConfigModel,
     ModelConfig,
@@ -17,16 +14,14 @@ from app.models.config import (
 from app.models.generator import ModelProvider
 
 from .utils import (
+    create_default_config,
     get_config_summary,
-    get_environment_config,
-    merge_configs,
     validate_config_file_exists,
-    validate_model_configs,
 )
 
 logger = logging.getLogger(__name__)
 
-_config: Optional[AppConfig] = None
+_config: Optional[GlobalConfig] = None
 
 
 class ConfigValidationError(Exception):
@@ -57,32 +52,25 @@ def get_config_path() -> str:
         return paths.dev
 
 
-def _validate_llm_config(config: dict, model_name: str) -> None:
-    """Validate LLM configuration with detailed error messages"""
-    try:
-        # Use Pydantic model for validation
-        ModelConfigModel(**config)
-    except Exception as e:
-        raise ConfigValidationError(f"Model '{model_name}' validation failed: {e}")
-
-
-def _validate_global_config(config: dict) -> None:
+def _validate_global_config(config: dict) -> GlobalConfigModel:
     """Validate global configuration using Pydantic"""
     try:
-        GlobalConfigModel(**config)
+        return GlobalConfigModel(**config)
     except Exception as e:
         raise ConfigValidationError(f"Global configuration validation failed: {e}")
 
 
-def _validate_email_config(config: dict) -> None:
-    """Validate email configuration using Pydantic"""
-    try:
-        EmailConfigModel(**config)
-    except Exception as e:
-        raise ConfigValidationError(f"Email configuration validation failed: {e}")
+def _to_model_config(config: ModelConfigModel) -> ModelConfig:
+    """Convert pydantic model configuration to dataclass representation"""
+    return ModelConfig(
+        model=config.model,
+        provider=ModelProvider(config.provider),
+        api_key=config.api_key,
+        base_url=config.base_url,
+    )
 
 
-def load_config(reload: bool = False, use_env_overrides: bool = True) -> AppConfig:
+def load_config(reload: bool = False, use_env_overrides: bool = True) -> GlobalConfig:
     """Load configuration with caching, validation, and environment overrides"""
     global _config
 
@@ -91,7 +79,20 @@ def load_config(reload: bool = False, use_env_overrides: bool = True) -> AppConf
 
     config_path = get_config_path()
 
-    # Validate config file exists
+    if not os.path.exists(config_path):
+        try:
+            default_config = create_default_config()
+            directory = os.path.dirname(config_path)
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            with open(config_path, "w", encoding="utf-8") as f:
+                toml.dump(default_config, f)
+            logger.info("Created default configuration at %s", config_path)
+        except Exception as e:
+            raise ConfigValidationError(
+                f"Failed to create default configuration at {config_path}: {e}"
+            )
+
     if not validate_config_file_exists(config_path):
         raise ConfigValidationError(f"Configuration file not found: {config_path}")
 
@@ -100,14 +101,6 @@ def load_config(reload: bool = False, use_env_overrides: bool = True) -> AppConf
         with open(config_path, "r", encoding="utf-8") as f:
             file_config = toml.load(f)
 
-        # Apply environment overrides if enabled
-        if use_env_overrides:
-            env_config = get_environment_config()
-            if env_config:
-                file_config = merge_configs(file_config, env_config)
-                logger.info("Applied environment configuration overrides")
-
-        # Log configuration summary (without sensitive data)
         summary = get_config_summary(file_config)
         logger.info(f"Configuration summary: {summary}")
 
@@ -116,88 +109,43 @@ def load_config(reload: bool = False, use_env_overrides: bool = True) -> AppConf
     except Exception as e:
         raise ConfigValidationError(f"Error reading configuration file: {e}")
 
-    # Validate required sections
-    if "global" not in file_config:
-        raise ConfigValidationError("'global' section is required in configuration")
-    if "models" not in file_config:
-        raise ConfigValidationError("'models' section is required in configuration")
+    # Validate and build global config
+    global_model = _validate_global_config(file_config)
+    global_cfg = GlobalConfig(
+        model=_to_model_config(global_model.model),
+        prompt=global_model.prompt,
+    )
 
-    # Validate global config
-    _validate_global_config(file_config["global"])
-
-    # Create global config
-    global_cfg = GlobalConfig(**file_config["global"])
-
-    # Validate email config if enabled
-    email_cfg = None
-    if global_cfg.email_enabled:
-        if "email" not in file_config:
-            raise ConfigValidationError(
-                "'email' section is required when email_enabled is true"
-            )
-        _validate_email_config(file_config["email"])
-        email_cfg = EmailConfig(**file_config["email"])
-
-    # Validate model configurations
-    model_errors = validate_model_configs(file_config["models"])
-    if model_errors:
-        raise ConfigValidationError(
-            f"Model configuration errors: {'; '.join(model_errors)}"
-        )
-
-    # Create model configs
-    logger.info(f"Loading {len(file_config['models'])} model configurations")
-
-    model_cfgs = {}
-    for name, cfg in file_config["models"].items():
-        try:
-            _validate_llm_config(cfg, name)
-            model_cfgs[name] = ModelConfig(
-                model=cfg["model"],
-                provider=ModelProvider(cfg["provider"]),
-                api_key=cfg["api_key"],
-                base_url=cfg.get("base_url"),
-            )
-        except Exception as e:
-            raise ConfigValidationError(f"Error configuring model '{name}': {e}")
-
-    # Validate default model exists
-    if global_cfg.default_model not in model_cfgs:
-        available_models = list(model_cfgs.keys())
-        raise ConfigValidationError(
-            f"Default model '{global_cfg.default_model}' not found. Available models: {available_models}"
-        )
-
-    _config = AppConfig(global_cfg, email_cfg, model_cfgs)
+    _config = global_cfg
     logger.info(
-        f"Configuration loaded successfully. Default model: {global_cfg.default_model}"
+        "Configuration loaded successfully. Model: %s (%s)",
+        global_cfg.model.model,
+        global_cfg.model.provider.value,
     )
 
     return _config
 
 
-def get_config() -> AppConfig:
+def get_config() -> GlobalConfig:
     """Get the current configuration, loading it if necessary"""
     return load_config()
 
 
-def reload_config() -> AppConfig:
+def reload_config() -> GlobalConfig:
     """Force reload the configuration"""
     return load_config(reload=True)
 
 
 def get_model_config(model_name: Optional[str] = None) -> ModelConfig:
-    """Get a specific model configuration"""
+    """Get the configured model. Additional models are not supported."""
     config = get_config()
-    model_name = model_name or config.global_.default_model
-
-    if model_name not in config.models:
-        available_models = list(config.models.keys())
+    default_model_name = config.model.model
+    if model_name and model_name not in {"default", default_model_name}:
         raise ConfigValidationError(
-            f"Model '{model_name}' not found. Available models: {available_models}"
+            f"Model '{model_name}' not found. Only the default model is configured."
         )
 
-    return config.models[model_name]
+    return config.model
 
 
 def validate_config() -> bool:

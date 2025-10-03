@@ -19,9 +19,7 @@ This module provides an abstract base class for AI generators and concrete imple
 
 
 class AIGenerator(ABC):
-    def __init__(
-        self, api_key: str, base_url: Optional[str], model: str
-    ):
+    def __init__(self, api_key: str, base_url: Optional[str], model: str):
         """
         Initialize the AIGenerator with a prompt and limit.
         Args:
@@ -32,37 +30,33 @@ class AIGenerator(ABC):
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
-        
+
     @abstractmethod
     def completion(self, prompt, **kwargs) -> str:
-        raise NotImplementedError() 
+        raise NotImplementedError()
 
 
 class GeminiGenerator(AIGenerator):
     def __init__(self, api_key: str, model: str):
         super().__init__(api_key=api_key, base_url=None, model=model)
-        
+
     def completion(self, prompt, **kwargs) -> str:
         try:
             client = genai.Client(
                 api_key=self.api_key,
                 http_options=types.HttpOptions(api_version="v1alpha"),
             )
-            resp = client.models.generate_content(
-                model=self.model, contents=prompt
-            )
+            resp = client.models.generate_content(model=self.model, contents=prompt)
             return resp.text
         except Exception as e:
-            logger.error(f"Error in GeminiGenerator: {e}")
+            logger.error(f"Error in GeminiGenerator: {e}", exc_info=True)
             raise e
 
 
 class OpenAIGenerator(AIGenerator):
     def __init__(self, base_url, model, api_key):
-        super().__init__(
-            base_url=base_url, model=model, api_key=api_key
-        )
-    
+        super().__init__(base_url=base_url, model=model, api_key=api_key)
+
     def completion(self, prompt, **kwargs) -> str:
         try:
             client = OpenAI(api_key=self.api_key, base_url=self.base_url)
@@ -75,13 +69,13 @@ class OpenAIGenerator(AIGenerator):
             )
             return resp.choices[0].message.content
         except Exception as e:
-            logger.error(f"Error in OpenAIGenerator: {e}")
+            logger.error(f"Error in OpenAIGenerator: {e}", exc_info=True)
             raise e
 
 
 def build_generator() -> AIGenerator:
     config = get_config()
-    model_cfg = config.models[config.global_.default_model]
+    model_cfg = config.model
     return _build_generator(
         generator_type=model_cfg.provider,
         api_key=model_cfg.api_key,
@@ -108,13 +102,8 @@ def _build_generator(
     """
     if generator_type == ModelProvider.GEMINI:
         return GeminiGenerator(api_key=api_key, model=model)
-    elif (
-        generator_type == ModelProvider.DEEPSEEK
-        or generator_type == ModelProvider.OPENAI
-    ):
-        return OpenAIGenerator(
-            base_url=base_url, model=model, api_key=api_key
-        )
+    elif generator_type == ModelProvider.OPENAI:
+        return OpenAIGenerator(base_url=base_url, model=model, api_key=api_key)
     else:
         raise ValueError(f"Unsupported generator type: {generator_type}")
 
@@ -159,6 +148,5 @@ def _extract_json(text: str) -> dict[str, str]:
             "content": obj.get("content", ""),
         }
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse json: {e}, Text: {text}")
+        logger.error(f"Failed to parse json: {e}, Text: {text}", exc_info=True)
         raise ValueError(f"Failed to parse json {json_text}. Text: {text}")
-

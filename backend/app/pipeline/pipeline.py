@@ -32,8 +32,9 @@ def sum_pipeline(articles: list[FeedArticle]) -> str:
     final_report = []
     for _, sums in grouped.items():
         final_report.append(sum_up(sums))
-    noise_part = "Some other topics:\n" + "\n".join(noise_title)
-    final_report.append(noise_part)
+    if noise_title:
+        noise_part = "Some other topics:\n" + "\n".join(noise_title)
+        final_report.append(noise_part)
     return "\n".join(final_report)
 
 

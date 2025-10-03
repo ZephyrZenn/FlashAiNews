@@ -21,7 +21,6 @@ class FeedGroupVO(CamelModel):
 class FeedBriefVO(CamelModel):
     id: int
     group_id: int
-    title: str
     content: str
     pub_date: datetime
     group: Optional[FeedGroupVO] = None

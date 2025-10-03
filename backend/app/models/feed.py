@@ -53,11 +53,10 @@ class FeedGroup:
 
 class FeedBrief:
     def __init__(
-        self, id: int, group_id: int, title: str, content: str, pub_date: datetime
+        self, id: int, group_id: int, content: str, pub_date: datetime
     ):
         self.id = id
         self.group_id = group_id
-        self.title = title
         self.content = content
         self.pub_date = pub_date
 
@@ -65,7 +64,6 @@ class FeedBrief:
         return {
             "id": self.id,
             "group_id": self.group_id,
-            "title": self.title,
             "content": self.content,
             "pub_date": self.pub_date,
             "group": group,

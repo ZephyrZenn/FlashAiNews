@@ -32,7 +32,7 @@ def get_pool():
                 database=database,
             )
         except Exception as e:
-            logger.error(f"Error creating connection pool: {e}")
+            logger.error(f"Error creating connection pool: {e}", exc_info=True)
             return None
     return _pool
 

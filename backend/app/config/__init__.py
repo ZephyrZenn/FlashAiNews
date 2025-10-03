@@ -5,13 +5,6 @@ This module provides a unified interface for managing application configuration,
 including loading, validation, and access to various configuration components.
 """
 
-from .email import (
-    get_email_config_from_env,
-    init_email,
-    is_email_initialized,
-    reset_email_service,
-    validate_email_config,
-)
 from .loader import (
     ConfigValidationError,
     get_config,
@@ -32,10 +25,7 @@ from .thread import (
 from .utils import (
     create_default_config,
     get_config_summary,
-    get_environment_config,
-    merge_configs,
     validate_config_file_exists,
-    validate_model_configs,
 )
 
 __all__ = [
@@ -47,12 +37,6 @@ __all__ = [
     "ConfigValidationError",
     "get_config_path",
     "validate_config",
-    # Email configuration
-    "init_email",
-    "validate_email_config",
-    "is_email_initialized",
-    "get_email_config_from_env",
-    "reset_email_service",
     # Thread pool configuration
     "init_thread_pool",
     "get_thread_pool",
@@ -62,9 +46,6 @@ __all__ = [
     "get_thread_pool_config",
     # Configuration utilities
     "validate_config_file_exists",
-    "get_environment_config",
-    "merge_configs",
-    "validate_model_configs",
     "get_config_summary",
     "create_default_config",
 ]

@@ -5,11 +5,10 @@ from dotenv import load_dotenv
 
 from app.config.loader import load_config
 from app.crons import generate_daily_brief
-from app.services import generate_today_brief
 from app.pipeline.brief_generator import build_generator
+from app.services import retrieve_and_generate_brief
 from app.services.feed_service import import_opml_config, retrieve_new_feeds
 from app.services.group_service import create_group
-from app.config.email import init_email
 
 # Load environment variables before importing any modules that might use them
 load_dotenv()
@@ -35,10 +34,9 @@ class FeedServiceTest(unittest.TestCase):
                 f"Missing required environment variables: {', '.join(missing_vars)}"
             )
         cfg = load_config()
-        init_email(cfg.email)
 
     def test_generate_today_feed(self):
-        retrieve_new_feeds()
+        retrieve_and_generate_brief()
         # generate_today_brief()
 
     def test_import_opml_config(self):

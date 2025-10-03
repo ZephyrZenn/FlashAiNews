@@ -7,7 +7,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.services.brief_service as brief_service
-from app.config.email import init_email
 from app.config.loader import load_config
 from app.config.thread import init_thread_pool, shutdown_thread_pool
 from app.crons import generate_daily_brief
@@ -41,9 +40,6 @@ async def lifespan(app: FastAPI):
     logger.info("Start app. Current env: %s", os.getenv("ENV"))
     logger.info("Initialize scheduler, thread pool")
     config = load_config()
-    if config.global_.email_enabled:
-        logger.info("Email enabled. Initializing")
-        init_email(config.email)
     init_thread_pool()
     scheduler.add_job(generate_daily_brief, "cron", hour=8, minute=0)
     scheduler.start()

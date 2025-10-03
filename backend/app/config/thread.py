@@ -40,8 +40,8 @@ def init_thread_pool(
             thread_name_prefix=config["thread_name_prefix"],
         )
         logger.info(f"Thread pool initialized with {config['max_workers']} workers")
-    except Exception as e:
-        logger.error(f"Failed to initialize thread pool: {e}")
+    except Exception:
+        logger.exception("Failed to initialize thread pool")
         raise
 
 

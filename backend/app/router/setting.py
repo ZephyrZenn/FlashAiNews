@@ -15,7 +15,7 @@ async def get_setting():
     return success_with_data(setting)
 
 
-# @router.post("/")
-# async def modify_setting(request: ModifySettingRequest):
-#     setting_service.update_setting(request.prompt, None)
-#     return success_with_data(None)
+@router.post("/")
+async def modify_setting(request: ModifySettingRequest):
+    setting_service.update_setting(request.prompt, request.model)
+    return success_with_data(None)

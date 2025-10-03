@@ -16,7 +16,7 @@ def retrieve_and_generate_brief():
         logger.info("Retrieving and generating brief")
         retrieve_new_feeds()
         generate_today_brief()
-    except Exception as e:
-        logger.error(f"Error retrieving and generating brief: {e}")
+    except Exception:
+        logger.exception("Error retrieving and generating brief")
     finally:
         GENERATING_FLAG.set(False)

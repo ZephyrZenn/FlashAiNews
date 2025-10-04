@@ -12,6 +12,7 @@ services:
       POSTGRES_PORT: "5432"
     volumes:
       - ./backend/config.toml:/app/config.toml:ro
+      - ./hf_cache:/cache/hf
     depends_on:
       - db
     ports:

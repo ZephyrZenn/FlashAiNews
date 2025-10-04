@@ -36,8 +36,9 @@ class FeedServiceTest(unittest.TestCase):
         cfg = load_config()
 
     def test_generate_today_feed(self):
-        retrieve_and_generate_brief()
+        # retrieve_and_generate_brief()
         # generate_today_brief()
+        retrieve_new_feeds()
 
     def test_import_opml_config(self):
         import_opml_config("feed.opml")

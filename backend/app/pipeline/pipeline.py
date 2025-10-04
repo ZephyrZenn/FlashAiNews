@@ -4,7 +4,7 @@ from collections import defaultdict
 import hdbscan
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from sklearn.cluster import KMeans
+from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import normalize
 
@@ -53,11 +53,19 @@ def perform_cluster(embeddings: np.ndarray) -> np.ndarray:
     # In our cases, the amount of data won't be very large. So we just **try** to capture the trends here.
     if np.any(labels != -1):
         return labels
+    tau = 0.75
+    dist_th = 1 - tau
+    agg = AgglomerativeClustering(
+        n_clusters=None,
+        metric="cosine",
+        linkage="average",
+        distance_threshold=dist_th
+    )
+    return agg.fit_predict(embeddings)
     # If HDBScan can't find a topic, using kmeans as fallback.
-    optimal_k = find_optimal_k(embeddings) 
-    kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init='auto')
-    labels = kmeans.fit_predict(embeddings)
-    return labels
+    # optimal_k = find_optimal_k(embeddings) 
+    # kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init='auto')
+    # labels = kmeans.fit_predict(embeddings)
 
 def find_optimal_k(embeddings: np.ndarray, max_k: int = 5) -> int:
     if len(embeddings) < 2:

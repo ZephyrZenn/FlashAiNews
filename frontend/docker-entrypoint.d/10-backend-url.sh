@@ -7,7 +7,7 @@ TMP_PATH="${TEMPLATE_PATH}.tmp"
 # Provide a sensible default when no environment variable is passed at runtime.
 : "${BACKEND_URL:=http://backend:8000}"
 
-echo "Configuring nginx proxy to use BACKEND_URL=${BACKEND_URL}" >&2
+echo "Configuring nginx proxy to use BACKEND_URL=${BACKEND_URL} BACKEND_HOST=${BACKEND_HOST}" >&2
 
-envsubst '${BACKEND_URL}' < "${TEMPLATE_PATH}" > "${TMP_PATH}"
+envsubst '${BACKEND_URL} ${BACKEND_HOST}' < "${TEMPLATE_PATH}" > "${TMP_PATH}"
 mv "${TMP_PATH}" "${TEMPLATE_PATH}"

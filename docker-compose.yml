@@ -29,6 +29,7 @@ services:
       - "80:80"
     environment:
       BACKEND_URL: ${BACKEND_URL:-http://backend:8000}
+      BACKEND_HOST: ${BACKEND_HOST}
     restart: unless-stopped
 
   db:

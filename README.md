@@ -54,6 +54,8 @@ Compose provisions three services:
 
 Access the app at `http://localhost`. All `/api` calls proxy to the backend container. Logs are available via `docker compose logs -f <service>`.
 
+To target a backend running elsewhere, set `BACKEND_URL` in your `.env` before `docker compose up`. The value populates the frontend container's `BACKEND_URL` and is injected into nginx at runtime (defaults to `http://backend:8000`).
+
 ## Manual Development
 
 ### Backend

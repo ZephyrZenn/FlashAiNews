@@ -1,3 +1,4 @@
+from datetime import time
 from enum import Enum
 
 
@@ -9,4 +10,12 @@ class ModelProvider(Enum):
 
 
 def enum_factory(items):
-    return {k: (v.value if isinstance(v, Enum) else v) for k, v in items}
+    result = {}
+    for key, value in items:
+        if isinstance(value, Enum):
+            result[key] = value.value
+        elif isinstance(value, time):
+            result[key] = value.strftime("%H:%M")
+        else:
+            result[key] = value
+    return result

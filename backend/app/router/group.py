@@ -41,3 +41,10 @@ async def update_group(group_id: int, request: ModifyGroupRequest):
     """
     group_service.update_group(group_id, request.title, request.desc, request.feed_ids)
     return success_with_data()
+
+
+@router.delete("/{group_id}")
+async def delete_group(group_id: int):
+    """Delete a feed group."""
+    group_service.delete_group(group_id)
+    return success_with_data(None)

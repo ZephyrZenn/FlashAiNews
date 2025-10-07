@@ -114,6 +114,7 @@ def load_config(reload: bool = False, use_env_overrides: bool = True) -> GlobalC
     global_cfg = GlobalConfig(
         model=_to_model_config(global_model.model),
         prompt=global_model.prompt,
+        brief_time=global_model.brief_time,
     )
 
     _config = global_cfg

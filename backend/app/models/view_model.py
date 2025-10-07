@@ -35,6 +35,7 @@ class ModelSettingVO(CamelModel):
 class SettingVO(CamelModel):
     model: ModelSettingVO
     prompt: str
+    brief_time: str
 
 
 class FeedBriefResponse(CommonResult[FeedBriefVO]):

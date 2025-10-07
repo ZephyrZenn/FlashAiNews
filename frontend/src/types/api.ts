@@ -27,7 +27,7 @@ export interface FeedBrief {
 }
 
 export interface ModelSetting {
-  name: string;
+  name?: string;
   model: string;
   provider: string;
   apiKey: string;
@@ -37,6 +37,7 @@ export interface ModelSetting {
 export interface Setting {
   model: ModelSetting;
   prompt: string;
+  briefTime: string;
 }
 
 export type FeedGroupListResponse = ApiResponse<FeedGroup[]>;
@@ -65,6 +66,7 @@ export interface ImportFeedsPayload {
 
 export interface ModifySettingPayload {
   prompt?: string;
+  briefTime?: string;
   model?: {
     model: string;
     provider: string;

@@ -8,11 +8,15 @@ import { useApiMutation } from '@/hooks/useApiMutation';
 import type { Feed } from '@/types/api';
 import { Loader } from '@/components/Loader';
 import { EmptyState } from '@/components/EmptyState';
+import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmDialogContext';
 
 const FeedsPage = () => {
   const queryClient = useQueryClient();
   const feedsQuery = useApiQuery<Feed[]>(queryKeys.feeds, api.getFeeds);
   const feeds = useMemo<Feed[]>(() => feedsQuery.data ?? [], [feedsQuery.data]);
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -44,15 +48,23 @@ const FeedsPage = () => {
   }, {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds });
+      showToast('Feed updated successfully.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to update feed.', { type: 'error' });
     },
   });
 
   const deleteMutation = useApiMutation(async (feedId: number) => {
     await api.deleteFeed(feedId);
   }, {
-    onSuccess: () => {
+    onSuccess: (_, feedId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds });
-      setSelectedFeedId(null);
+      setSelectedFeedId((current) => (current === feedId ? null : current));
+      showToast('Feed deleted successfully.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to delete feed.', { type: 'error' });
     },
   });
 
@@ -82,6 +94,10 @@ const FeedsPage = () => {
       setNewDesc('');
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds });
       closeCreateModal();
+      showToast('Feed created successfully.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to create feed.', { type: 'error' });
     },
   });
 
@@ -113,6 +129,10 @@ const FeedsPage = () => {
       setOpmlFileName('');
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds });
       closeImportModal();
+      showToast('Feeds imported successfully.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to import feeds.', { type: 'error' });
     },
   });
 
@@ -124,6 +144,24 @@ const FeedsPage = () => {
   const handleCreateSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     createMutation.mutate();
+  };
+
+  const handleDeleteFeed = async (feedId: number) => {
+    if (deleteMutation.isPending) {
+      return;
+    }
+    const target = feeds.find((feed) => feed.id === feedId);
+    const confirmed = await confirm({
+      title: 'Delete feed',
+      description: `Remove "${target?.title ?? 'this feed'}" from FlashNews? This cannot be undone.`,
+      confirmLabel: 'Delete feed',
+      cancelLabel: 'Keep feed',
+      tone: 'danger',
+    });
+    if (!confirmed) {
+      return;
+    }
+    deleteMutation.mutate(feedId);
   };
 
   const handleImportSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -217,9 +255,7 @@ const FeedsPage = () => {
                               type="button"
                               className="button danger"
                               onClick={() => {
-                                if (window.confirm('Remove this feed from FlashNews?')) {
-                                  deleteMutation.mutate(feed.id);
-                                }
+                                void handleDeleteFeed(feed.id);
                               }}
                               disabled={deleteMutation.isPending}
                             >

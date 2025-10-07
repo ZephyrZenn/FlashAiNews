@@ -3,6 +3,7 @@
 
 [global]
 # Default prompt template for brief generation
+brief_time = "08:00"
 prompt = """
 1. **Identify Core Themes**: As you read through the articles, look for common themes, major updates, and significant points of consensus or disagreement across the articles.
 
@@ -18,22 +19,3 @@ base_url = "https://api.openai.com/v1"
 
 # Base model configuration controls the generator.
 # Additional models are no longer configured in this file.
-
-# Optional: Database Configuration (if not using environment variables)
-# [database]
-# host = "localhost"
-# port = 5432
-# database = "ainews"
-# username = "postgres"
-# password = "your-password"
-
-# Optional: Logging Configuration
-# [logging]
-# level = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-# format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-# file = "logs/app.log"
-
-# Optional: Thread Pool Configuration
-# [thread_pool]
-# max_workers = 4
-# thread_name_prefix = "NewsCollector"

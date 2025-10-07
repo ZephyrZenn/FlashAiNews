@@ -53,6 +53,8 @@ export const api = {
     unwrap<number>(client.post<ApiResponse<number>>('/groups/', payload)),
   updateGroup: (groupId: number, payload: ModifyGroupPayload) =>
     unwrap<void>(client.put<ApiResponse<void>>(`/groups/${groupId}`, payload)),
+  deleteGroup: (groupId: number) =>
+    unwrap<void>(client.delete<ApiResponse<void>>(`/groups/${groupId}`)),
 
   // Feeds
   getFeeds: () => unwrap<Feed[]>(client.get<FeedListResponse>('/feeds/')),
@@ -68,6 +70,8 @@ export const api = {
   getSetting: () => unwrap<Setting>(client.get<SettingResponse>('/setting/')),
   updateSetting: (payload: ModifySettingPayload) =>
     unwrap<void>(client.post<ApiResponse<void>>('/setting/', payload)),
+  updateBriefTime: (briefTime: string) =>
+    unwrap<void>(client.post<ApiResponse<void>>('/setting/brief-time', { briefTime })),
 };
 
 export type { Feed, FeedGroup, FeedBrief, Setting };

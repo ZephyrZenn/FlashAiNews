@@ -7,6 +7,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { Loader } from '@/components/Loader';
 import type { Setting } from '@/types/api';
+import { useToast } from '@/context/ToastContext';
 
 const providerOptions = [
   { value: 'openai', label: 'OpenAI' },
@@ -16,8 +17,10 @@ const providerOptions = [
 const SettingsPage = () => {
   const queryClient = useQueryClient();
   const { data: setting, isLoading } = useApiQuery<Setting>(queryKeys.setting, api.getSetting);
+  const { showToast } = useToast();
 
   const [prompt, setPrompt] = useState('');
+  const [briefTime, setBriefTime] = useState('08:00');
   const [modelId, setModelId] = useState('');
   const [provider, setProvider] = useState('openai');
   const [baseUrl, setBaseUrl] = useState('');
@@ -26,6 +29,7 @@ const SettingsPage = () => {
   useEffect(() => {
     if (setting) {
       setPrompt(setting.prompt);
+      setBriefTime(setting.briefTime ?? '08:00');
       setModelId(setting.model.model);
       setProvider(setting.model.provider);
       setBaseUrl(setting.model.baseUrl ?? '');
@@ -38,6 +42,10 @@ const SettingsPage = () => {
   }, {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.setting });
+      showToast('Prompt updated successfully.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to update prompt.', { type: 'error' });
     },
   });
 
@@ -54,6 +62,22 @@ const SettingsPage = () => {
     onSuccess: () => {
       setApiKey('');
       queryClient.invalidateQueries({ queryKey: queryKeys.setting });
+      showToast('Model configuration saved.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to update model configuration.', { type: 'error' });
+    },
+  });
+
+  const briefTimeMutation = useApiMutation(async (nextBriefTime: string) => {
+    await api.updateBriefTime(nextBriefTime);
+  }, {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.setting });
+      showToast('Schedule updated successfully.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to update schedule.', { type: 'error' });
     },
   });
 
@@ -67,12 +91,17 @@ const SettingsPage = () => {
     modelMutation.mutate();
   };
 
+  const handleBriefTimeSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    briefTimeMutation.mutate(briefTime);
+  };
+
   return (
     <div className="page page-fill settings-page">
       <header className="main-header">
         <div>
           <h1>LLM Settings</h1>
-          <p className="muted">Control the prompt and model used for generating summaries.</p>
+          <p className="muted">Control the schedule, prompt, and model used for generating summaries.</p>
         </div>
       </header>
 
@@ -86,30 +115,58 @@ const SettingsPage = () => {
         <div className="settings-layout">
           <section className="card card-scroll">
             <div className="card-header">
-              <h3 className="section-title">Prompt template</h3>
+              <h3 className="section-title">Brief generation</h3>
             </div>
             <div className="card-body-scroll">
-              <form className="form-grid prompt-form" onSubmit={handlePromptSubmit}>
-                <div className="form-row fill">
-                  <label htmlFor="prompt">Prompt</label>
-                  <textarea
-                    id="prompt"
-                    className="textarea"
-                    value={prompt}
-                    onChange={(event) => setPrompt(event.target.value)}
-                    required
-                  />
-                </div>
-                <p className="muted form-help">
-                  The prompt guides how the LLM summarizes daily content. Adjust instructions if you need
-                  shorter headlines, detailed overviews, or a different tone.
-                </p>
-                <div className="page-actions sticky-actions">
-                  <button className="button" type="submit" disabled={promptMutation.isPending}>
-                    {promptMutation.isPending ? 'Saving…' : 'Update prompt'}
-                  </button>
-                </div>
-              </form>
+              <div className="card-section">
+                <form className="form-grid brief-time-form" onSubmit={handleBriefTimeSubmit}>
+                  <div className="form-row">
+                    <label htmlFor="brief-time">Daily brief time</label>
+                    <input
+                      id="brief-time"
+                      className="input"
+                      type="time"
+                      step={60}
+                      value={briefTime}
+                      onChange={(event) => setBriefTime(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <p className="muted form-help">
+                    Choose when NewsCollector should generate the daily brief. Times use 24-hour format and the
+                    server time zone.
+                  </p>
+                  <div className="page-actions sticky-actions">
+                    <button className="button" type="submit" disabled={briefTimeMutation.isPending}>
+                      {briefTimeMutation.isPending ? 'Saving…' : 'Update schedule'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+              <hr className="card-divider" />
+              <div className="card-section">
+                <form className="form-grid prompt-form" onSubmit={handlePromptSubmit}>
+                  <div className="form-row fill">
+                    <label htmlFor="prompt">Prompt</label>
+                    <textarea
+                      id="prompt"
+                      className="textarea"
+                      value={prompt}
+                      onChange={(event) => setPrompt(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <p className="muted form-help">
+                    The prompt guides how the LLM summarizes daily content. Adjust instructions if you need
+                    shorter headlines, detailed overviews, or a different tone.
+                  </p>
+                  <div className="page-actions sticky-actions">
+                    <button className="button" type="submit" disabled={promptMutation.isPending}>
+                      {promptMutation.isPending ? 'Saving…' : 'Update prompt'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </section>
 

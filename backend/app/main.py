@@ -2,20 +2,19 @@ import logging
 from contextlib import asynccontextmanager
 import os
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.services.brief_service as brief_service
 from app.config.loader import load_config
 from app.config.thread import init_thread_pool, shutdown_thread_pool
-from app.crons import generate_daily_brief
 from app.exception import BizException, handle_biz_exception, handle_exception
 from app.middleware import LogMiddleware
 from app.models.common import success_with_data
 from app.models.view_model import FeedBriefResponse
 from app.router import brief, feed, group, setting
 from app.services import group_service, retrieve_and_generate_brief
+from app.services.scheduler_service import shutdown_scheduler, start_scheduler
 from app.utils.thread_utils import submit_to_thread
 
 # 配置日志
@@ -33,19 +32,16 @@ if os.getenv("ENV") == "dev":
 
     load_dotenv()
 
-scheduler = BackgroundScheduler()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Start app. Current env: %s", os.getenv("ENV"))
     logger.info("Initialize scheduler, thread pool")
     config = load_config()
     init_thread_pool()
-    scheduler.add_job(generate_daily_brief, "cron", hour=8, minute=0)
-    scheduler.start()
+    start_scheduler(config.brief_time)
     yield
     logger.info("Shutdown scheduler, thread pool")
-    scheduler.shutdown()
+    shutdown_scheduler()
     # Shutdown: Clean up thread pool
     shutdown_thread_pool()
 

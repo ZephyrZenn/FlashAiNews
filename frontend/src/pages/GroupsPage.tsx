@@ -8,16 +8,28 @@ import { useApiMutation } from '@/hooks/useApiMutation';
 import type { Feed, FeedGroup } from '@/types/api';
 import { Loader } from '@/components/Loader';
 import { EmptyState } from '@/components/EmptyState';
+import { useToast } from '@/context/ToastContext';
+import { useConfirm } from '@/context/ConfirmDialogContext';
 
 const GroupsPage = () => {
   const queryClient = useQueryClient();
   const groupsQuery = useApiQuery<FeedGroup[]>(queryKeys.groups, api.getGroups);
   const feedsQuery = useApiQuery<Feed[]>(queryKeys.feeds, api.getFeeds);
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!selectedGroupId && groupsQuery.data && groupsQuery.data.length > 0) {
+    if (!groupsQuery.data) {
+      return;
+    }
+    if (groupsQuery.data.length === 0) {
+      setSelectedGroupId(null);
+      return;
+    }
+    const exists = groupsQuery.data.some((group) => group.id === selectedGroupId);
+    if (!exists) {
       setSelectedGroupId(groupsQuery.data[0].id);
     }
   }, [groupsQuery.data, selectedGroupId]);
@@ -63,6 +75,10 @@ const GroupsPage = () => {
       if (selectedGroupId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.groupDetail(selectedGroupId) });
       }
+      showToast('Group updated successfully.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to update group.', { type: 'error' });
     },
   });
 
@@ -102,8 +118,50 @@ const GroupsPage = () => {
         setSelectedGroupId(gid);
       }
       closeCreateModal();
+      showToast('Group created successfully.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to create group.', { type: 'error' });
     },
   });
+
+  const deleteMutation = useApiMutation(async (groupId: number) => {
+    await api.deleteGroup(groupId);
+  }, {
+    onSuccess: (_, groupId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups });
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupDetail(groupId) });
+      setSelectedGroupId(null);
+      showToast('Group deleted successfully.');
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to delete group.', { type: 'error' });
+    },
+  });
+
+  const allFeeds: Feed[] = feedsQuery.data ?? [];
+  const orderedGroups = useMemo<FeedGroup[]>(
+    () => groupsQuery.data ?? [],
+    [groupsQuery.data],
+  );
+
+  const handleDeleteGroup = async () => {
+    if (!selectedGroupId || deleteMutation.isPending) {
+      return;
+    }
+    const group = orderedGroups.find((item) => item.id === selectedGroupId);
+    const confirmed = await confirm({
+      title: 'Delete group',
+      description: `Remove "${group?.title ?? 'this group'}" and detach its feeds? This cannot be undone.`,
+      confirmLabel: 'Delete group',
+      cancelLabel: 'Keep group',
+      tone: 'danger',
+    });
+    if (!confirmed) {
+      return;
+    }
+    deleteMutation.mutate(selectedGroupId);
+  };
 
   const handleUpdateSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -114,12 +172,6 @@ const GroupsPage = () => {
     event.preventDefault();
     createMutation.mutate();
   };
-
-  const allFeeds: Feed[] = feedsQuery.data ?? [];
-  const orderedGroups = useMemo<FeedGroup[]>(
-    () => groupsQuery.data ?? [],
-    [groupsQuery.data],
-  );
 
   const renderFeedSelector = (
     selectedIds: number[],
@@ -244,6 +296,16 @@ const GroupsPage = () => {
                 <div className="page-actions sticky-actions">
                   <button className="button" type="submit" disabled={updateMutation.isPending}>
                     {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+                  </button>
+                  <button
+                    type="button"
+                    className="button danger"
+                    onClick={() => {
+                      void handleDeleteGroup();
+                    }}
+                    disabled={deleteMutation.isPending || !selectedGroupId}
+                  >
+                    {deleteMutation.isPending ? 'Deleting…' : 'Delete group'}
                   </button>
                 </div>
               </form>

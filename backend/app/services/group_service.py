@@ -1,28 +1,21 @@
-from app.db.pool import execute_transaction, get_connection
-from app.exception import BizException
-from app.models.feed import FeedGroup
 import logging
 
-from app.models.feed import Feed
+from app.db.pool import execute_transaction, get_connection
+from app.exception import BizException
+from app.models.feed import Feed, FeedGroup
 
 logger = logging.getLogger(__name__)
 
 
 def create_group(title: str, desc: str, feed_ids: list[int]):
     def insert_group(cur):
-        cur.execute("SELECT EXISTS(SELECT 1 FROM feed_groups LIMIT 1)")
-        res = cur.fetchone()
-        if not res[0]:
-            is_default = True
-        else:
-            is_default = False
         sql = """
-              INSERT INTO feed_groups (title, "desc", is_default)
-              VALUES (%s, %s, %s)
+              INSERT INTO feed_groups (title, "desc")
+              VALUES (%s, %s)
               ON CONFLICT (title) DO NOTHING
               RETURNING id \
               """
-        cur.execute(sql, (title, desc, is_default))
+        cur.execute(sql, (title, desc))
         res = cur.fetchone()
         if not res:
             return
@@ -41,7 +34,7 @@ def get_feed_groups():
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT id, title, "desc" FROM feed_groups ORDER BY is_default DESC, id ASC"""
+                """SELECT id, title, "desc" FROM feed_groups ORDER BY id ASC"""
             )
             return [
                 FeedGroup(id=row[0], title=row[1], desc=row[2])
@@ -124,3 +117,24 @@ def _add_feeds_to_group(cur, group_id, feed_ids):
           """
     data_to_insert = [(feed_id, group_id) for feed_id in feed_ids]
     cur.executemany(sql, data_to_insert)
+
+
+def delete_group(group_id: int):
+    def _delete(cur):
+        cur.execute(
+            """SELECT is_default FROM feed_groups WHERE id = %s""",
+            (group_id,),
+        )
+        res = cur.fetchone()
+        if not res:
+            raise BizException(f"Group {group_id} not found")
+        cur.execute(
+            "DELETE FROM feed_group_items WHERE feed_group_id = %s",
+            (group_id,),
+        )
+        cur.execute(
+            "DELETE FROM feed_groups WHERE id = %s",
+            (group_id,),
+        )
+
+    execute_transaction(_delete)

@@ -49,6 +49,7 @@ def create_default_config() -> Dict[str, Any]:
         "prompt": (
             "Summarize the following articles and highlight the most relevant insights."
         ),
+        "brief_time": "08:00",
         "model": {
             "model": "gpt-4o-mini",
             "provider": "openai",

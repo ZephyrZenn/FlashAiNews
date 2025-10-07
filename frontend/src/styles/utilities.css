@@ -1,0 +1,33 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #1d4ed8;
+  font-size: 0.85rem;
+}
+
+.muted {
+  color: #64748b;
+}
+
+.feed-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.feed-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.25);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: #1f2937;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}

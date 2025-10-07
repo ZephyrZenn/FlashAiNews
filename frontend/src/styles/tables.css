@@ -1,0 +1,27 @@
+.table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: rgba(226, 232, 240, 0.7);
+  text-align: left;
+  font-weight: 600;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 0.6rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+}

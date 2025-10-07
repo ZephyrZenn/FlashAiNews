@@ -1,0 +1,155 @@
+.checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.modal-body .checkbox-list {
+  max-height: 320px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(241, 245, 249, 0.92);
+}
+
+.checkbox-row input {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.button {
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.65rem 1.1rem;
+  background: linear-gradient(135deg, #38bdf8 0%, #6366f1 100%);
+  color: #0f172a;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.button.secondary {
+  background: rgba(51, 65, 85, 0.2);
+  color: #0f172a;
+}
+
+.button.danger {
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.95);
+  font: inherit;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.7);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.group-form {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-row.fill {
+  flex: 1;
+  min-height: 0;
+}
+
+.form-row-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.form-row-content > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.form-row.fill .textarea {
+  flex: 1;
+  min-height: 0;
+}
+
+.sticky-actions {
+  margin-top: auto;
+}
+
+.prompt-form {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+}
+
+.model-form {
+  height: 100%;
+  min-height: 0;
+  grid-auto-rows: min-content;
+}
+
+.form-help {
+  margin: 0;
+}
+
+.form-row.two-column {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.form-row.two-column .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}

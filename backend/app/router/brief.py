@@ -1,9 +1,12 @@
 import datetime
 from fastapi import APIRouter
 
-from app.models.common import success_with_data
+from app.exception import BizException
+from app.models.common import success_with_data, success_with_message
 from app.models.view_model import FeedBriefListResponse, FeedBriefResponse
-from app.services import brief_service, group_service
+from app.services import brief_service, group_service, retrieve_and_generate_brief
+from app.state import GENERATING_FLAG
+from app.utils.thread_utils import submit_to_thread
 
 router = APIRouter(prefix="/briefs")
 
@@ -35,3 +38,16 @@ async def get_history_brief(group_id: int):
     Get the history brief of a feed group.
     """
     return success_with_data(brief_service.get_history_brief(group_id))
+
+
+@router.post("/generate")
+async def generate_today_brief():
+    """
+    Manually trigger today's brief generation.
+    """
+    if brief_service.has_today_brief():
+        raise BizException("Today's brief is already available.")
+    if GENERATING_FLAG.get():
+        raise BizException("Brief generation is currently in progress.")
+    submit_to_thread(retrieve_and_generate_brief)
+    return success_with_message("Brief generation started.")

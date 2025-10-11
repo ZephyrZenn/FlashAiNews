@@ -10,6 +10,23 @@ from app.pipeline.pipeline import sum_pipeline
 logger = logging.getLogger(__name__)
 
 
+def has_today_brief(group_id: Optional[int] = None) -> bool:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            params = [datetime.date.today()]
+            sql = """
+                  SELECT 1
+                  FROM feed_brief
+                  WHERE created_at::date = %s
+                  """
+            if group_id is not None:
+                sql += " AND group_id = %s"
+                params.append(group_id)
+            sql += " LIMIT 1"
+            cur.execute(sql, tuple(params))
+            return cur.fetchone() is not None
+
+
 def get_today_brief() -> Optional[FeedBrief]:
     sql = """
           SELECT id, group_id, content, created_at

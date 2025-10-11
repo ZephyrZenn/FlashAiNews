@@ -5,8 +5,10 @@ import remarkGfm from 'remark-gfm';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useApiMutation } from '@/hooks/useApiMutation';
 import { Loader } from '@/components/Loader';
 import { EmptyState } from '@/components/EmptyState';
+import { useToast } from '@/context/ToastContext';
 import { formatDate, formatDateTime } from '@/utils/date';
 import type { FeedBrief, FeedGroup } from '@/types/api';
 
@@ -43,7 +45,11 @@ const SummaryPage = () => {
     },
   );
 
-  const { data: historyBriefs, isLoading: historyLoading } = useApiQuery<FeedBrief[]>(
+  const {
+    data: historyBriefs,
+    isLoading: historyLoading,
+    refetch: refetchHistory,
+  } = useApiQuery<FeedBrief[]>(
     queryKeys.historyBrief(groupId ?? -1),
     () => api.getHistoryBriefByGroup(groupId ?? -1),
     {
@@ -52,6 +58,20 @@ const SummaryPage = () => {
   );
 
   const [selectedBriefId, setSelectedBriefId] = useState<number | null>(null);
+  const { showToast } = useToast();
+
+  const generateMutation = useApiMutation(async () => {
+    await api.generateTodayBrief();
+  }, {
+    onSuccess: () => {
+      showToast('Started generating today\'s brief.');
+      refetchToday();
+      refetchHistory();
+    },
+    onError: (error) => {
+      showToast(error.message || 'Failed to start brief generation.', { type: 'error' });
+    },
+  });
 
   useEffect(() => {
     setSelectedBriefId(null);
@@ -89,6 +109,12 @@ const SummaryPage = () => {
 
   const noGroups = !groupsLoading && (!groups || groups.length === 0);
   const isEmpty = !todayLoading && !historyLoading && !selectedBrief?.content?.trim();
+  const handleGenerateClick = () => {
+    if (generateMutation.isPending || !groupId) {
+      return;
+    }
+    generateMutation.mutate();
+  };
 
   return (
     <div className="page page-fill summary-page">
@@ -96,6 +122,21 @@ const SummaryPage = () => {
         <div>
           <h1>Daily Briefings</h1>
           <p className="muted">Summaries generated from your feed groups and LLM configuration.</p>
+        </div>
+        <div className="page-actions">
+          <button
+            className="button"
+            type="button"
+            onClick={handleGenerateClick}
+            disabled={
+              generateMutation.isPending
+              || todayLoading
+              || !groupId
+              || groupsLoading
+            }
+          >
+            {generateMutation.isPending ? 'Generating...' : 'Generate'}
+          </button>
         </div>
       </header>
 
@@ -128,7 +169,7 @@ const SummaryPage = () => {
                     className="button secondary"
                     type="button"
                     onClick={() => refetchToday()}
-                    disabled={todayLoading}
+                    disabled={todayLoading || generateMutation.isPending || !groupId}
                   >
                     Refresh
                   </button>

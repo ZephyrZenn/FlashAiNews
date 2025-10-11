@@ -44,6 +44,8 @@ export const api = {
     unwrap<FeedBrief | null>(client.get<FeedBriefResponse>(`/briefs/${groupId}/today`)),
   getHistoryBriefByGroup: (groupId: number) =>
     unwrap<FeedBrief[]>(client.get<FeedBriefListResponse>(`/briefs/${groupId}/history`)),
+  generateTodayBrief: () =>
+    unwrap<null>(client.post<ApiResponse<null>>('/briefs/generate')),
 
   // Groups
   getGroups: () => unwrap<FeedGroup[]>(client.get<FeedGroupListResponse>('/groups/')),

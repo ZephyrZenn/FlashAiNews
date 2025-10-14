@@ -28,12 +28,13 @@ PS: It's another round of information moisture. Be careful about what you see.
  POSTGRES_USER=flashnews
  POSTGRES_PASSWORD=flashnews
  POSTGRES_DB=flashnews
+ POSTGRES_HOST=xxx
  ENV
 
 # 3. Provide LLM configuration
  cat <<'TOML' > backend/config.toml
- [global]
  prompt = "Summarize the following news items, highlight big themes, and list actionable insights."
+ brief_time = "14:20"
 
  [model]
  model = "gpt-4.1-mini"
@@ -43,6 +44,7 @@ PS: It's another round of information moisture. Be careful about what you see.
  TOML
 
 # 4. Launch everything
+ cd infra/docker
  docker compose up --build -d
 ```
 
@@ -61,12 +63,10 @@ To target a backend running elsewhere, set `BACKEND_URL` in your `.env` before `
 ### Backend
 
 ```bash
-cd backend
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-export POSTGRES_HOST=localhost  # configure database connection
-python run.py
+python run-backend.py
 ```
 
 Run tests or scripts with the virtualenv active. The server reloads thanks to `uvicorn` when `ENV=dev`.
@@ -74,18 +74,12 @@ Run tests or scripts with the virtualenv active. The server reloads thanks to `u
 ### Frontend
 
 ```bash
-cd frontend
+cd apps/frontend
 npm install
 npm run dev
 ```
 
 Vite serves the SPA at `http://localhost:5173` and proxies `/api` to `http://localhost:8000` when `.env` contains `VITE_API_BASE_URL=http://localhost:8000/api`.
-
-## Roadmap Highlights
-
-- Multi-model switching with per-group overrides
-- Feed health monitoring & retry strategies
-- Webhook integrations (Discord, Telegram) for daily brief delivery
 
 ## Contributing
 

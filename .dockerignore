@@ -1,0 +1,60 @@
+infra/docker/hf_cache/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Node / frontend
+apps/frontend/node_modules/
+apps/frontend/dist/
+apps/frontend/.vite/deps/
+
+# Virtual environments
+.env
+.venv
+.python-version
+
+# IDE / tooling
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Testing artifacts
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+
+# Git / docs
+.git
+.github
+.gitmodules
+*.md
+
+# Misc
+Dockerfile
+docker-compose.yml
+infra/docker/backend

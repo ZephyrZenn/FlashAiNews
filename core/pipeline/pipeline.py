@@ -19,6 +19,8 @@ embedding_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
 
 def sum_pipeline(articles: list[FeedArticle]) -> str:
+    if not articles:
+        return ""
     individual_summaries = individual_summarization(articles)
     embeddings = embedding(individual_summaries)
     labels = perform_cluster(embeddings)

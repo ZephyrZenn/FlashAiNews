@@ -70,14 +70,17 @@ def _to_model_config(config: ModelConfigModel) -> ModelConfig:
     )
 
 
-def load_config(reload: bool = False, use_env_overrides: bool = True) -> GlobalConfig:
+def load_config(reload: bool = False, use_env_overrides: bool = True, path: Optional[str] = None) -> GlobalConfig:
     """Load configuration with caching, validation, and environment overrides"""
     global _config
 
     if _config and not reload:
         return _config
 
-    config_path = get_config_path()
+    if not path:
+        config_path = get_config_path()
+    else:
+        config_path = path
 
     if not os.path.exists(config_path):
         try:

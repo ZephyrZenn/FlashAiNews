@@ -129,7 +129,7 @@ def generate_today_brief():
                            WHERE fgi.feed_group_id NOT IN (SELECT group_id
                                                            FROM feed_brief
                                                            WHERE created_at::date = CURRENT_DATE)
-                             AND f.pub_date::date = CURRENT_DATE;
+                             AND f.pub_date >= NOW() - INTERVAL '24 hours';
 
                         """)
             rows = cur.fetchall()

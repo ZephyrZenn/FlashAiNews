@@ -62,8 +62,8 @@ def parse_feed(feeds: list[Feed]) -> dict[str, list[FeedArticle]]:
             if not published_struct:
                 continue
             pub_date = _convert_to_datetime(published_struct)
-            if pub_date.date() != datetime.datetime.today().date():
-                continue
+            # if pub_date.date() != datetime.datetime.today().date():
+            #     continue
             guid = None
             if not hasattr(entry, "id"):
                 guid = entry.link

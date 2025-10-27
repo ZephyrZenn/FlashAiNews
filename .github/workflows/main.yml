@@ -45,4 +45,4 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: false
-          tags: ghcr.io/${{ github.repository }}-${{ matrix.tag }}:ci
+          tags: ghcr.io/zephyrzenn/flashainews-${{ matrix.tag }}:ci

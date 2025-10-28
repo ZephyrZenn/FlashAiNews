@@ -38,6 +38,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
+      - name: Log in to Alibaba Cloud ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
 
       - name: Build ${{ matrix.name }} image
         uses: docker/build-push-action@v5
@@ -45,4 +51,6 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: true
-          tags: ghcr.io/zephyrzenn/flashainews-${{ matrix.tag }}:ci
+          tags: |
+            ghcr.io/zephyrzenn/flashainews-${{ matrix.tag }}:ci
+            ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/flashainews-${{ matrix.tag }}:ci

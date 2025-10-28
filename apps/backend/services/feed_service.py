@@ -65,16 +65,13 @@ def retrieve_new_feeds(group_ids: list[int] = None):
     if not feeds:
         return
     articles = parse_feed(feeds)
-    for feed in articles.keys():
-        today_articles = [
-            a
-            for a in articles[feed]
-            if a.pub_date.date() == datetime.datetime.today().date()
-        ]
-        if not today_articles:
-            articles.pop(feed)
-            continue
-        articles[feed] = today_articles 
+    today = datetime.date.today()
+    filtered_articles = {}
+    for feed_title, feed_articles in articles.items():
+        today_articles = [a for a in feed_articles if a.pub_date.date() == today]
+        if today_articles:
+            filtered_articles[feed_title] = today_articles
+    articles = filtered_articles
     urls = {
         a.url: a for arts in articles.values() for a in arts if not a.has_full_content
     }

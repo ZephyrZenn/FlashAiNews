@@ -65,13 +65,34 @@ def retrieve_new_feeds(group_ids: list[int] = None):
     if not feeds:
         return
     articles = parse_feed(feeds)
-    today = datetime.date.today()
+    cutoff = datetime.datetime.now() - datetime.timedelta(days=7)
     filtered_articles = {}
     for feed_title, feed_articles in articles.items():
-        today_articles = [a for a in feed_articles if a.pub_date.date() == today]
-        if today_articles:
-            filtered_articles[feed_title] = today_articles
+        recent_articles = [a for a in feed_articles if a.pub_date >= cutoff]
+        if recent_articles:
+            filtered_articles[feed_title] = recent_articles
     articles = filtered_articles
+    if articles:
+        candidate_ids = {
+            a.id for feed_articles in articles.values() for a in feed_articles if a.id
+        }
+        if candidate_ids:
+            with get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """SELECT id FROM feed_items WHERE id = ANY(%s)""",
+                        (list(candidate_ids),),
+                    )
+                    existing_ids = {row[0] for row in cur.fetchall()}
+            if existing_ids:
+                deduped_articles = {}
+                for feed_title, feed_articles in articles.items():
+                    unique_articles = [
+                        a for a in feed_articles if a.id not in existing_ids
+                    ]
+                    if unique_articles:
+                        deduped_articles[feed_title] = unique_articles
+                articles = deduped_articles
     urls = {
         a.url: a for arts in articles.values() for a in arts if not a.has_full_content
     }

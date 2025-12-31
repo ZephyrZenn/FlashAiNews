@@ -1,4 +1,5 @@
-/backend/.venv/*
+.venv/*
+.cursor/
 **/.env
 backend/.idea
 **/__pycache__

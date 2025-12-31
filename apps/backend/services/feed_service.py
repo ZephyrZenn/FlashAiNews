@@ -6,7 +6,7 @@ from typing import Optional
 from core.constants import SUMMARY_LENGTH
 from core.crawler import fetch_all_contents
 from apps.backend.db import execute_transaction, get_connection
-from core.models.feed import Feed
+from core.models.feed import Feed, FeedArticle
 from core.parsers import parse_feed, parse_opml
 
 from ..exception import BizException
@@ -216,3 +216,47 @@ def _insert_feeds(cur, feeds):
 
 def _html2md(content: str):
     return html2text.html2text(content)
+
+def get_feed_items(hour_gap: int, group_ids: Optional[list[int]]) -> list[dict]:
+    """
+    Get all feed_items from the last `hour_gap` hours, optionally filtering by feed group IDs.
+    Args:
+        hour_gap (int): Number of previous hours to look back.
+        group_ids (Optional[list[int]]): If provided, only get items from feeds in these group_ids.
+    Returns:
+        List of feed_items as dicts.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            if group_ids is not None and len(group_ids) > 0:
+                sql = """
+                    SELECT DISTINCT fi.id, fi.feed_id, fi.title, fi.link, fi.summary, fi.pub_date
+                    FROM feed_items fi
+                    JOIN feed_group_items fgi ON fi.feed_id = fgi.feed_id
+                    WHERE fgi.feed_group_id = ANY(%s)
+                        AND fi.pub_date >= NOW() - INTERVAL '1 hour' * %s
+                    ORDER BY fi.pub_date DESC
+                """
+                cur.execute(sql, (group_ids, hour_gap))
+            else:
+                sql = """
+                    SELECT fi.id, fi.feed_id, fi.title, fi.link, fi.summary, fi.pub_date
+                    FROM feed_items fi
+                    WHERE fi.pub_date >= NOW() - INTERVAL '1 hour' * %s
+                    ORDER BY fi.pub_date DESC
+                """
+                cur.execute(sql, (hour_gap,))
+            rows = cur.fetchall()
+            return [
+                {
+                    "id": row[0],
+                    "feed_id": row[1],
+                    "title": row[2],
+                    "link": row[3],
+                    "summary": row[4],
+                    "pub_date": row[5],
+                }
+                for row in rows
+            ]
+
+

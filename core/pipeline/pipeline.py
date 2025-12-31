@@ -15,7 +15,17 @@ from core.pipeline.brief_generator import build_generator
 generator = build_generator()
 
 logger = logging.getLogger(__name__)
-embedding_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+
+_embedding_model = None
+
+
+def get_embedding_model() -> SentenceTransformer:
+    """Lazy load the embedding model."""
+    global _embedding_model
+    if _embedding_model is None:
+        logger.info("Loading embedding model...")
+        _embedding_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+    return _embedding_model
 
 
 def sum_pipeline(articles: list[FeedArticle]) -> str:
@@ -45,7 +55,8 @@ def sum_pipeline(articles: list[FeedArticle]) -> str:
 
 
 def embedding(texts: list[str]) -> np.ndarray:
-    embeddings = embedding_model.encode(texts, show_progress_bar=True)
+    model = get_embedding_model()
+    embeddings = model.encode(texts, show_progress_bar=True)
     embeddings = normalize(embeddings, norm="l2")
     return embeddings
 
@@ -96,14 +107,12 @@ def find_optimal_k(embeddings: np.ndarray, max_k: int = 5) -> int:
     return max(scores, key=scores.get)
 
 def individual_summarization(articles: list[FeedArticle]) -> list[str]:
-    prompts = [
-        INDIVIDUAL_SUM_PROMPT.format(article=article.content) for article in articles
-    ]
     summarys = []
-    for prompt in prompts:
+    for article in articles:
+        prompt = INDIVIDUAL_SUM_PROMPT.format(article=article.content)
         summary = generator.completion(prompt)
         summarys.append(summary)
-        logger.info(f"Article {id} summarized.")
+        logger.info("Article %s summarized.", article.id)
     return summarys
 
 

@@ -51,3 +51,6 @@ class FeedServiceTest(unittest.TestCase):
 
     def test_cron(self):
         generate_daily_brief()
+        
+    def test_retrieve_new_feeds(self):
+        retrieve_new_feeds()

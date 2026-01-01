@@ -41,9 +41,9 @@ class AgentTest(unittest.TestCase):
         for group in groups:
             for feed in group.feeds:
                 feed_group_map[feed.id].append(group.title)
-        articles = get_feed_items(48, None)
+        articles = get_feed_items(48, group_ids=[groups[0].id])
         # conver articles to list[RawArticle]
         raw_articles = [RawArticle(id=article["id"], title=article["title"], url=article["link"], group_title=feed_group_map.get(
             article['feed_id']), summary=article["summary"]) for article in articles]
-        plan_result = agent_planner.plan(AgentState(groups=list(groups), raw_articles=raw_articles))
+        plan_result = agent_planner.plan(AgentState(groups=[groups[0]], raw_articles=raw_articles))
         print(plan_result)

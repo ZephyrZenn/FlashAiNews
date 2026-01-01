@@ -44,11 +44,11 @@ class FeedArticle:
 
 
 class FeedGroup:
-    def __init__(self, id: int, title: str, desc: str, feeds: list[Feed] = []):
+    def __init__(self, id: int, title: str, desc: str, feeds: list[Feed] | None = None):
         self.id = id
         self.title = title
         self.desc = desc
-        self.feeds = feeds
+        self.feeds = feeds if feeds is not None else []
 
 
 class FeedBrief:

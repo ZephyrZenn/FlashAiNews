@@ -1,6 +1,8 @@
 from typing import TypedDict
+from typing_extensions import NotRequired
 
 from core.models.feed import FeedGroup
+
 
 class RawArticle(TypedDict):
     id: str
@@ -9,10 +11,6 @@ class RawArticle(TypedDict):
     group_title: list[str]
     summary: str
 
-class AgentState(TypedDict):
-    groups: list[FeedGroup]
-    raw_articles: list[RawArticle]
-    
 
 class FocalPoint(TypedDict):
     priority: int
@@ -22,13 +20,20 @@ class FocalPoint(TypedDict):
     reasoning: str
     search_query: str
     writing_guide: str
-    
+
+
 class DiscardedItem(TypedDict):
     id: str
     reason: str
-    
+
+
 class AgentPlanResult(TypedDict):
     daily_overview: str
     focal_points: list[FocalPoint]
     discarded_items: list[DiscardedItem]
 
+
+class AgentState(TypedDict):
+    groups: list[FeedGroup]
+    raw_articles: list[RawArticle]
+    plan: NotRequired[AgentPlanResult]

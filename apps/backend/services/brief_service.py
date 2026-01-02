@@ -1,11 +1,11 @@
+import asyncio
 import datetime
 import logging
-from collections import defaultdict
 from typing import List, Optional
 
 from apps.backend.db.pool import execute_transaction, get_connection
-from core.models.feed import FeedArticle, FeedBrief
-from core.pipeline.pipeline import sum_pipeline
+from apps.backend.services.group_service import get_all_groups_without_today_brief
+from core.models.feed import FeedBrief
 
 logger = logging.getLogger(__name__)
 
@@ -119,40 +119,17 @@ def get_history_brief(group_id: int):
 
 
 def generate_today_brief():
-    logger.info("Generating today brief")
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""SELECT f.id, f.title, f.link, f.pub_date, f.summary, fic.content, fgi.feed_group_id
-                           FROM feed_items f
-                                    LEFT JOIN feed_item_contents fic ON f.id = fic.feed_item_id
-                                    JOIN feed_group_items fgi ON f.feed_id = fgi.feed_id
-                           WHERE fgi.feed_group_id NOT IN (SELECT group_id
-                                                           FROM feed_brief
-                                                           WHERE created_at::date = CURRENT_DATE)
-                             AND f.pub_date >= NOW() - INTERVAL '24 hours';
+    # 延迟导入避免循环依赖
+    from agent import get_agent
 
-                        """)
-            rows = cur.fetchall()
-            articles = defaultdict(list)
-            for row in rows:
-                group_id = row[6]
-                articles[group_id].append(
-                    FeedArticle(
-                        id=row[0],
-                        title=row[1],
-                        url=row[2],
-                        content=row[5],
-                        pub_date=row[3],
-                        summary=row[4],
-                        has_full_content=True,
-                    )
-                )
-        for group_id, arts in articles.items():
-            if not arts:
-                continue
-            logger.info("Generating brief for group %s with %d articles", group_id, len(arts))
-            brief = sum_pipeline(arts)
-            execute_transaction(_insert_brief, group_id, brief)
+    logger.info("Generating today brief")
+    groups = get_all_groups_without_today_brief()
+    for group in groups:
+        logger.info("Generating brief for group %s", group.id)
+        # TODO: hour gap should be configurable
+        brief = asyncio.run(get_agent().summarize(24, [group.id]))
+        logger.info("Brief generated for group %s", group.id)
+        execute_transaction(_insert_brief, group.id, brief)
     logger.info("Today brief generated")
 
 

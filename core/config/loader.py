@@ -104,6 +104,10 @@ def load_config(reload: bool = False, use_env_overrides: bool = True, path: Opti
         with open(config_path, "r", encoding="utf-8") as f:
             file_config = toml.load(f)
 
+        # Apply environment variable overrides if enabled
+        if use_env_overrides:
+            file_config = _apply_env_overrides(file_config)
+
         summary = get_config_summary(file_config)
         logger.info(f"Configuration summary: {summary}")
 
@@ -114,9 +118,9 @@ def load_config(reload: bool = False, use_env_overrides: bool = True, path: Opti
 
     # Validate and build global config
     global_model = _validate_global_config(file_config)
+    
     global_cfg = GlobalConfig(
         model=_to_model_config(global_model.model),
-        prompt=global_model.prompt,
         brief_time=global_model.brief_time,
     )
 
@@ -128,6 +132,40 @@ def load_config(reload: bool = False, use_env_overrides: bool = True, path: Opti
     )
 
     return _config
+
+
+def _apply_env_overrides(config: dict) -> dict:
+    """Apply environment variable overrides to configuration"""
+    # Override model configuration from environment variables
+    if "model" not in config:
+        config["model"] = {}
+
+    # Override API key from environment
+    if api_key := os.getenv("MODEL_API_KEY"):
+        config["model"]["api_key"] = api_key
+        logger.debug("Overriding api_key from MODEL_API_KEY environment variable")
+
+    # Override base URL from environment
+    if base_url := os.getenv("MODEL_BASE_URL"):
+        config["model"]["base_url"] = base_url
+        logger.debug("Overriding base_url from MODEL_BASE_URL environment variable")
+
+    # Override model name from environment
+    if model_name := os.getenv("MODEL_NAME"):
+        config["model"]["model"] = model_name
+        logger.debug("Overriding model from MODEL_NAME environment variable")
+
+    # Override provider from environment
+    if provider := os.getenv("MODEL_PROVIDER"):
+        config["model"]["provider"] = provider
+        logger.debug("Overriding provider from MODEL_PROVIDER environment variable")
+
+    # Override brief_time from environment
+    if brief_time := os.getenv("BRIEF_TIME"):
+        config["brief_time"] = brief_time
+        logger.debug("Overriding brief_time from BRIEF_TIME environment variable")
+
+    return config
 
 
 def get_config() -> GlobalConfig:

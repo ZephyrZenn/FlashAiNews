@@ -1,6 +1,6 @@
+import asyncio
 import datetime
 import logging
-import html2text
 from typing import Optional
 
 from core.constants import SUMMARY_LENGTH
@@ -96,7 +96,7 @@ def retrieve_new_feeds(group_ids: list[int] = None):
     urls = {
         a.url: a for arts in articles.values() for a in arts if not a.has_full_content
     }
-    contents = fetch_all_contents(list(urls.keys()))
+    contents = asyncio.run(fetch_all_contents(list(urls.keys())))
     for url, content in contents.items():
         if not content:
             continue
@@ -104,12 +104,6 @@ def retrieve_new_feeds(group_ids: list[int] = None):
         article.content = content
         if not article.summary:
             article.summary = content[:SUMMARY_LENGTH]
-
-    for _, al in articles.items():
-        for article in al:
-            article.summary = _html2md(article.summary)
-            if article.content:
-                article.content = _html2md(article.content)
 
     def insert_new_articles(cursor):
         for feed in feeds:
@@ -213,6 +207,46 @@ def _insert_feeds(cur, feeds):
     ]
     cur.executemany(insert_sql, data_to_insert)
 
+def get_feed_items(hour_gap: int, group_ids: Optional[list[int]]) -> list[dict]:
+    """
+    Get all feed_items from the last `hour_gap` hours, optionally filtering by feed group IDs.
+    Args:
+        hour_gap (int): Number of previous hours to look back.
+        group_ids (Optional[list[int]]): If provided, only get items from feeds in these group_ids.
+    Returns:
+        List of feed_items as dicts.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            if group_ids is not None and len(group_ids) > 0:
+                sql = """
+                    SELECT DISTINCT fi.id, fi.feed_id, fi.title, fi.link, fi.summary, fi.pub_date
+                    FROM feed_items fi
+                    JOIN feed_group_items fgi ON fi.feed_id = fgi.feed_id
+                    WHERE fgi.feed_group_id = ANY(%s)
+                        AND fi.pub_date >= NOW() - INTERVAL '1 hour' * %s
+                    ORDER BY fi.pub_date DESC
+                """
+                cur.execute(sql, (group_ids, hour_gap))
+            else:
+                sql = """
+                    SELECT fi.id, fi.feed_id, fi.title, fi.link, fi.summary, fi.pub_date
+                    FROM feed_items fi
+                    WHERE fi.pub_date >= NOW() - INTERVAL '1 hour' * %s
+                    ORDER BY fi.pub_date DESC
+                """
+                cur.execute(sql, (hour_gap,))
+            rows = cur.fetchall()
+            return [
+                {
+                    "id": row[0],
+                    "feed_id": row[1],
+                    "title": row[2],
+                    "link": row[3],
+                    "summary": row[4],
+                    "pub_date": row[5],
+                }
+                for row in rows
+            ]
 
-def _html2md(content: str):
-    return html2text.html2text(content)
+

@@ -1,13 +1,8 @@
 # NewsCollector Configuration Example
 # Copy this file to config.toml and update with your settings
 
-# Default prompt template for brief generation
+# Default time for brief generation
 brief_time = "08:00"
-prompt = """
-1. **Identify Core Themes**: As you read through the articles, look for common themes, major updates, and significant points of consensus or disagreement across the articles.
-
-2. **Synthesize Information**: Combine the insights from all articles into one integrated summary. Focus on the bigger picture rather than detailing individual articles.
-"""
 
 [model]
 # Default model to use for generating briefs

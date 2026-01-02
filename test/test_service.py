@@ -3,10 +3,10 @@ import unittest
 
 from dotenv import load_dotenv
 
+from agent import init_agent
+from apps.backend.services.brief_service import generate_today_brief
 from core.config.loader import load_config
 from apps.backend.crons import generate_daily_brief
-from core.pipeline.brief_generator import build_generator
-from apps.backend.services import retrieve_and_generate_brief
 from apps.backend.services.feed_service import import_opml_config, retrieve_new_feeds
 from apps.backend.services.group_service import create_group
 
@@ -35,20 +35,18 @@ class FeedServiceTest(unittest.TestCase):
                 f"Missing required environment variables: {', '.join(missing_vars)}"
             )
         cfg = load_config()
+        init_agent()
 
     def test_generate_today_feed(self):
         # retrieve_and_generate_brief()
-        # generate_today_brief()
-        retrieve_new_feeds()
+        # retrieve_new_feeds()
+        generate_today_brief()
 
     def test_import_opml_config(self):
         import_opml_config("feed.opml")
 
     def test_create_group(self):
         create_group("Test", "Test Group", [1, 2])
-
-    def test_llm_config(self):
-        build_generator()
 
     def test_cron(self):
         generate_daily_brief()

@@ -5,7 +5,7 @@ from agent.pipeline.executor import AgentExecutor
 from agent.pipeline.writer import AgentWriter
 from agent.models import AgentState, RawArticle, StepCallback, log_step
 from agent.tools import fetcher_tool
-from core.pipeline.brief_generator import build_generator
+from core.brief_generator import build_generator
 
 
 class SummarizeAgent:
@@ -59,6 +59,25 @@ class SummarizeAgent:
         if on_step:
             state["on_step"] = on_step
         return state
-    
+
     def get_history(self) -> list[str]:
         return self.state["history"]
+
+
+# 单例实例
+_agent_instance: Optional[SummarizeAgent] = None
+
+
+def init_agent() -> SummarizeAgent:
+    """应用启动时调用，初始化 Agent 单例"""
+    global _agent_instance
+    if _agent_instance is None:
+        _agent_instance = SummarizeAgent()
+    return _agent_instance
+
+
+def get_agent() -> SummarizeAgent:
+    """获取 Agent 单例实例"""
+    if _agent_instance is None:
+        raise RuntimeError("Agent 未初始化，请先调用 init_agent()")
+    return _agent_instance

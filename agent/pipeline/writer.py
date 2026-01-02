@@ -1,4 +1,4 @@
-from core.pipeline.brief_generator import AIGenerator
+from core.brief_generator import AIGenerator
 from agent.models import WritingMaterial
 from agent.pipeline.prompt import WRITER_FLASH_NEWS_PROMPT, WRITER_PROMPT_TEMPLATE
 

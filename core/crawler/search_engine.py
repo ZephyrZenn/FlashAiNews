@@ -1,8 +1,11 @@
+import logging
 import os
 from typing import Optional
 from tavily import TavilyClient
 
 from core.models.search import SearchResult
+
+logger = logging.getLogger(__name__)
 
 class SearchClient:
     def __init__(self, api_key: str):
@@ -17,7 +20,8 @@ _search_client: Optional[SearchClient] = None
 def get_search_client() -> SearchClient:
     global _search_client
     if not os.getenv("TAVILY_API_KEY"):
-        raise ValueError("TAVILY_API_KEY is not set")
+        logger.warning("TAVILY_API_KEY is not set. Search engine will not be available.")
+        return None
     if _search_client is None:
         _search_client = SearchClient(api_key=os.getenv("TAVILY_API_KEY"))
     return _search_client

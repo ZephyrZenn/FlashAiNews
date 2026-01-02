@@ -4,7 +4,7 @@ from datetime import datetime
 import json
 from agent.models import AgentPlanResult, AgentState, log_step
 from agent.pipeline.prompt import GLOBAL_PLANNER_PROMPT_TEMPLATE, GROUP_PLANNER_PROMPT_TEMPLATE
-from core.pipeline.brief_generator import AIGenerator
+from core.brief_generator import AIGenerator
 
 logger = logging.getLogger(__name__)
 

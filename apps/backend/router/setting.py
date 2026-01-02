@@ -20,7 +20,6 @@ async def get_setting():
                 api_key="********",
                 base_url=model.base_url or "",
             ),
-            prompt=setting.prompt,
             brief_time=setting.brief_time.strftime("%H:%M"),
         )
     )
@@ -28,11 +27,11 @@ async def get_setting():
 
 @router.post("/")
 async def modify_setting(request: ModifySettingRequest):
-    setting_service.update_setting(request.prompt, request.model, request.brief_time)
+    setting_service.update_setting(request.model, request.brief_time)
     return success_with_data(None)
 
 
 @router.post("/brief-time")
 async def set_brief_time(request: UpdateBriefTimeRequest):
-    setting_service.update_setting(None, None, request.brief_time)
+    setting_service.update_setting(None, request.brief_time)
     return success_with_data(None)

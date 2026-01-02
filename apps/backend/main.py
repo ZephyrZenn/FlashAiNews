@@ -5,6 +5,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from agent import init_agent
 import apps.backend.services.brief_service as brief_service
 from core.config.loader import load_config
 from apps.backend.config.thread import init_thread_pool, shutdown_thread_pool
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI):
     config = load_config()
     init_thread_pool()
     start_scheduler(config.brief_time)
+    init_agent()
     yield
     logger.info("Shutdown scheduler, thread pool")
     shutdown_scheduler()

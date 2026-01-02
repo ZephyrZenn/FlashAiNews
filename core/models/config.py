@@ -35,17 +35,10 @@ class GlobalConfigModel(BaseModel):
     """Pydantic model for global configuration validation"""
 
     model: ModelConfigModel = Field(..., description="Default model configuration")
-    prompt: str = Field(..., description="Default prompt template")
     brief_time: time = Field(
         default_factory=lambda: time(hour=8),
         description="Daily brief generation time in HH:MM 24h format",
     )
-
-    @validator("prompt")
-    def validate_prompt(cls, v):
-        if not v or not v.strip():
-            raise ValueError("prompt cannot be empty")
-        return v.strip()
 
     @validator("brief_time")
     def validate_brief_time(cls, v):
@@ -69,7 +62,6 @@ class GlobalConfig:
     """Global configuration dataclass"""
 
     model: "ModelConfig"
-    prompt: str
     brief_time: time
 
 

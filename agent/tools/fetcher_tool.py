@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from core.crawler import fetch_all_contents
 from apps.backend.db import get_connection
-from core.crawler.search_engine import search
+from core.crawler.search_engine import get_search_client, search
 from core.models.feed import FeedGroup
 from core.models.search import SearchResult
 from apps.backend.services import group_service, feed_service
@@ -26,6 +26,9 @@ def get_group_with_feeds(group_ids: list[int]) -> list[FeedGroup]:
 
 def get_feed_items(hour_gap: int, group_ids: Optional[list[int]]) -> list[dict]:
     return feed_service.get_feed_items(hour_gap, group_ids)
+
+def is_search_engine_available() -> bool:
+    return get_search_client() is not None
 
 async def search_web(
     query: str,

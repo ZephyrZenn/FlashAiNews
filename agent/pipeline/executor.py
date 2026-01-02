@@ -54,13 +54,17 @@ class AgentExecutor:
         ]
         log_step(state, f"   ↳ 获取 {len(raw_articles)} 篇文章内容...")
         raw_articles = await self.fill_content(raw_articles)
-        log_step(state, f"   ↳ 搜索扩展信息: '{point['search_query']}'")
-        search_results = await fetcher_tool.search_web(point["search_query"])
-        log_step(state, f"   ↳ 获取到 {len(search_results)} 条搜索结果，正在抓取内容...")
-        urls = [result["url"] for result in search_results]
-        contents = await fetcher_tool.fetch_web_contents(urls)
-        for result in search_results:
-            result["content"] = contents[result["url"]]
+        if fetcher_tool.is_search_engine_available():
+            log_step(state, f"   ↳ 搜索扩展信息: '{point['search_query']}'")
+            search_results = await fetcher_tool.search_web(point["search_query"])
+            log_step(state, f"   ↳ 获取到 {len(search_results)} 条搜索结果，正在抓取内容...")
+            urls = [result["url"] for result in search_results]
+            contents = await fetcher_tool.fetch_web_contents(urls)
+            for result in search_results:
+                result["content"] = contents[result["url"]]
+        else:
+            log_step(state, "   ↳ 搜索引擎不可用，跳过搜索扩展")
+            search_results = []
 
         writing_material = WritingMaterial(
             topic=point["topic"],

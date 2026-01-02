@@ -38,7 +38,6 @@ class ModifyFeedRequest(CamelModel):
 
 class ModifySettingRequest(CamelModel):
     model: Optional[ModelConfig] = None
-    prompt: Optional[str] = None
     brief_time: Optional[time] = None
 
     @validator("brief_time")

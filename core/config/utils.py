@@ -29,13 +29,12 @@ def validate_config_file_exists(config_path: str) -> bool:
 
 def get_config_summary(config: Dict[str, Any]) -> Dict[str, Any]:
     """Get a summary of the configuration (without sensitive data)"""
+    model_section = config.get("model", {})
     summary = {
-        "has_global": "global" in config,
-        "has_model": isinstance(config.get("global", {}).get("model"), dict),
-        "has_prompt": "prompt" in config.get("global", {}),
+        "has_model": isinstance(model_section, dict),
+        "has_brief_time": "brief_time" in config,
     }
 
-    model_section = config.get("global", {}).get("model")
     if isinstance(model_section, dict):
         summary["model_name"] = model_section.get("model")
         summary["model_provider"] = model_section.get("provider")
@@ -46,14 +45,12 @@ def get_config_summary(config: Dict[str, Any]) -> Dict[str, Any]:
 def create_default_config() -> Dict[str, Any]:
     """Create a default configuration template"""
     return {
-        "prompt": (
-            "Summarize the following articles and highlight the most relevant insights."
-        ),
         "brief_time": "08:00",
         "model": {
-            "model": "gpt-4o-mini",
+            "model": "gpt-4",
             "provider": "openai",
-            "api_key": "replace-with-your-api-key",
+            "api_key": "sk-your-openai-api-key",
+            "base_url": "https://api.openai.com/v1",
         },
     }
 

@@ -217,3 +217,37 @@ def get_group_with_feeds(group_ids: list[int]) -> list[FeedGroup]:
                 if group_id in groups:
                     groups[group_id].feeds.append(feed)
             return list(groups.values())
+
+
+def get_all_groups_without_today_brief() -> list[FeedGroup]:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, title, "desc" FROM feed_groups WHERE id NOT IN (SELECT group_id FROM feed_brief WHERE created_at::date = CURRENT_DATE)""")
+            groups = {
+                row[0]: FeedGroup(id=row[0], title=row[1], desc=row[2])
+                for row in cur.fetchall()
+            }
+            if not groups:
+                return []
+            # Get the feeds for each group
+            cur.execute(
+                """SELECT f.id, f.title, f.url, f.last_updated, f.description, f."limit", fgi.feed_group_id 
+                FROM feeds f
+                JOIN feed_group_items fgi ON f.id = fgi.feed_id
+                WHERE fgi.feed_group_id = ANY(%s)""",
+                (list(groups.keys()),),
+            )
+            for row in cur.fetchall():
+                feed = Feed(
+                    id=row[0],
+                    title=row[1],
+                    url=row[2],
+                    last_updated=row[3],
+                    desc=row[4],
+                    limit=row[5],
+                )
+                group_id = row[6]
+                if group_id in groups:
+                    groups[group_id].feeds.append(feed)
+            return list(groups.values())

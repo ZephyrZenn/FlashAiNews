@@ -9,7 +9,6 @@ from apps.backend.services.scheduler_service import update_brief_schedule
 
 def get_setting():
     config = get_config()
-    prompt = config.prompt
     model_cfg = config.model
     return Setting(
         model=ModelConfig(
@@ -18,18 +17,15 @@ def get_setting():
             api_key=model_cfg.api_key,
             base_url=model_cfg.base_url or "",
         ),
-        prompt=prompt,
         brief_time=config.brief_time,
     )
 
 
 def update_setting(
-    prompt: Optional[str], model: Optional[ModelConfig], brief_time: Optional[time]
+    model: Optional[ModelConfig], brief_time: Optional[time]
 ):
     cfg = get_config()
     new_schedule = None
-    if prompt:
-        cfg.prompt = prompt
     if model:
         cfg.model = model
     if brief_time is not None:

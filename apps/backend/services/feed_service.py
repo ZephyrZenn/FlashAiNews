@@ -1,12 +1,12 @@
+import asyncio
 import datetime
 import logging
-import html2text
 from typing import Optional
 
 from core.constants import SUMMARY_LENGTH
 from core.crawler import fetch_all_contents
 from apps.backend.db import execute_transaction, get_connection
-from core.models.feed import Feed, FeedArticle
+from core.models.feed import Feed
 from core.parsers import parse_feed, parse_opml
 
 from ..exception import BizException
@@ -96,7 +96,7 @@ def retrieve_new_feeds(group_ids: list[int] = None):
     urls = {
         a.url: a for arts in articles.values() for a in arts if not a.has_full_content
     }
-    contents = fetch_all_contents(list(urls.keys()))
+    contents = asyncio.run(fetch_all_contents(list(urls.keys())))
     for url, content in contents.items():
         if not content:
             continue
@@ -104,12 +104,6 @@ def retrieve_new_feeds(group_ids: list[int] = None):
         article.content = content
         if not article.summary:
             article.summary = content[:SUMMARY_LENGTH]
-
-    for _, al in articles.items():
-        for article in al:
-            article.summary = _html2md(article.summary)
-            if article.content:
-                article.content = _html2md(article.content)
 
     def insert_new_articles(cursor):
         for feed in feeds:
@@ -212,10 +206,6 @@ def _insert_feeds(cur, feeds):
         for feed in feeds
     ]
     cur.executemany(insert_sql, data_to_insert)
-
-
-def _html2md(content: str):
-    return html2text.html2text(content)
 
 def get_feed_items(hour_gap: int, group_ids: Optional[list[int]]) -> list[dict]:
     """

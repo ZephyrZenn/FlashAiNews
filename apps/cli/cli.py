@@ -1,7 +1,7 @@
+import asyncio
 import datetime
 from pathlib import Path
 import typer
-import html2text
 
 from core.config.loader import load_config
 from core.constants import SUMMARY_LENGTH
@@ -41,7 +41,7 @@ def sumup(
     urls = {
         a.url: a for arts in articles.values() for a in arts if not a.has_full_content
     }
-    contents = fetch_all_contents(list(urls.keys()))
+    contents = asyncio.run(fetch_all_contents(list(urls.keys())))
     for url, content in contents.items():
         if not content:
             continue
@@ -49,12 +49,6 @@ def sumup(
         article.content = content
         if not article.summary:
             article.summary = content[:SUMMARY_LENGTH]
-
-    for _, al in articles.items():
-        for article in al:
-            article.summary = html2text.html2text(article.summary)
-            if article.content:
-                article.content = html2text.html2text(article.content)
     arts = []
     for a in articles.values():
         arts.extend(a)

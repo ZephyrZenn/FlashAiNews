@@ -1,39 +1,63 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
-
-from newspaper import Article
-import html2text
-from readability import Document
+import asyncio
+import httpx
+import trafilatura
 
 logger = logging.getLogger(__name__)
 
 
-def get_content(url: str) -> tuple[str, Optional[str]]:
-    """Fetch article HTML content for a single URL."""
+async def get_content(url: str, client: httpx.AsyncClient) -> tuple[str, str | None]:
+    """使用 httpx + trafilatura 实现的超轻量抓取."""
     try:
-        article = Article(url)
-        article.download()
-        article.parse()
-        doc = Document(article.html)
-        return url, doc.summary()
-    except Exception as exc:
-        logger.error("Failed to download %s: %s", url, exc)
+        # 1. 异步下载网页内容
+        resp = await client.get(url, timeout=10.0, follow_redirects=True)
+        resp.raise_for_status()
+
+        # 2. trafilatura 提取正文并直接转为 Markdown
+        # include_links=True 可以保留链接，方便 LLM 溯源
+        content = trafilatura.extract(
+            resp.text, include_links=True, output_format="markdown"
+        )
+
+        if content is None:
+            error_msg = f"[CRAWLER] ⚠️ 内容提取失败 (trafilatura返回空): {url}"
+            logger.warning(error_msg)
+            print(error_msg)
+            return url, None
+
+        return url, content
+
+    except httpx.TimeoutException:
+        error_msg = f"[CRAWLER] ⏱️ 请求超时: {url}"
+        logger.warning(error_msg)
+        print(error_msg)
         return url, None
 
+    except httpx.HTTPStatusError as exc:
+        error_msg = f"[CRAWLER] ❌ HTTP错误 {exc.response.status_code}: {url}"
+        logger.warning(error_msg)
+        print(error_msg)
+        return url, None
 
-def fetch_all_contents(urls: list[str]) -> dict[str, Optional[str]]:
-    """Fetch content from a list of URLs concurrently using worker threads."""
+    except httpx.RequestError as exc:
+        error_msg = f"[CRAWLER] 🔌 网络请求失败 ({type(exc).__name__}): {url}"
+        logger.warning(error_msg)
+        print(error_msg)
+        return url, None
+
+    except Exception as exc:
+        error_msg = f"[CRAWLER] 💥 未知错误 ({type(exc).__name__}: {exc}): {url}"
+        logger.error(error_msg)
+        print(error_msg)
+        return url, None
+
+async def fetch_all_contents(urls: list[str]) -> dict[str, str]:
+    """使用异步 IO 批量抓取."""
     if not urls:
         return {}
 
-    logger.info("Fetching %d URLs concurrently", len(urls))
-    results: dict[str, Optional[str]] = {}
-    max_workers = min(10, len(urls))
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for fetched_url, html in executor.map(get_content, urls):
-            if html:
-                results[fetched_url] = html2text.html2text(html)
-
-    return results
+    # 使用异步 Client 共享连接池
+    async with httpx.AsyncClient(limits=httpx.Limits(max_connections=20)) as client:
+        tasks = [get_content(url, client) for url in urls]
+        results_list = await asyncio.gather(*tasks)
+        return {url: content for url, content in results_list if content}

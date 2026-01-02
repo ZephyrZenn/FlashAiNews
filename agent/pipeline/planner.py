@@ -2,8 +2,8 @@ import logging
 import re
 from datetime import datetime
 import json
-from agent.models import AgentPlanResult, AgentState
-from agent.prompt import GLOBAL_PLANNER_PROMPT_TEMPLATE, GROUP_PLANNER_PROMPT_TEMPLATE
+from agent.models import AgentPlanResult, AgentState, log_step
+from agent.pipeline.prompt import GLOBAL_PLANNER_PROMPT_TEMPLATE, GROUP_PLANNER_PROMPT_TEMPLATE
 from core.pipeline.brief_generator import AIGenerator
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,8 @@ class AgentPlanner:
     def __init__(self, client: AIGenerator):
         self.client = client
 
-    def plan(self, state: AgentState) -> AgentPlanResult:
+    def plan(self, state: AgentState) -> None:
+        log_step(state, "🤖 正在调用LLM进行规划...")
         prompt = self._build_prompt(state)
         # logger.info(f"Sending planner prompt to LLM: {prompt}")
         print(f"Sending planner prompt to LLM: {prompt}")
@@ -44,25 +45,34 @@ class AgentPlanner:
         try:
             result: AgentPlanResult = extract_json(response)
             logger.info("Parsed planner response: %s", result)
-            return result
+            state["plan"] = result
+            focal_points = result.get("focal_points", [])
+            discarded = result.get("discarded_items", [])
+            log_step(state, f"📝 规划完成：识别出 {len(focal_points)} 个焦点话题，丢弃 {len(discarded)} 篇文章")
+            for i, point in enumerate(focal_points, 1):
+                log_step(state, f"   {i}. [{point['strategy']}] {point['topic']}")
         except json.JSONDecodeError as e:
+            log_step(state, "❌ 规划失败：无法解析LLM响应")
             logger.error("Failed to parse planner response: %s", response)
-            raise ValueError(
-                f"Failed to parse planner response: {response}") from e
+            raise ValueError(f"Failed to parse planner response: {response}") from e
 
     def _build_prompt(self, state: AgentState) -> str:
         raw_articles = "\n".join(
-            [f"{article['id']} | {article['title']} | {article['group_title']} | {article['summary']}" for article in state["raw_articles"]])
-        if len(state['groups']) == 1:
+            [
+                f"{article['id']} | {article['title']} | {article['group_title']} | {article['summary']}"
+                for article in state["raw_articles"]
+            ]
+        )
+        if len(state["groups"]) == 1:
             return GROUP_PLANNER_PROMPT_TEMPLATE.format(
                 current_date=datetime.now().strftime("%Y-%m-%d"),
-                group_title=state['groups'][0].title,
-                group_desc=state['groups'][0].desc,
+                group_title=state["groups"][0].title,
+                group_desc=state["groups"][0].desc,
                 raw_articles=raw_articles,
             )
         else:
             return GLOBAL_PLANNER_PROMPT_TEMPLATE.format(
                 current_date=datetime.now().strftime("%Y-%m-%d"),
-                user_groups=",".join([group.title for group in state['groups']]),
+                user_groups=",".join([group.title for group in state["groups"]]),
                 raw_articles=raw_articles,
             )

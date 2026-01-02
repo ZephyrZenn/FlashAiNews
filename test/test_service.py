@@ -27,6 +27,7 @@ class FeedServiceTest(unittest.TestCase):
             "POSTGRES_PASSWORD",
             "POSTGRES_HOST",
             "POSTGRES_DB",
+            "TAVILY_API_KEY",
         ]
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:

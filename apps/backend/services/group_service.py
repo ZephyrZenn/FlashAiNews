@@ -33,9 +33,7 @@ def join_group(group_id: int, feed_ids: list[str]):
 def get_feed_groups():
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """SELECT id, title, "desc" FROM feed_groups ORDER BY id ASC"""
-            )
+            cur.execute("""SELECT id, title, "desc" FROM feed_groups ORDER BY id ASC""")
             return [
                 FeedGroup(id=row[0], title=row[1], desc=row[2])
                 for row in cur.fetchall()
@@ -149,9 +147,7 @@ def get_all_groups_with_feeds() -> list[FeedGroup]:
     with get_connection() as conn:
         with conn.cursor() as cur:
             # Get all groups
-            cur.execute(
-                """SELECT id, title, "desc" FROM feed_groups ORDER BY id ASC"""
-            )
+            cur.execute("""SELECT id, title, "desc" FROM feed_groups ORDER BY id ASC""")
             groups = {
                 row[0]: FeedGroup(id=row[0], title=row[1], desc=row[2])
                 for row in cur.fetchall()
@@ -187,3 +183,37 @@ def get_all_groups_with_feeds() -> list[FeedGroup]:
 
             return list(groups.values())
 
+
+def get_group_with_feeds(group_ids: list[int]) -> list[FeedGroup]:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, title, "desc" FROM feed_groups WHERE id = ANY(%s)""",
+                (group_ids,),
+            )
+            groups = {
+                row[0]: FeedGroup(id=row[0], title=row[1], desc=row[2])
+                for row in cur.fetchall()
+            }
+            cur.execute(
+                """
+                SELECT f.id, f.title, f.url, f.last_updated, f.description, f."limit", fgi.feed_group_id 
+                FROM feeds f
+                JOIN feed_group_items fgi ON f.id = fgi.feed_id
+                WHERE fgi.feed_group_id = ANY(%s)
+                """,
+                (group_ids,),
+            )
+            for row in cur.fetchall():
+                feed = Feed(
+                    id=row[0],
+                    title=row[1],
+                    url=row[2],
+                    last_updated=row[3],
+                    desc=row[4],
+                    limit=row[5],
+                )
+                group_id = row[6]
+                if group_id in groups:
+                    groups[group_id].feeds.append(feed)
+            return list(groups.values())

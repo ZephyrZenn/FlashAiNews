@@ -32,7 +32,6 @@ def get_config_summary(config: Dict[str, Any]) -> Dict[str, Any]:
     model_section = config.get("model", {})
     summary = {
         "has_model": isinstance(model_section, dict),
-        "has_brief_time": "brief_time" in config,
     }
 
     if isinstance(model_section, dict):
@@ -45,7 +44,6 @@ def get_config_summary(config: Dict[str, Any]) -> Dict[str, Any]:
 def create_default_config() -> Dict[str, Any]:
     """Create a default configuration template"""
     return {
-        "brief_time": "08:00",
         "model": {
             "model": "gpt-4",
             "provider": "openai",

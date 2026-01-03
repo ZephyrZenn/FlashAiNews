@@ -11,9 +11,9 @@ router = APIRouter(prefix="/groups")
 @router.get("/", response_model=FeedGroupListResponse)
 async def get_all_feed_groups():
     """
-    Get all feed groups.
+    Get all feed groups with their associated feeds.
     """
-    return success_with_data(group_service.get_feed_groups())
+    return success_with_data(group_service.get_all_groups_with_feeds())
 
 
 @router.get("/{group_id}", response_model=FeedGroupDetailResponse)

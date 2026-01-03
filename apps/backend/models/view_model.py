@@ -34,7 +34,14 @@ class ModelSettingVO(CamelModel):
 
 class SettingVO(CamelModel):
     model: ModelSettingVO
-    brief_time: str
+
+
+class ScheduleVO(CamelModel):
+    id: str
+    time: str  # HH:MM format
+    focus: str
+    group_ids: List[int]
+    enabled: bool
 
 
 class FeedBriefResponse(CommonResult[FeedBriefVO]):
@@ -56,4 +63,12 @@ class FeedListResponse(CommonResult[List[FeedVO]]):
     pass
 
 class SettingResponse(CommonResult[SettingVO]):
+    pass
+
+
+class ScheduleListResponse(CommonResult[List[ScheduleVO]]):
+    pass
+
+
+class ScheduleResponse(CommonResult[ScheduleVO]):
     pass

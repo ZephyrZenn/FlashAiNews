@@ -121,7 +121,6 @@ def load_config(reload: bool = False, use_env_overrides: bool = True, path: Opti
     
     global_cfg = GlobalConfig(
         model=_to_model_config(global_model.model),
-        brief_time=global_model.brief_time,
     )
 
     _config = global_cfg
@@ -160,10 +159,6 @@ def _apply_env_overrides(config: dict) -> dict:
         config["model"]["provider"] = provider
         logger.debug("Overriding provider from MODEL_PROVIDER environment variable")
 
-    # Override brief_time from environment
-    if brief_time := os.getenv("BRIEF_TIME"):
-        config["brief_time"] = brief_time
-        logger.debug("Overriding brief_time from BRIEF_TIME environment variable")
 
     return config
 

@@ -3,7 +3,7 @@ import datetime
 import logging
 from typing import List, Optional
 
-from apps.backend.db.pool import execute_transaction, get_connection
+from core.db.pool import execute_transaction, get_connection
 from apps.backend.services.group_service import get_all_groups_without_today_brief
 from core.models.feed import FeedBrief
 

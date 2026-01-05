@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
-from typing import Optional
+
 from core.crawler import fetch_all_contents
-from apps.backend.db import get_connection
+from core.db.pool import get_connection
 from core.crawler.search_engine import get_search_client, search
 from core.models.feed import FeedGroup
+from agent.models import RawArticle
 from core.models.search import SearchResult
-from apps.backend.services import group_service, feed_service
 
 
 async def fetch_web_contents(urls: list[str]) -> dict[str, str]:
@@ -21,14 +21,66 @@ def fetch_feed_item_contents(feed_item_ids: list[str]) -> dict[str, str]:
             )
             return {row[0]: row[1] for row in cur.fetchall()}
 
-def get_group_with_feeds(group_ids: list[int]) -> list[FeedGroup]:
-    return group_service.get_group_with_feeds(group_ids)
 
-def get_feed_items(hour_gap: int, group_ids: Optional[list[int]]) -> list[dict]:
-    return feed_service.get_feed_items(hour_gap, group_ids)
+def get_recent_group_update(
+    hour_gap: int, group_ids: list[int]
+) -> tuple[list[FeedGroup], list[dict]]:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            # 查询 1: 获取 groups（这个保留，因为需要单独返回）
+            cur.execute(
+                """SELECT id, title, "desc" FROM feed_groups WHERE id = ANY(%s)""",
+                (group_ids,),
+            )
+            groups = [
+                FeedGroup(id=row[0], title=row[1], desc=row[2])
+                for row in cur.fetchall()
+            ]
+
+            if not groups:
+                return [], []
+
+            # 查询 2: 一次性获取所有数据，使用 JOIN 和 array_agg
+            cur.execute(
+                """
+                SELECT 
+                    fi.id,
+                    fi.title,
+                    fi.link,
+                    fi.summary,
+                    fi.pub_date,
+                    fic.content,
+                    array_agg(DISTINCT fg.title) AS group_titles
+                FROM feed_items fi
+                JOIN feed_item_contents fic ON fi.id = fic.feed_item_id
+                JOIN feed_group_items fgi ON fi.feed_id = fgi.feed_id
+                JOIN feed_groups fg ON fgi.feed_group_id = fg.id
+                WHERE fgi.feed_group_id = ANY(%s)
+                  AND fi.pub_date >= NOW() - INTERVAL '1 hour' * %s
+                GROUP BY fi.id, fi.title, fi.link, fi.summary, fi.pub_date, fic.content
+                """,
+                (group_ids, hour_gap),
+            )
+
+            items = [
+                RawArticle(
+                    id=row[0],
+                    title=row[1],
+                    url=row[2],
+                    summary=row[3],
+                    pub_date=row[4],
+                    content=row[5],
+                    group_title=row[6],  # 已经是 list[str]
+                )
+                for row in cur.fetchall()
+            ]
+
+            return groups, items
+
 
 def is_search_engine_available() -> bool:
     return get_search_client() is not None
+
 
 async def search_web(
     query: str,

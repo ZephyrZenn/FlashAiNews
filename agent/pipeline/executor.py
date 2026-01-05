@@ -1,13 +1,17 @@
 import asyncio
-from agent.models import AgentState, FocalPoint, RawArticle, WritingMaterial, log_step
+from agent.models import AgentState, FocalPoint, WritingMaterial, log_step
+from agent.pipeline.critic import AgentCritic
 from agent.pipeline.writer import AgentWriter
 from agent.tools import fetcher_tool
+from core.brief_generator import AIGenerator
 
 
 class AgentExecutor:
 
-    def __init__(self, writer: AgentWriter):
-        self.writer = writer
+    def __init__(self, client: AIGenerator, max_retries: int = 2):
+        self.writer = AgentWriter(client)
+        self.critic = AgentCritic(client)
+        self.max_retries = max_retries
 
     async def execute(self, state: AgentState) -> list[str]:
         plan = state["plan"]
@@ -32,7 +36,6 @@ class AgentExecutor:
             if article["id"] in point["article_ids"]
         ]
         log_step(state, f"   ↳ 获取 {len(raw_articles)} 篇文章内容...")
-        raw_articles = await self.fill_content(raw_articles)
         writing_material = WritingMaterial(
             topic=point["topic"],
             style="DEEP",
@@ -41,7 +44,7 @@ class AgentExecutor:
             articles=raw_articles,
         )
         log_step(state, "   ↳ 正在撰写深度内容...")
-        result = self.writer.write(writing_material)
+        result = self.write_with_review(writing_material, state, point)
         log_step(state, f"   ↳ ✅ 话题 '{point['topic']}' 撰写完成")
         return result
 
@@ -53,7 +56,6 @@ class AgentExecutor:
             if article["id"] in point["article_ids"]
         ]
         log_step(state, f"   ↳ 获取 {len(raw_articles)} 篇文章内容...")
-        raw_articles = await self.fill_content(raw_articles)
         if fetcher_tool.is_search_engine_available():
             log_step(state, f"   ↳ 搜索扩展信息: '{point['search_query']}'")
             search_results = await fetcher_tool.search_web(point["search_query"])
@@ -75,7 +77,7 @@ class AgentExecutor:
             ext_info=search_results,
         )
         log_step(state, "   ↳ 正在撰写深度内容...")
-        result = self.writer.write(writing_material)
+        result = self.write_with_review(writing_material, state, point)
         log_step(state, f"   ↳ ✅ 话题 '{point['topic']}' 撰写完成")
         return result
 
@@ -87,7 +89,6 @@ class AgentExecutor:
             if article["id"] in point["article_ids"]
         ]
         log_step(state, f"   ↳ 获取 {len(raw_articles)} 篇文章内容...")
-        raw_articles = await self.fill_content(raw_articles)
         writing_material = WritingMaterial(
             topic=point["topic"],
             style="FLASH",
@@ -100,10 +101,14 @@ class AgentExecutor:
         log_step(state, f"   ↳ ✅ 快讯 '{point['topic']}' 生成完成")
         return result
 
-    async def fill_content(self, raw_articles: list[RawArticle]) -> list[RawArticle]:
-        contents = fetcher_tool.fetch_feed_item_contents(
-            [article["id"] for article in raw_articles]
-        )
-        for article in raw_articles:
-            article["content"] = contents[article["id"]]
-        return raw_articles
+    def write_with_review(self, writing_material: WritingMaterial, state: AgentState, point: FocalPoint) -> str:
+        count = 0
+        while count < self.max_retries:
+            result = self.writer.write(writing_material)
+            review = self.critic.critic(result, writing_material)
+            if review["status"] == "APPROVED":
+                break
+            
+            log_step(state, f"   ↳ ✅ 话题 '{point['topic']}' 未通过审查，原因: {review}，重试 {count + 1} 次")
+            count += 1
+        return result

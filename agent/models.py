@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Callable, Literal, TypedDict
 from typing_extensions import NotRequired
 
@@ -14,6 +15,7 @@ class RawArticle(TypedDict):
     url: str
     group_title: list[str]
     summary: str
+    pub_date: datetime
     content: NotRequired[str]
 
 
@@ -61,3 +63,14 @@ def log_step(state: "AgentState", message: str) -> None:
     state["history"].append(message)
     if "on_step" in state and state["on_step"]:
         state["on_step"](message)
+        
+class AgentCriticFinding(TypedDict):
+    type: Literal["FACT_ERROR", "MISSING_INFO", "HALLUCINATION"]
+    location: str
+    correction_suggestion: str
+
+class AgentCriticResult(TypedDict):
+    status: Literal["APPROVED", "REJECTED"]
+    score: int
+    findings: list[AgentCriticFinding]
+    overall_comment: str

@@ -1,6 +1,6 @@
 import logging
 
-from apps.backend.db.pool import execute_transaction, get_connection
+from core.db.pool import execute_transaction, get_connection
 from apps.backend.exception import BizException
 from core.models.feed import Feed, FeedGroup
 

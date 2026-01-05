@@ -1,7 +1,9 @@
+@import "tailwindcss";
+
 :root {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #0f172a;
-  background-color: #f8fafc;
+  color: #f8fafc;
+  background-color: #02040a;
   line-height: 1.5;
 }
 
@@ -12,7 +14,47 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at top left, #e0f2fe 0%, #f8fafc 45%, #f1f5f9 100%);
+  background: #02040a;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -20%;
+  left: -10%;
+  width: 60%;
+  height: 60%;
+  background: rgba(37, 99, 235, 0.1);
+  filter: blur(140px);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  animation: pulse 4s ease-in-out infinite;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -10%;
+  right: -10%;
+  width: 50%;
+  height: 50%;
+  background: rgba(147, 51, 234, 0.1);
+  filter: blur(120px);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 a {
@@ -26,4 +68,12 @@ button {
 
 #root {
   min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+input::placeholder,
+textarea::placeholder {
+  font-size: 0.875rem; /* 14px */
+  opacity: 0.6;
 }

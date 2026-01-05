@@ -32,3 +32,4 @@ dist-ssr
 **/config.toml
 **/hf_cache
 
+schedules.json

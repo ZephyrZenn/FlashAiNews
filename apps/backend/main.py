@@ -13,9 +13,9 @@ from apps.backend.exception import BizException, handle_biz_exception, handle_ex
 from apps.backend.middleware import LogMiddleware
 from apps.backend.models.common import success_with_data
 from apps.backend.models.view_model import FeedBriefResponse
-from apps.backend.router import brief, feed, group, setting
+from apps.backend.router import brief, feed, group, setting, schedule
 from apps.backend.services import group_service, retrieve_and_generate_brief
-from apps.backend.services.scheduler_service import shutdown_scheduler, start_scheduler
+from apps.backend.services.scheduler_service import shutdown_scheduler, update_schedule_jobs
 from apps.backend.utils.thread_utils import submit_to_thread
 
 # 配置日志
@@ -39,7 +39,8 @@ async def lifespan(app: FastAPI):
     logger.info("Initialize scheduler, thread pool")
     config = load_config()
     init_thread_pool()
-    start_scheduler(config.brief_time)
+    # Load and register all schedules
+    update_schedule_jobs()
     init_agent()
     yield
     logger.info("Shutdown scheduler, thread pool")
@@ -54,6 +55,7 @@ app.include_router(feed.router)
 app.include_router(group.router)
 app.include_router(brief.router)
 app.include_router(setting.router)
+app.include_router(schedule.router)
 
 # CORS
 app.add_middleware(

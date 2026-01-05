@@ -15,6 +15,11 @@ import type {
   ModifySettingPayload,
   Setting,
   SettingResponse,
+  Schedule,
+  ScheduleListResponse,
+  ScheduleResponse,
+  CreateSchedulePayload,
+  UpdateSchedulePayload,
 } from '@/types/api';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -72,9 +77,18 @@ export const api = {
   getSetting: () => unwrap<Setting>(client.get<SettingResponse>('/setting/')),
   updateSetting: (payload: ModifySettingPayload) =>
     unwrap<void>(client.post<ApiResponse<void>>('/setting/', payload)),
-  updateBriefTime: (briefTime: string) =>
-    unwrap<void>(client.post<ApiResponse<void>>('/setting/brief-time', { briefTime })),
+
+  // Schedules
+  getSchedules: () => unwrap<Schedule[]>(client.get<ScheduleListResponse>('/schedules/')),
+  getSchedule: (scheduleId: string) =>
+    unwrap<Schedule>(client.get<ScheduleResponse>(`/schedules/${scheduleId}`)),
+  createSchedule: (payload: CreateSchedulePayload) =>
+    unwrap<Schedule>(client.post<ScheduleResponse>('/schedules/', payload)),
+  updateSchedule: (scheduleId: string, payload: UpdateSchedulePayload) =>
+    unwrap<Schedule>(client.put<ScheduleResponse>(`/schedules/${scheduleId}`, payload)),
+  deleteSchedule: (scheduleId: string) =>
+    unwrap<void>(client.delete<ApiResponse<void>>(`/schedules/${scheduleId}`)),
 };
 
-export type { Feed, FeedGroup, FeedBrief, Setting };
+export type { Feed, FeedGroup, FeedBrief, Setting, Schedule };
 export { baseURL };

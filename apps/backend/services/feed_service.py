@@ -5,11 +5,11 @@ from typing import Optional
 
 from core.constants import SUMMARY_LENGTH
 from core.crawler import fetch_all_contents
-from apps.backend.db import execute_transaction, get_connection
+from core.db.pool import execute_transaction, get_connection
 from core.models.feed import Feed
 from core.parsers import parse_feed, parse_opml
 
-from ..exception import BizException
+from apps.backend.exception import BizException
 
 logger = logging.getLogger(__name__)
 

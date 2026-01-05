@@ -38,18 +38,26 @@ class ModifyFeedRequest(CamelModel):
 
 class ModifySettingRequest(CamelModel):
     model: Optional[ModelConfig] = None
-    brief_time: Optional[time] = None
 
-    @validator("brief_time")
-    def validate_brief_time(cls, value):
-        if value is None:
-            return value
+
+class CreateScheduleRequest(CamelModel):
+    time: str  # HH:MM format
+    focus: str
+    group_ids: list[int]
+
+    @validator("time")
+    def validate_time(cls, value):
         return _normalize_brief_time(value)
 
 
-class UpdateBriefTimeRequest(CamelModel):
-    brief_time: time
+class UpdateScheduleRequest(CamelModel):
+    time: Optional[str] = None  # HH:MM format
+    focus: Optional[str] = None
+    group_ids: Optional[list[int]] = None
+    enabled: Optional[bool] = None
 
-    @validator("brief_time")
-    def validate_brief_time(cls, value):
+    @validator("time")
+    def validate_time(cls, value):
+        if value is None:
+            return value
         return _normalize_brief_time(value)

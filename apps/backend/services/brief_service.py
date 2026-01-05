@@ -3,7 +3,7 @@ import datetime
 import logging
 from typing import List, Optional
 
-from apps.backend.db.pool import execute_transaction, get_connection
+from core.db.pool import execute_transaction, get_connection
 from apps.backend.services.group_service import get_all_groups_without_today_brief
 from core.models.feed import FeedBrief
 
@@ -155,6 +155,24 @@ def get_default_group_briefs() -> Optional[List[FeedBrief]]:
                 for row in rows
             ]
             return briefs
+
+
+def generate_brief_for_groups(group_ids: list[int], focus: str = ""):
+    """
+    Generate brief for specific groups with optional focus.
+    """
+    # 延迟导入避免循环依赖
+    from agent import get_agent
+
+    logger.info(f"Generating brief for groups {group_ids} with focus: {focus}")
+    for group_id in group_ids:
+        logger.info("Generating brief for group %s", group_id)
+        # TODO: support custom focus in agent summarize
+        # For now, focus is not passed to agent, but stored for future use
+        brief = asyncio.run(get_agent().summarize(24, [group_id]))
+        logger.info("Brief generated for group %s", group_id)
+        execute_transaction(_insert_brief, group_id, brief)
+    logger.info("Brief generation completed for groups %s", group_ids)
 
 
 def _insert_brief(cur, group_id, brief):

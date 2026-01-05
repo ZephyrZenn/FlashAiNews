@@ -36,8 +36,6 @@ export interface ModelSetting {
 
 export interface Setting {
   model: ModelSetting;
-  prompt: string;
-  briefTime: string;
 }
 
 export type FeedGroupListResponse = ApiResponse<FeedGroup[]>;
@@ -65,8 +63,6 @@ export interface ImportFeedsPayload {
 }
 
 export interface ModifySettingPayload {
-  prompt?: string;
-  briefTime?: string;
   model?: {
     model: string;
     provider: string;
@@ -74,3 +70,27 @@ export interface ModifySettingPayload {
     baseUrl?: string;
   };
 }
+
+export interface Schedule {
+  id: string;
+  time: string; // HH:MM format
+  focus: string;
+  groupIds: number[];
+  enabled: boolean;
+}
+
+export interface CreateSchedulePayload {
+  time: string; // HH:MM format
+  focus: string;
+  groupIds: number[];
+}
+
+export interface UpdateSchedulePayload {
+  time?: string; // HH:MM format
+  focus?: string;
+  groupIds?: number[];
+  enabled?: boolean;
+}
+
+export type ScheduleListResponse = ApiResponse<Schedule[]>;
+export type ScheduleResponse = ApiResponse<Schedule>;

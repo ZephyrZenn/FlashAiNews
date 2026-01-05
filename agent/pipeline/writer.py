@@ -1,5 +1,5 @@
 from core.brief_generator import AIGenerator
-from agent.models import WritingMaterial
+from agent.models import AgentCriticResult, WritingMaterial
 from agent.pipeline.prompt import WRITER_FLASH_NEWS_PROMPT, WRITER_PROMPT_TEMPLATE
 
 
@@ -7,12 +7,12 @@ class AgentWriter:
     def __init__(self, client: AIGenerator):
         self.client = client
 
-    def write(self, writing_material: WritingMaterial):
-        prompt = self._build_prompt(writing_material)
+    def write(self, writing_material: WritingMaterial, review: AgentCriticResult | None = None):
+        prompt = self._build_prompt(writing_material, review)
         response = self.client.completion(prompt)
         return response
 
-    def _build_prompt(self, writing_material: WritingMaterial) -> str:
+    def _build_prompt(self, writing_material: WritingMaterial, review: AgentCriticResult | None = None) -> str:
         if writing_material["style"] == "FLASH":
             return WRITER_FLASH_NEWS_PROMPT.format(
                 articles_content="\n\n".join(
@@ -37,4 +37,5 @@ class AgentWriter:
                 for article in writing_material["articles"]
             ),
             ext_info=ext_info,
+            review = review if review else "",
         )

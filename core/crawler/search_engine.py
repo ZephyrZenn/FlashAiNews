@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional
+from typing import Literal, Optional
 from tavily import TavilyClient
 
 from core.models.search import SearchResult
@@ -11,8 +11,13 @@ class SearchClient:
     def __init__(self, api_key: str):
         self.client = TavilyClient(api_key=api_key)
 
-    def search(self, query: str, start_date: Optional[str] = None, end_date: Optional[str] = None, time_range: Optional[str] = None, max_results: int = 5) -> list[dict]:
-        return self.client.search(query, start_date=start_date, end_date=end_date, time_range=time_range, max_results=max_results)
+    def search(self, query: str, time_range: Literal["day", "week", "month", "year"] = "week", max_results: int = 5) -> list[dict]:
+        # 添加异常兜底策略
+        try:
+            return self.client.search(query, time_range=time_range, max_results=max_results)
+        except Exception as e:
+            logger.error(f"Search failed: {e}")
+            return []
 
 
 _search_client: Optional[SearchClient] = None
@@ -26,6 +31,6 @@ def get_search_client() -> SearchClient:
         _search_client = SearchClient(api_key=os.getenv("TAVILY_API_KEY"))
     return _search_client
 
-def search(query: str, start_date: Optional[str] = None, end_date: Optional[str] = None, time_range: Optional[str] = None, max_results: int = 5) -> list[SearchResult]:
-    search_results = get_search_client().search(query, start_date=start_date, end_date=end_date, time_range=time_range, max_results=max_results)
+def search(query: str, time_range: Literal["day", "week", "month", "year"] = "week", max_results: int = 5) -> list[SearchResult]:
+    search_results = get_search_client().search(query, time_range=time_range, max_results=max_results)
     return [SearchResult(title=result["title"], url=result["url"], content=result["content"], score=result["score"]) for result in search_results["results"]]

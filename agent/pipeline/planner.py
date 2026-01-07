@@ -8,6 +8,7 @@ from agent.pipeline.prompt import (
 )
 from core.brief_generator import AIGenerator
 from agent.utils import extract_json
+from agent.tools import filter_tool, memory_tool
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,16 @@ class AgentPlanner:
     def __init__(self, client: AIGenerator):
         self.client = client
 
-    def plan(self, state: AgentState) -> None:
+    async def plan(self, state: AgentState) -> AgentPlanResult:
+        result = None
+        keywords = filter_tool.find_keywords_with_llm(
+            self.client, state["raw_articles"]
+        )
+        log_step(state, f"🔍 提取到 {len(keywords)} 个关键词: {keywords}")
+        memories = await memory_tool.search_memory(keywords)
+        log_step(state, f"🔍 从记忆中找到 {len(memories)} 个相关记忆: {memories}")
+        state["history_memories"] = memories
+
         log_step(state, "🤖 正在调用LLM进行规划...")
         prompt = self._build_prompt(state)
         # logger.info(f"Sending planner prompt to LLM: {prompt}")
@@ -27,6 +37,8 @@ class AgentPlanner:
         try:
             result: AgentPlanResult = extract_json(response)
             logger.info("Parsed planner response: %s", result)
+            for point in result["focal_points"]:
+                point["article_ids"] = [str(aid) for aid in point["article_ids"]]
             state["plan"] = result
             focal_points = result.get("focal_points", [])
             discarded = result.get("discarded_items", [])
@@ -36,6 +48,7 @@ class AgentPlanner:
             )
             for i, point in enumerate(focal_points, 1):
                 log_step(state, f"   {i}. [{point['strategy']}] {point['topic']}")
+            return result
         except json.JSONDecodeError as e:
             log_step(state, "❌ 规划失败：无法解析LLM响应")
             logger.error("Failed to parse planner response: %s", response)
@@ -48,16 +61,13 @@ class AgentPlanner:
                 for article in state["raw_articles"]
             ]
         )
-        if len(state["groups"]) == 1:
-            return GROUP_PLANNER_PROMPT_TEMPLATE.format(
-                current_date=datetime.now().strftime("%Y-%m-%d"),
-                group_title=state["groups"][0].title,
-                group_desc=state["groups"][0].desc,
-                raw_articles=raw_articles,
-            )
-        else:
-            return GLOBAL_PLANNER_PROMPT_TEMPLATE.format(
-                current_date=datetime.now().strftime("%Y-%m-%d"),
-                user_groups=",".join([group.title for group in state["groups"]]),
-                raw_articles=raw_articles,
+        template = GROUP_PLANNER_PROMPT_TEMPLATE if len(state["groups"]) == 1 else GLOBAL_PLANNER_PROMPT_TEMPLATE
+        return template.format(
+            current_date=datetime.now().strftime("%Y-%m-%d"),
+            focus=state["focus"],
+            raw_articles=raw_articles,
+            history_memories="\n".join(
+                    f"{memory['id']} | {memory['topic']} | {memory['reasoning']} | {memory['content']}"
+                    for memory in state["history_memories"].values()
+                ),
             )

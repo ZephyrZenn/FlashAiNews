@@ -27,6 +27,7 @@ class FocalPoint(TypedDict):
     reasoning: str
     search_query: str
     writing_guide: str
+    history_memory_id: list[int]
 
 
 class DiscardedItem(TypedDict):
@@ -39,6 +40,11 @@ class AgentPlanResult(TypedDict):
     focal_points: list[FocalPoint]
     discarded_items: list[DiscardedItem]
 
+class SummaryMemory(TypedDict):
+    id: int
+    topic: str
+    reasoning: str
+    content: str
 
 class WritingMaterial(TypedDict):
     topic: str
@@ -47,24 +53,28 @@ class WritingMaterial(TypedDict):
     reasoning: str
     articles: list[RawArticle]
     ext_info: NotRequired[list[SearchResult]]
+    history_memory: NotRequired[SummaryMemory]
 
 
 class AgentState(TypedDict):
+    focus: str
     groups: list[FeedGroup]
     raw_articles: list[RawArticle]
     plan: NotRequired[AgentPlanResult]
     writing_materials: NotRequired[list[WritingMaterial]]
-    history: list[str]
+    summary_results: NotRequired[list[str]]
+    log_history: list[str]
     on_step: NotRequired[StepCallback]
-
+    history_memories: dict[int, SummaryMemory]
 
 def log_step(state: "AgentState", message: str) -> None:
     """记录执行步骤到历史，并触发回调（如果有）"""
-    state["history"].append(message)
+    state["log_history"].append(message)
     if "on_step" in state and state["on_step"]:
         state["on_step"](message)
         
 class AgentCriticFinding(TypedDict):
+    severity: Literal["CRITICAL", "ADVISORY"]
     type: Literal["FACT_ERROR", "MISSING_INFO", "HALLUCINATION"]
     location: str
     correction_suggestion: str
@@ -74,3 +84,4 @@ class AgentCriticResult(TypedDict):
     score: int
     findings: list[AgentCriticFinding]
     overall_comment: str
+    

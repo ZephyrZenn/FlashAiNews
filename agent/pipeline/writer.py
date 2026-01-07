@@ -1,18 +1,25 @@
 from core.brief_generator import AIGenerator
 from agent.models import AgentCriticResult, WritingMaterial
-from agent.pipeline.prompt import WRITER_FLASH_NEWS_PROMPT, WRITER_PROMPT_TEMPLATE
+from agent.pipeline.prompt import (
+    WRITER_FLASH_NEWS_PROMPT,
+    WRITER_DEEP_DIVE_PROMPT_TEMPLATE,
+)
 
 
 class AgentWriter:
     def __init__(self, client: AIGenerator):
         self.client = client
 
-    def write(self, writing_material: WritingMaterial, review: AgentCriticResult | None = None):
+    def write(
+        self, writing_material: WritingMaterial, review: AgentCriticResult | None = None
+    ):
         prompt = self._build_prompt(writing_material, review)
         response = self.client.completion(prompt)
         return response
 
-    def _build_prompt(self, writing_material: WritingMaterial, review: AgentCriticResult | None = None) -> str:
+    def _build_prompt(
+        self, writing_material: WritingMaterial, review: AgentCriticResult | None = None
+    ) -> str:
         if writing_material["style"] == "FLASH":
             return WRITER_FLASH_NEWS_PROMPT.format(
                 articles_content="\n\n".join(
@@ -28,7 +35,17 @@ class AgentWriter:
             if "ext_info" in writing_material and writing_material["ext_info"]
             else ""
         )
-        return WRITER_PROMPT_TEMPLATE.format(
+
+        history_memories = (
+            "\n".join(
+                f"{memory['id']} | {memory['topic']} | {memory['reasoning']} | {memory['content']}"
+                for memory in writing_material["history_memory"]
+            )
+            if "history_memory" in writing_material
+            and writing_material["history_memory"]
+            else ""
+        )
+        return WRITER_DEEP_DIVE_PROMPT_TEMPLATE.format(
             topic=writing_material["topic"],
             writing_guide=writing_material["writing_guide"],
             reasoning=writing_material["reasoning"],
@@ -37,5 +54,6 @@ class AgentWriter:
                 for article in writing_material["articles"]
             ),
             ext_info=ext_info,
-            review = review if review else "",
+            review=review if review else "",
+            history_memories=history_memories,
         )

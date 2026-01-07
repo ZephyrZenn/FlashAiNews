@@ -16,10 +16,15 @@ class AgentCritic:
         if "ext_info" in material and material["ext_info"]:
             source += "\n".join(f"{result}" for result in material["ext_info"])
         guide = material["writing_guide"]
+        history_memory = "\n".join(
+            f"{memory['id']} | {memory['topic']} | {memory['reasoning']} | {memory['content']}"
+            for memory in material["history_memory"]
+        )
         prompt = CRITIC_PROMPT_TEMPLATE.format(
             draft_content=draft_content,
             source_material=source,
             original_guide=guide,
+            history_memories=history_memory,
         )
         response = self.client.completion(prompt)
         try:

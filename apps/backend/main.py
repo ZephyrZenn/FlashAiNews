@@ -15,8 +15,12 @@ from apps.backend.models.common import success_with_data
 from apps.backend.models.view_model import FeedBriefResponse
 from apps.backend.router import brief, feed, group, setting, schedule
 from apps.backend.services import group_service, retrieve_and_generate_brief
-from apps.backend.services.scheduler_service import shutdown_scheduler, update_schedule_jobs
+from apps.backend.services.scheduler_service import (
+    shutdown_scheduler,
+    update_schedule_jobs,
+)
 from apps.backend.utils.thread_utils import submit_to_thread
+from core.db.pool import close_async_pool, close_pool
 
 # 配置日志
 logging.basicConfig(
@@ -33,6 +37,7 @@ if os.getenv("ENV") == "dev":
 
     load_dotenv()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Start app. Current env: %s", os.getenv("ENV"))
@@ -47,6 +52,8 @@ async def lifespan(app: FastAPI):
     shutdown_scheduler()
     # Shutdown: Clean up thread pool
     shutdown_thread_pool()
+    close_pool()
+    close_async_pool()
 
 
 # Router

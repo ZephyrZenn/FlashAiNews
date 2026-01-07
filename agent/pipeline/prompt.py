@@ -4,16 +4,21 @@ GLOBAL_PLANNER_PROMPT_TEMPLATE = """
 
 # 输入数据
 - 当前日期: {current_date}
-- 用户预设订阅组: {user_groups} (仅作为用户兴趣维度的参考)
+- 用户关注点: {focus}
 - 原始文章池(id | title | group_title | summary，每行一个): 
 {raw_articles} 
-
+- 历史记忆(id | topic | reasoning | content，每行一个): 
+{history_memories} 
 # 运行逻辑
-1. 语义聚类 (Cross-Group Clustering): 忽略物理分组。如果不同组的文章在探讨同一事件，请将其关联。
-2. 焦点识别 (Focal Point Identification): 
-   - 识别今日最重大的 1-3 个“核心焦点”。
+1. 语义聚类 (Cross-Group Clustering): 如果不同的文章在探讨同一事件，请将其关联。
+2. 历史对比与连贯性检查 (Historical Comparison): 
+   - 将今日聚类后的专题与【历史记忆】进行对比。
+   - **追踪报道**: 若某话题在历史上已出现且今日有重大突破或实质进展，应设为高优先级，并在 reasoning 中注明“延续自历史专题：[名称]”。
+   - **冗余拦截**: 若今日资讯仅是历史话题的简单重复（如：无新进展的常规更新、已报道过的旧闻），请将其分配为 FLASH_NEWS 或 DISCARD。
+3. 焦点识别 (Focal Point Identification): 
+   - 识别今日最重大的 1-3 个“核心焦点”，优先考虑用户关注点。
    - 对于无法形成焦点的散乱信息，归类为“快讯合集”。
-3. 行动分配:
+4. 行动分配:
    - SUMMARIZE: 素材充足，直接进行多文汇总。
    - SEARCH_ENHANCE: 话题重要但 RSS 只有简讯，需调用搜索工具补充背景。
    - FLASH_NEWS: 零散动态，仅以列表形式展示。
@@ -34,7 +39,8 @@ GLOBAL_PLANNER_PROMPT_TEMPLATE = """
       "article_ids": [涉及的文章id列表],
       "reasoning": "解释文章间的潜在联系或重要性",
       "search_query": "如果strategy是SEARCH_ENHANCE，请给出关键词，否则为空字符串",
-      "writing_guide": "告诉下级Agent写作侧重点（如：对比不同来源的立场差异）"
+      "writing_guide": "告诉下级Agent写作侧重点（如：对比不同来源的立场差异）",
+      "history_memory_id": [历史记忆的id列表(如果延续自历史记忆，则给出历史记忆的id，否则为空列表)]
     }}
   ],
   "discarded_items": [
@@ -49,15 +55,19 @@ GROUP_PLANNER_PROMPT_TEMPLATE = """
 
 # 输入数据
 - 当前日期: {current_date}
-- 用户预设订阅组(title | description): {group_title} | {group_desc} 
+- 用户关注点: {focus}
 - 原始文章池(id | title | group_title | summary，每行一个): 
 {raw_articles} 
-
+- 历史记忆(id | topic | reasoning | content，每行一个): 
+{history_memories} 
 # 价值判定标准 (必读)
 1. 忽略以下内容：纯 UI 微调、常规服务器维护、翻译纠错、不带任何技术/市场评论的 PR 原文。
 2. 识别“孤本信号”：如果文章数量极少（<2条），但涉及 [关键实体/技术突破/用户关注要点]，必须标记为 SEARCH_ENHANCE。
 3. 处理“平庸内容”：如果内容不属于噪音但也不够重磅，将其降级为 FLASH_NEWS，不要为其编写深度总结。
-
+4. 历史对比与连贯性检查 (Historical Comparison): 
+   - 将今日聚类后的专题与【历史记忆】进行对比。
+   - **追踪报道**: 若某话题在历史上已出现且今日有重大突破或实质进展，应设为高优先级，并在 reasoning 中注明“延续自历史专题：[名称]”。
+   - **冗余拦截**: 若今日资讯仅是历史话题的简单重复（如：无新进展的常规更新、已报道过的旧闻），请将其分配为 FLASH_NEWS 或 DISCARD。
 # 任务分发逻辑
 - IF (组内全为噪音) -> ACTION: DISCARD (给出具体拦截理由)
 - IF (组内有重要孤本) -> ACTION: SEARCH_ENHANCE (补全深度)
@@ -79,7 +89,8 @@ GROUP_PLANNER_PROMPT_TEMPLATE = """
       "article_ids": [涉及的文章id列表],
       "reasoning": "解释文章间的潜在联系或重要性",
       "search_query": "如果strategy是SEARCH_ENHANCE，请给出关键词，否则为空字符串",
-      "writing_guide": "告诉下级Agent写作侧重点（如：对比不同来源的立场差异）"
+      "writing_guide": "告诉下级Agent写作侧重点（如：对比不同来源的立场差异）",
+      "history_memory_id": [历史记忆的id列表(如果延续自历史记忆，则给出历史记忆的id，否则为空列表)]
     }}
   ],
   "discarded_items": [
@@ -88,7 +99,7 @@ GROUP_PLANNER_PROMPT_TEMPLATE = """
 }}
 """
 
-WRITER_PROMPT_TEMPLATE = """
+WRITER_DEEP_DIVE_PROMPT_TEMPLATE = """
 # Role
 你是一位资深科技编辑，擅长将零散的资讯缝合为逻辑严密的深度观察报告。你现在被一个极其严厉的校对员盯着，请你在引用数据时必须做到精准，但在总结观点时要大胆使用金句。
 
@@ -96,7 +107,8 @@ WRITER_PROMPT_TEMPLATE = """
 1. 【核心资讯】: {raw_content}
 2. 【背景补全】: {ext_info}
 3. 【总编写作指南】: {writing_guide}
-4. 【审查结果】: {review}
+4. 【历史记忆】: {history_memories}
+5. 【审查结果】: {review}
 
 # 任务要求
 - 核心逻辑: {reasoning}
@@ -105,9 +117,10 @@ WRITER_PROMPT_TEMPLATE = """
 1. 整合与互补: 严禁机械堆砌。请将“背景补全”中的信息自然地融入“核心资讯”的报道中。
 2. 识别冲突: 若两个素材源对同一事实描述不一，请以“目前有不同说法...”或“最新背景显示...”的形式平衡报道。
 3. 保持干货: 剔除公关辞令，保留技术参数、具体人物、时间点和核心结论。
-4. 链接溯源: 在提到关键信息时，保留原始链接。
-5. 参考链接: 在文章末尾，列出所有参考链接。
-6. 如果审查结果为 REJECTED，请根据修正建议进行修改。
+4. 历史记忆: 如果历史记忆中存在相关内容，请将其融入到文章中，形成连续性报道。
+5. 链接溯源: 在提到关键信息时，保留原始链接。
+6. 参考链接: 在文章末尾，列出所有参考链接。
+7. 如果审查结果为 REJECTED，请根据修正建议进行修改。
 
 # 输出规范
 - 必须使用 Markdown 格式。
@@ -142,7 +155,7 @@ CRITIC_PROMPT_TEMPLATE = """
 1. 【原始素材池】: {source_material} (包含所有相关的 RSS 原文及搜索结果)
 2. 【初稿内容】: {draft_content}
 3. 【总编初始指令】: {original_guide}
-
+4. 【历史记忆】: {history_memories}
 # 审核分级准则 (核心进化)
 请根据以下严重程度对发现的问题进行分类：
 
@@ -161,6 +174,7 @@ CRITIC_PROMPT_TEMPLATE = """
 - **逻辑重于字面**: 检查“意思”是否对，而不是“字面”是否完全重合。
 - **保护灵气**: 允许撰稿人使用比喻、拟人或概括性短语（如“影子资产迷局”），只要它们能准确传达素材的本质。
 - **信源宽容度**: 只要素材库中确实存在该观点，即使链接引用了相关的综合报道而非原始论文，也属于可接受范围，给出修正建议即可。
+- **历史记忆**: 如果历史记忆中存在相关内容，请将其融入到文章中，形成连续性报道。
 
 # 输出格式 (JSON)
 {{

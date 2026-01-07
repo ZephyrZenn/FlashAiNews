@@ -1,12 +1,12 @@
-
-
 import asyncio
 import os
 import unittest
 from dotenv import load_dotenv
+import psycopg
 
-from agent import SummarizeAgent
+from agent import SummarizeAgenticWorkflow
 from core.config.loader import load_config
+from core.db.pool import get_async_connection, get_async_pool
 
 
 class AgentTest(unittest.TestCase):
@@ -29,13 +29,14 @@ class AgentTest(unittest.TestCase):
                 f"Missing required environment variables: {', '.join(missing_vars)}"
             )
         cfg = load_config()
-        
+
     def test_agent(self):
-        agent = SummarizeAgent()
+        agent = SummarizeAgenticWorkflow()
+
         # 边执行边输出的回调函数
         def on_step(message: str):
             print(f"[STEP] {message}")
-        
-        result = asyncio.run(agent.summarize(48, [1, 2], on_step=on_step))
+
+        result = asyncio.run(agent.summarize(48, [1], on_step=on_step))
         print("\n=== 最终结果 ===")
         print(result)

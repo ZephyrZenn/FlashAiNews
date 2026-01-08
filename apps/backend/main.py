@@ -6,7 +6,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from agent import init_agent
-import apps.backend.services.brief_service as brief_service
 from core.config.loader import load_config
 from apps.backend.config.thread import init_thread_pool, shutdown_thread_pool
 from apps.backend.exception import BizException, handle_biz_exception, handle_exception
@@ -14,12 +13,10 @@ from apps.backend.middleware import LogMiddleware
 from apps.backend.models.common import success_with_data
 from apps.backend.models.view_model import FeedBriefResponse
 from apps.backend.router import brief, feed, group, setting, schedule
-from apps.backend.services import group_service, retrieve_and_generate_brief
 from apps.backend.services.scheduler_service import (
     shutdown_scheduler,
     update_schedule_jobs,
 )
-from apps.backend.utils.thread_utils import submit_to_thread
 from core.db.pool import close_async_pool, close_pool
 
 # 配置日志
@@ -82,12 +79,4 @@ app.add_exception_handler(Exception, handle_exception)
 
 @app.get("/", response_model=FeedBriefResponse)
 async def newest_brief():
-    """
-    Get the newest brief.
-    """
-    brief = brief_service.get_today_brief()
-    if not brief:
-        submit_to_thread(retrieve_and_generate_brief)
-        return success_with_data(None)
-    group = group_service.get_group_detail(brief.group_id)
-    return success_with_data(brief.to_view_model(group))
+    return success_with_data(None)

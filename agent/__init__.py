@@ -1,9 +1,10 @@
 from typing import Optional
 from agent.pipeline.planner import AgentPlanner
 from agent.pipeline.executor import AgentExecutor
-from agent.models import AgentState, StepCallback, log_step
+from agent.models import AgentState, RawArticle, StepCallback, log_step
 from agent.tools import db_tool, memory_tool
 from core.brief_generator import build_generator
+from core.models.feed import FeedGroup
 
 
 class SummarizeAgenticWorkflow:
@@ -20,7 +21,9 @@ class SummarizeAgenticWorkflow:
         focus: str = "",
         on_step: Optional[StepCallback] = None,
     ):
-        self.state = await self._build_state(hour_gap, group_ids, focus, on_step)
+        groups, articles = await db_tool.get_recent_group_update(hour_gap, group_ids)
+
+        self.state = self._build_state(groups, articles, focus, on_step)
         log_step(
             self.state, f"🚀 Agent启动，获取到 {len(self.state['raw_articles'])} 篇文章"
         )
@@ -32,18 +35,20 @@ class SummarizeAgenticWorkflow:
         results = await self.executor.execute(self.state)
 
         log_step(self.state, f"✅ Agent执行完成，共生成 {len(results)} 篇内容")
+
+        # 使用工具保存执行记录
         await memory_tool.save_current_execution_records(self.state)
 
-        return "\n\n".join(results)
+        brief = "\n\n".join(results)
+        return brief
 
-    async def _build_state(
+    def _build_state(
         self,
-        hour_gap: int,
-        group_ids: Optional[list[int]],
+        groups: list[FeedGroup],
+        articles: list[RawArticle],
         focus: str = "",
         on_step: Optional[StepCallback] = None,
     ) -> AgentState:
-        groups, articles = await db_tool.get_recent_group_update(hour_gap, group_ids)
         state = AgentState(
             groups=groups, raw_articles=articles, log_history=[], focus=focus
         )

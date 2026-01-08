@@ -3,8 +3,7 @@ import datetime
 import logging
 from typing import List, Optional
 
-from core.db.pool import execute_transaction, get_connection
-from apps.backend.services.group_service import get_all_groups_without_today_brief
+from core.db.pool import get_connection
 from core.models.feed import FeedBrief
 
 logger = logging.getLogger(__name__)
@@ -118,21 +117,6 @@ def get_history_brief(group_id: int):
             ]
 
 
-def generate_today_brief():
-    # 延迟导入避免循环依赖
-    from agent import get_agent
-
-    logger.info("Generating today brief")
-    groups = get_all_groups_without_today_brief()
-    for group in groups:
-        logger.info("Generating brief for group %s", group.id)
-        # TODO: hour gap should be configurable
-        brief = asyncio.run(get_agent().summarize(24, [group.id]))
-        logger.info("Brief generated for group %s", group.id)
-        execute_transaction(_insert_brief, group.id, brief)
-    logger.info("Today brief generated")
-
-
 def get_default_group_briefs() -> Optional[List[FeedBrief]]:
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -165,19 +149,15 @@ def generate_brief_for_groups(group_ids: list[int], focus: str = ""):
     from agent import get_agent
 
     logger.info(f"Generating brief for groups {group_ids} with focus: {focus}")
-    for group_id in group_ids:
-        logger.info("Generating brief for group %s", group_id)
-        # TODO: support custom focus in agent summarize
-        # For now, focus is not passed to agent, but stored for future use
-        brief = asyncio.run(get_agent().summarize(24, [group_id]))
-        logger.info("Brief generated for group %s", group_id)
-        execute_transaction(_insert_brief, group_id, brief)
+    brief = asyncio.run(get_agent().summarize(24, group_ids, focus))
+    # TODO: Do we still need the group?
+    _insert_brief(group_ids[0], brief)
     logger.info("Brief generation completed for groups %s", group_ids)
 
-
-def _insert_brief(cur, group_id, brief):
-    sql = """
-          INSERT INTO feed_brief (group_id, content)
-          VALUES (%s, %s) \
-          """
-    cur.execute(sql, (group_id, brief))
+def _insert_brief(group_id: int, brief: str):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO feed_brief (group_id, content) VALUES (%s, %s)""",
+                (group_id, brief),
+            )

@@ -44,6 +44,7 @@ COPY --from=build /install /usr/local
 
 COPY apps/backend ./apps/backend
 COPY core ./core
+COPY agent ./agent
 # COPY config.toml ./config.toml
 
 EXPOSE 8000

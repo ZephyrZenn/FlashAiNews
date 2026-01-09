@@ -8,7 +8,7 @@ from core.brief_generator import AIGenerator
 
 class AgentExecutor:
 
-    def __init__(self, client: AIGenerator, max_retries: int = 2):
+    def __init__(self, client: AIGenerator, max_retries: int = 3):
         self.writer = AgentWriter(client)
         self.critic = AgentCritic(client)
         self.max_retries = max_retries
@@ -26,6 +26,7 @@ class AgentExecutor:
                 tasks.append(self.handle_flash_news(point, state))
         results = await asyncio.gather(*tasks)
         log_step(state, "✨ 所有任务执行完成")
+        state["summary_results"] = results
         return results
 
     async def handle_summarize(self, point: FocalPoint, state: AgentState) -> str:

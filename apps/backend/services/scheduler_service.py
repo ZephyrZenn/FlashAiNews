@@ -86,6 +86,14 @@ def _start_if_needed() -> None:
         scheduler.start()
 
 
+def init_scheduler() -> None:
+    """Initialize and start the scheduler. Should be called at application startup."""
+    scheduler = _get_scheduler()
+    if not scheduler.running:
+        scheduler.start()
+        logger.info("Scheduler started")
+
+
 def _parse_brief_time(brief_time: Union[str, time]) -> Tuple[int, int]:
     """Convert a supported time representation into hour/minute integers."""
     if isinstance(brief_time, time):
@@ -123,7 +131,6 @@ def add_schedule_job(
         args=[schedule_id, group_ids, focus],
     )
     logger.info(f"Added schedule job {job_id} at {hour:02d}:{minute:02d}")
-    _start_if_needed()
 
 
 def remove_schedule_job(schedule_id: str) -> None:

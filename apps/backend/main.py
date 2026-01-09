@@ -14,6 +14,7 @@ from apps.backend.models.common import success_with_data
 from apps.backend.models.view_model import FeedBriefResponse
 from apps.backend.router import brief, feed, group, setting, schedule
 from apps.backend.services.scheduler_service import (
+    init_scheduler,
     shutdown_scheduler,
     update_schedule_jobs,
 )
@@ -41,7 +42,8 @@ async def lifespan(app: FastAPI):
     logger.info("Initialize scheduler, thread pool")
     config = load_config()
     init_thread_pool()
-    # Load and register all schedules
+    # Start scheduler and load all schedules
+    init_scheduler()
     update_schedule_jobs()
     init_agent()
     yield

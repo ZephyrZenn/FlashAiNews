@@ -115,10 +115,11 @@ class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
                         SELECT 1
                         FROM excluded_feed_item_ids efi
                         WHERE efi.id = fi.id
+                        AND efi.group_ids @> %s::integer[] AND efi.group_ids <@ %s::integer[]
                         AND efi.pub_date >= NOW() - INTERVAL '1 hour' * %s
                     );
                     """,
-                    (group_ids, hour_gap, hour_gap),
+                    (group_ids, hour_gap, group_ids, group_ids, hour_gap),
                 )
 
                 item_rows = await cur.fetchall()

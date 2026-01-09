@@ -35,6 +35,9 @@ def _get_conninfo_masked() -> str:
 
 def get_pool() -> ConnectionPool | None:
     global _sync_pool
+    def check_connection(conn):
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
     if _sync_pool is None:
         try:
             logger.debug(f"Creating sync connection pool: {_get_conninfo_masked()}")
@@ -43,7 +46,7 @@ def get_pool() -> ConnectionPool | None:
                 min_size=1,
                 max_size=10,
                 # 1) 借出前健康检查，避免拿到 BAD/closed
-                check="SELECT 1",
+                check=check_connection,
                 # 2) 空闲回收：避免 idle 被 LB/防火墙断开后留在池里
                 max_idle=300,  # 5min，可按环境调 60~900
                 # 3) 生命周期轮换：避免长连接偶发失效

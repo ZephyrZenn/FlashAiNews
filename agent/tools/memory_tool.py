@@ -59,8 +59,9 @@ class SaveExecutionRecordsTool(BaseTool[None]):
         Args:
             state: Agent状态对象
         """
+        group_ids = [group.id for group in state["groups"]]
         excluded_articles = [
-            (article["id"], article["pub_date"]) for article in state["raw_articles"]
+            (article["id"], group_ids, article["pub_date"]) for article in state["raw_articles"]
         ]
 
         # 安全检查：确保 focal_points 和 summary_results 长度匹配
@@ -81,8 +82,8 @@ class SaveExecutionRecordsTool(BaseTool[None]):
             if excluded_articles:
                 await cur.executemany(
                     """
-                    INSERT INTO excluded_feed_item_ids (id, pub_date)
-                    VALUES (%s, %s)
+                    INSERT INTO excluded_feed_item_ids (id, group_ids, pub_date)
+                    VALUES (%s, %s::integer[], %s)
                     """,
                     excluded_articles,
                 )

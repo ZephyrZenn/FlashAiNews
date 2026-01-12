@@ -10,11 +10,11 @@ class AgentWriter:
     def __init__(self, client: AIGenerator):
         self.client = client
 
-    def write(
+    async def write(
         self, writing_material: WritingMaterial, review: AgentCriticResult | None = None
     ):
         prompt = self._build_prompt(writing_material, review)
-        response = self.client.completion(prompt)
+        response = await self.client.completion(prompt)
         return response
 
     def _build_prompt(
@@ -22,6 +22,7 @@ class AgentWriter:
     ) -> str:
         if writing_material["style"] == "FLASH":
             return WRITER_FLASH_NEWS_PROMPT.format(
+                topic=writing_material["topic"],
                 articles_content="\n\n".join(
                     f"{article['title']}\n{article['content']}"
                     for article in writing_material["articles"]

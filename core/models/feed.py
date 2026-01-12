@@ -53,18 +53,18 @@ class FeedGroup:
 
 class FeedBrief:
     def __init__(
-        self, id: int, group_id: int, content: str, pub_date: datetime
+        self, id: int, content: str, pub_date: datetime, group_ids: list[int] = None
     ):
         self.id = id
-        self.group_id = group_id
         self.content = content
         self.pub_date = pub_date
+        self.group_ids = group_ids if group_ids is not None else []
 
-    def to_view_model(self, group: FeedGroup) -> dict:
+    def to_view_model(self, groups_dict: dict[int, FeedGroup]) -> dict:
+        groups = [groups_dict[gid] for gid in self.group_ids if gid in groups_dict]
         return {
             "id": self.id,
-            "group_id": self.group_id,
             "content": self.content,
             "pub_date": self.pub_date,
-            "group": group,
+            "groups": groups,
         }

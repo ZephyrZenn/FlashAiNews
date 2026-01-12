@@ -1,3 +1,4 @@
+import asyncio
 from agent.tools.base import SyncTool, ToolSchema, ToolParameter
 from agent.models import RawArticle
 from core.brief_generator import AIGenerator
@@ -84,7 +85,8 @@ class KeywordExtractorTool(SyncTool[list[str]]):
         {combined_text}
         """
 
-        response = self.client.completion(prompt)
+        # 在同步方法中运行异步调用
+        response = asyncio.run(self.client.completion(prompt))
 
         if not response:
             return []
@@ -96,10 +98,10 @@ class KeywordExtractorTool(SyncTool[list[str]]):
 
 
 # 保留原有函数接口以兼容现有代码
-def find_keywords_with_llm(
+async def find_keywords_with_llm(
     client: AIGenerator, articles: list[RawArticle]
 ) -> list[str]:
-    """使用 LLM 提取关键词（兼容函数）
+    """使用 LLM 提取关键词（兼容函数，异步版本）
 
     注意：此函数为兼容接口，直接返回数据而非 ToolResult。
     新代码建议使用 KeywordExtractorTool(client).execute(articles) 获取带错误处理的结果。
@@ -111,8 +113,29 @@ def find_keywords_with_llm(
     Returns:
         关键词列表
     """
-    tool = KeywordExtractorTool(client)
-    result = tool.execute(articles)
-    if result.success:
-        return result.data
-    raise RuntimeError(result.error)
+    if not articles:
+        return []
+
+    combined_text = "\n".join(
+        [f"{article['title']} | {article['summary']}" for article in articles]
+    )
+
+    if not combined_text.strip():
+        return []
+
+    prompt = f"""
+    请从以下资讯摘要中提取 5-8 个最核心的实体词（公司、产品、技术、人物）或关键词。
+    仅输出关键词，用逗号隔开，不要有任何解释。
+    内容如下：
+    {combined_text}
+    """
+
+    response = await client.completion(prompt)
+
+    if not response:
+        return []
+
+    keywords = [
+        k.strip() for k in response.replace("，", ",").split(",") if k.strip()
+    ]
+    return keywords

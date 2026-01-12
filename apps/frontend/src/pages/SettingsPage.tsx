@@ -1,163 +1,192 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Save, Check, Key, Server } from 'lucide-react';
+import {
+  Settings,
+  Cpu,
+  Globe,
+  Key,
+  Database,
+  Save,
+  Check,
+} from 'lucide-react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import type { Setting } from '@/types/api';
+import { Layout } from '@/components/Layout';
 import { useToast } from '@/context/ToastContext';
-
-const providerOptions = [
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'gemini', label: 'Gemini' },
-];
+import { Select } from '@/components/ui/Select';
+import type { Setting } from '@/types/api';
 
 const SettingsPage = () => {
   const queryClient = useQueryClient();
-  const { data: setting, isLoading } = useApiQuery<Setting>(queryKeys.setting, api.getSetting);
+  const { data: setting } = useApiQuery<Setting>(queryKeys.settings, api.getSetting);
   const { showToast } = useToast();
 
-  const [modelId, setModelId] = useState('');
-  const [provider, setProvider] = useState('openai');
-  const [baseUrl, setBaseUrl] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [isSaved, setIsSaved] = useState(false);
+  const [systemConfig, setSystemConfig] = useState({
+    modelName: 'gpt-4o-mini',
+    provider: 'OpenAI',
+    apiKey: '',
+    baseUrl: 'https://api.openai.com/v1',
+  });
+  const [showSaveToast, setShowSaveToast] = useState(false);
 
+  // Load settings from API
   useEffect(() => {
     if (setting) {
-      setModelId(setting.model.model);
-      setProvider(setting.model.provider);
-      setBaseUrl(setting.model.baseUrl ?? '');
-      setApiKey('');
+      setSystemConfig({
+        modelName: setting.model.model || 'gpt-4o-mini',
+        provider: setting.model.provider || 'OpenAI',
+        apiKey: '', // Don't show the masked API key
+        baseUrl: setting.model.baseUrl || 'https://api.openai.com/v1',
+      });
     }
   }, [setting]);
 
-  const modelMutation = useApiMutation(async () => {
+  const saveMutation = useApiMutation(async () => {
     await api.updateSetting({
       model: {
-        model: modelId,
-        provider,
-        apiKey,
-        baseUrl: baseUrl || undefined,
+        model: systemConfig.modelName,
+        provider: systemConfig.provider,
+        apiKey: systemConfig.apiKey,
+        baseUrl: systemConfig.baseUrl,
       },
     });
   }, {
     onSuccess: () => {
-      setApiKey('');
-      queryClient.invalidateQueries({ queryKey: queryKeys.setting });
-      setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 2000);
-      showToast('模型配置已保存');
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings });
+      setShowSaveToast(true);
+      setTimeout(() => setShowSaveToast(false), 3000);
+      showToast('配置保存成功');
     },
     onError: (error) => {
-      showToast(error.message || '更新模型配置失败', { type: 'error' });
+      showToast(error.message || '保存配置失败', { type: 'error' });
     },
   });
 
-  const handleModelSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    modelMutation.mutate();
+  const handleSaveConfig = () => {
+    saveMutation.mutate();
   };
 
-  if (isLoading || !setting) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-slate-500 text-sm">加载设置中...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-full animate-in fade-in duration-700 min-h-0 max-w-4xl mx-auto w-full justify-center">
-      <div className="flex-shrink-0 flex justify-between items-end border-b border-white/5 pb-4 mb-8">
-        <div>
-          <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-none italic">
-            系统配置
-          </h2>
+    <Layout>
+      {/* Settings view - exactly matching t.tsx settings tab */}
+      <div className="h-full overflow-hidden p-8 flex justify-center items-center">
+        <div className="w-full max-w-2xl bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-6 pb-4 border-b border-slate-50">
+            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-indigo-600">
+              <Settings size={24} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                模型配置
+              </h3>
+              <p className="text-slate-400 text-xs font-medium tracking-wide uppercase">
+                Core AI Configuration
+              </p>
+            </div>
+          </div>
+
+          {/* 2x2 Grid */}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+            {/* Model Name */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 ml-1">
+                <Cpu size={14} className="text-indigo-500" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Model 名称
+                </label>
+              </div>
+              <input
+                type="text"
+                value={systemConfig.modelName}
+                onChange={(e) =>
+                  setSystemConfig({ ...systemConfig, modelName: e.target.value })
+                }
+                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-medium text-slate-700"
+              />
+            </div>
+
+            {/* Provider */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 ml-1">
+                <Globe size={14} className="text-indigo-500" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  提供商 (Provider)
+                </label>
+              </div>
+              <Select
+                value={systemConfig.provider}
+                onChange={(value) =>
+                  setSystemConfig({ ...systemConfig, provider: value })
+                }
+                options={[
+                  { value: 'OpenAI', label: 'OpenAI' },
+                  { value: 'Gemini', label: 'Gemini' },
+                ]}
+              />
+            </div>
+
+            {/* API KEY */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 ml-1">
+                <Key size={14} className="text-indigo-500" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  API KEY
+                </label>
+              </div>
+              <input
+                type="password"
+                value={systemConfig.apiKey}
+                onChange={(e) =>
+                  setSystemConfig({ ...systemConfig, apiKey: e.target.value })
+                }
+                placeholder="••••••••••••"
+                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono"
+              />
+            </div>
+
+            {/* Base URL */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 ml-1">
+                <Database size={14} className="text-indigo-500" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Base URL
+                </label>
+              </div>
+              <input
+                type="text"
+                value={systemConfig.baseUrl}
+                onChange={(e) =>
+                  setSystemConfig({ ...systemConfig, baseUrl: e.target.value })
+                }
+                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono text-slate-500 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="mt-10 pt-6 border-t border-slate-50 flex items-center justify-between">
+            <div
+              className={`flex items-center gap-2 text-emerald-500 text-[10px] font-bold transition-all duration-500 ${
+                showSaveToast
+                  ? 'opacity-100 translate-x-0'
+                  : 'opacity-0 -translate-x-4'
+              }`}
+            >
+              <Check size={14} /> 保存成功
+            </div>
+            <button
+              onClick={handleSaveConfig}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 text-sm uppercase tracking-wider"
+            >
+              <Save size={18} /> 保存
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => {
-            modelMutation.mutate();
-          }}
-          className={`px-6 py-2 rounded-xl font-black flex items-center gap-2 uppercase text-[9px] tracking-widest shadow-xl transition-all ${
-            isSaved ? 'bg-green-500 text-white' : 'bg-white text-black hover:bg-cyan-400'
-          }`}
-          disabled={modelMutation.isPending}
-        >
-          {isSaved ? <Check size={14} /> : <Save size={14} />}{' '}
-          {isSaved ? '已同步' : '应用配置'}
-        </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6 shadow-inner flex flex-col justify-center overflow-hidden">
-          <h4 className="text-[16px] font-black text-cyan-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full shadow-[0_0_8px_cyan]"></div>
-            Provider
-          </h4>
-          <div className="flex gap-2 bg-black/40 p-1 rounded-xl border border-white/5">
-            {providerOptions.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => setProvider(p.value)}
-                className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                  provider === p.value
-                    ? 'bg-white text-black shadow-lg'
-                    : 'text-slate-500 hover:text-white'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6 flex flex-col justify-center">
-          <h4 className="text-[16px] font-black text-purple-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-purple-500 rounded-full shadow-[0_0_8px_purple]"></div>
-            Model
-          </h4>
-          <input
-            type="text"
-            value={modelId}
-            onChange={(e) => setModelId(e.target.value)}
-            placeholder="模型 ID..."
-            className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono text-[14px] outline-none focus:border-purple-500 transition-all"
-          />
-        </div>
-        <div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6 flex flex-col justify-center md:col-span-2">
-          <h4 className="text-[16px] font-black text-amber-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full shadow-[0_0_8px_amber]"></div>
-            API Key
-          </h4>
-          <div className="relative">
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="输入 API Key..."
-              className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono text-[14px] outline-none focus:border-amber-500 transition-all tracking-[0.2em] pr-10"
-            />
-            <Key size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700" />
-          </div>
-        </div>
-        <div className="bg-slate-900/40 border border-white/5 rounded-2xl p-6 flex flex-col justify-center md:col-span-2">
-          <h4 className="text-[16px] font-black text-blue-400 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_8px_blue]"></div>
-            Base URL
-          </h4>
-          <div className="relative">
-            <input
-              type="text"
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder="https://api.endpoint..."
-              className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 text-white font-mono text-[14px] outline-none focus:border-blue-500 transition-all pr-10"
-            />
-            <Server size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700" />
-          </div>
-        </div>
-      </div>
-    </div>
+    </Layout>
   );
 };
 

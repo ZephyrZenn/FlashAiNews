@@ -1,37 +1,72 @@
-import datetime
-from fastapi import APIRouter
+
+from datetime import date
+from fastapi import APIRouter, Query, HTTPException
+from typing import Optional
+from pydantic import BaseModel
+import asyncio
 
 from apps.backend.models.common import success_with_data
-from apps.backend.models.view_model import FeedBriefListResponse, FeedBriefResponse
-from apps.backend.services import brief_service, group_service
+from apps.backend.models.view_model import (
+    FeedBriefListResponse,
+    GenerateBriefResponse,
+    BriefGenerationStatusResponse,
+)
+from apps.backend.services import brief_service, group_service, task_service
 
 router = APIRouter(prefix="/briefs")
 
 
-@router.get("/default", response_model=FeedBriefListResponse)
-async def get_default_group_briefs():
-    """
-    Get the briefs of the default group.
-    """
-    briefs = brief_service.get_default_group_briefs()
-    if not briefs:
-        return success_with_data([])
-    group = group_service.get_group_detail(briefs[0].group_id)
-    return success_with_data([brief.to_view_model(group) for brief in briefs])
+class GenerateBriefRequest(BaseModel):
+    group_ids: list[int]
+    focus: str = ""
 
-@router.get("/{group_id}/today", response_model=FeedBriefResponse)
-async def get_group_today_brief(group_id: int):
+
+@router.get("/", response_model=FeedBriefListResponse)
+async def get_briefs(
+    start_date: Optional[str] = Query(None, description="开始日期，格式：YYYY-MM-DD，默认为当日"),
+    end_date: Optional[str] = Query(None, description="结束日期，格式：YYYY-MM-DD，默认为当日")
+):
     """
-    Get today brief of a feed group.
+    Get briefs between two dates. If no dates provided, returns today's briefs.
     """
-    return success_with_data(
-        brief_service.get_group_brief(group_id, datetime.date.today())
+    # 如果未提供日期，默认使用今天
+    today = date.today()
+    start = date.fromisoformat(start_date) if start_date else today
+    end = date.fromisoformat(end_date) if end_date else today
+    
+    briefs = brief_service.get_briefs(start, end)
+    group_ids = list({group_id for brief in briefs for group_id in brief.group_ids})
+    groups = group_service.get_groups(group_ids)
+    return success_with_data([brief.to_view_model(groups) for brief in briefs])
+
+
+@router.post("/generate", response_model=GenerateBriefResponse)
+async def generate_brief(request: GenerateBriefRequest):
+    """
+    异步生成brief，立即返回任务ID用于轮询状态。
+    """
+    if not request.group_ids:
+        raise HTTPException(status_code=400, detail="group_ids cannot be empty")
+    
+    # 创建任务
+    task_id = task_service.create_task(
+        group_ids=request.group_ids,
+        focus=request.focus
     )
+    
+    # 在后台异步执行brief生成任务
+    asyncio.create_task(task_service.execute_brief_generation_task(task_id))
+    
+    return success_with_data({"task_id": task_id})
 
 
-@router.get("/{group_id}/history", response_model=FeedBriefListResponse)
-async def get_history_brief(group_id: int):
+@router.get("/generate/{task_id}", response_model=BriefGenerationStatusResponse)
+async def get_generation_status(task_id: str):
     """
-    Get the history brief of a feed group.
+    获取brief生成任务的状态和日志。
     """
-    return success_with_data(brief_service.get_history_brief(group_id))
+    task = task_service.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    return success_with_data(task.to_dict())

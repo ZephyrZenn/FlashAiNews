@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import datetime, time, date
 from typing import Optional, Union
 
 from pydantic import validator
@@ -61,3 +61,7 @@ class UpdateScheduleRequest(CamelModel):
         if value is None:
             return value
         return _normalize_brief_time(value)
+
+class GetBriefsRequest(CamelModel):
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None

@@ -19,19 +19,20 @@ class AgentPlanner:
 
     async def plan(self, state: AgentState) -> AgentPlanResult:
         result = None
-        keywords = filter_tool.find_keywords_with_llm(
+        keywords = await filter_tool.find_keywords_with_llm(
             self.client, state["raw_articles"]
         )
         log_step(state, f"🔍 提取到 {len(keywords)} 个关键词: {keywords}")
         memories = await memory_tool.search_memory(keywords)
-        log_step(state, f"🔍 从记忆中找到 {len(memories)} 个相关记忆: {memories}")
+        memory_topics = [m.topic for m in memories.values()] if memories else []
+        log_step(state, f"🔍 从记忆中找到 {len(memories)} 个相关记忆: {memory_topics}")
         state["history_memories"] = memories
 
         log_step(state, "🤖 正在调用LLM进行规划...")
         prompt = self._build_prompt(state)
         # logger.info(f"Sending planner prompt to LLM: {prompt}")
         print(f"Sending planner prompt to LLM: {prompt}")
-        response = self.client.completion(prompt)
+        response = await self.client.completion(prompt)
         # logger.info(f"Received planner response from LLM: {response}")
         print(f"Received planner response from LLM: {response}")
         try:

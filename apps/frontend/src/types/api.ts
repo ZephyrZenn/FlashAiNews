@@ -20,14 +20,13 @@ export interface FeedGroup {
 
 export interface FeedBrief {
   id: number;
-  groupId: number;
+  groupIds: number[];
   content: string;
   pubDate: string;
-  group?: FeedGroup;
+  groups: FeedGroup[];
 }
 
 export interface ModelSetting {
-  name?: string;
   model: string;
   provider: string;
   apiKey: string;

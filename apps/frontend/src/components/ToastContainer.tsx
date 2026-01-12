@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { Check, AlertCircle, X, type LucideIcon } from 'lucide-react';
 
 export type ToastType = 'success' | 'error';
 
@@ -13,9 +14,9 @@ type ToastContainerProps = {
   onDismiss: (id: number) => void;
 };
 
-const iconForType: Record<ToastType, string> = {
-  success: '+',
-  error: '!',
+const IconForType: Record<ToastType, LucideIcon> = {
+  success: Check,
+  error: AlertCircle,
 };
 
 export const ToastContainer: FC<ToastContainerProps> = ({ toasts, onDismiss }) => {
@@ -24,21 +25,34 @@ export const ToastContainer: FC<ToastContainerProps> = ({ toasts, onDismiss }) =
   }
 
   return (
-    <div className="toast-container">
-      {toasts.map((toast) => (
-        <div key={toast.id} className={`toast toast--${toast.type}`} role="status">
-          <span className="toast-icon" aria-hidden="true">{iconForType[toast.type]}</span>
-          <span className="toast-message">{toast.message}</span>
-          <button
-            type="button"
-            className="toast-close"
-            onClick={() => onDismiss(toast.id)}
-            aria-label="Dismiss notification"
+    <div className="fixed bottom-8 right-8 z-[200] space-y-3">
+      {toasts.map((toast) => {
+        const Icon = IconForType[toast.type];
+        const isSuccess = toast.type === 'success';
+        
+        return (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl animate-in slide-in-from-bottom-4 duration-300 ${
+              isSuccess
+                ? 'bg-emerald-500 text-white'
+                : 'bg-rose-500 text-white'
+            }`}
+            role="status"
           >
-            x
-          </button>
-        </div>
-      ))}
+            <Icon size={18} />
+            <span className="text-sm font-medium">{toast.message}</span>
+            <button
+              type="button"
+              className="ml-2 p-1 hover:bg-white/20 rounded-full transition-colors"
+              onClick={() => onDismiss(toast.id)}
+              aria-label="关闭通知"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 };

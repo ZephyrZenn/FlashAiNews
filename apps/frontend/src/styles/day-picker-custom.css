@@ -1,0 +1,259 @@
+/* ============================================
+   React DayPicker Custom Theme
+   ============================================ */
+
+.day-picker-container {
+  --rdp-accent-color: #6366f1;
+  --rdp-accent-color-dark: #4f46e5;
+  --rdp-background-color: #eef2ff;
+  --rdp-background-color-dark: #e0e7ff;
+  --rdp-outline: 2px solid #c7d2fe;
+  --rdp-outline-selected: 2px solid #6366f1;
+}
+
+/* Root container */
+.day-picker-custom {
+  font-family: inherit;
+}
+
+/* Month caption */
+.day-picker-custom .rdp-caption {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+.day-picker-custom .rdp-caption_label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: capitalize;
+}
+
+/* Navigation buttons */
+.day-picker-custom .rdp-nav {
+  position: absolute;
+  right: 0;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.day-picker-custom .rdp-button_previous,
+.day-picker-custom .rdp-button_next {
+  height: 1.75rem;
+  width: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+
+.day-picker-custom .rdp-button_previous:hover,
+.day-picker-custom .rdp-button_next:hover {
+  background: #eef2ff;
+  color: #6366f1;
+}
+
+.day-picker-custom .rdp-button_previous:disabled,
+.day-picker-custom .rdp-button_next:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Weekday headers */
+.day-picker-custom .rdp-weekdays {
+  display: flex;
+  margin-bottom: 0.5rem;
+}
+
+.day-picker-custom .rdp-weekday {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Week rows */
+.day-picker-custom .rdp-week {
+  display: flex;
+  margin-top: 0.5rem;
+}
+
+/* Day cells */
+.day-picker-custom .rdp-day {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  position: relative;
+}
+
+.day-picker-custom .rdp-day_button {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.day-picker-custom .rdp-day_button:hover:not(:disabled) {
+  background: #eef2ff;
+  color: #6366f1;
+  transform: scale(1.05);
+}
+
+/* Today */
+.day-picker-custom .rdp-today .rdp-day_button {
+  border: 2px solid #c7d2fe;
+  font-weight: 700;
+}
+
+/* Selected days */
+.day-picker-custom .rdp-selected .rdp-day_button {
+  background: #6366f1 !important;
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.day-picker-custom .rdp-selected .rdp-day_button:hover {
+  background: #4f46e5 !important;
+}
+
+/* Range selection */
+.day-picker-custom .rdp-range_start .rdp-day_button,
+.day-picker-custom .rdp-range_end .rdp-day_button {
+  background: #6366f1 !important;
+  color: white !important;
+  font-weight: 700;
+}
+
+.day-picker-custom .rdp-range_middle .rdp-day_button {
+  background: #eef2ff !important;
+  color: #6366f1 !important;
+  font-weight: 600;
+}
+
+.day-picker-custom .rdp-range_middle:not(.rdp-range_start):not(.rdp-range_end) .rdp-day_button {
+  border-radius: 0;
+}
+
+.day-picker-custom .rdp-range_start .rdp-day_button {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.day-picker-custom .rdp-range_end .rdp-day_button {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* Disabled days */
+.day-picker-custom .rdp-disabled .rdp-day_button {
+  color: #cbd5e1;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.day-picker-custom .rdp-disabled .rdp-day_button:hover {
+  background: transparent;
+  transform: none;
+}
+
+/* Outside days (other months) */
+.day-picker-custom .rdp-outside .rdp-day_button {
+  color: #cbd5e1;
+  opacity: 0.5;
+}
+
+/* Hidden days */
+.day-picker-custom .rdp-hidden {
+  visibility: hidden;
+}
+
+/* Focus styles for accessibility */
+.day-picker-custom .rdp-day_button:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.day-picker-custom .rdp-button_previous:focus-visible,
+.day-picker-custom .rdp-button_next:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Animation for popover */
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation: fadeIn 200ms ease-out;
+}
+
+.zoom-in-95 {
+  animation: zoomIn 200ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .day-picker-custom .rdp-selected .rdp-day_button {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .day-picker-custom .rdp-day_button,
+  .day-picker-custom .rdp-button_previous,
+  .day-picker-custom .rdp-button_next {
+    transition: none;
+  }
+  
+  .animate-in {
+    animation: none;
+  }
+}

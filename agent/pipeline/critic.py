@@ -11,7 +11,7 @@ class AgentCritic:
     def __init__(self, client: AIGenerator):
         self.client = client
 
-    def critic(self, draft_content: str, material: WritingMaterial):
+    async def critic(self, draft_content: str, material: WritingMaterial):
         source = "\n".join(f"{article}" for article in material["articles"])
         if "ext_info" in material and material["ext_info"]:
             source += "\n".join(f"{result}" for result in material["ext_info"])
@@ -26,7 +26,7 @@ class AgentCritic:
             original_guide=guide,
             history_memories=history_memory,
         )
-        response = self.client.completion(prompt)
+        response = await self.client.completion(prompt)
         try:
             result: AgentCriticResult = extract_json(response)
             logger.info("Parsed critic response: %s", result)

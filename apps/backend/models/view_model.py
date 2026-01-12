@@ -20,10 +20,9 @@ class FeedGroupVO(CamelModel):
 
 class FeedBriefVO(CamelModel):
     id: int
-    group_id: int
+    groups: List[FeedGroupVO]
     content: str
     pub_date: datetime
-    group: Optional[FeedGroupVO] = None
 
 
 class ModelSettingVO(CamelModel):
@@ -71,4 +70,14 @@ class ScheduleListResponse(CommonResult[List[ScheduleVO]]):
 
 
 class ScheduleResponse(CommonResult[ScheduleVO]):
+    pass
+
+
+class GenerateBriefResponse(CommonResult[dict]):
+    """生成任务创建响应"""
+    pass
+
+
+class BriefGenerationStatusResponse(CommonResult[dict]):
+    """生成任务状态响应"""
     pass

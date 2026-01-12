@@ -12,6 +12,7 @@ class SummarizeAgenticWorkflow:
         client = build_generator()
         self.planner = AgentPlanner(client)
         self.executor = AgentExecutor(client)
+        self.state_tracker = {}
         self.state = None
 
     async def summarize(
@@ -38,9 +39,9 @@ class SummarizeAgenticWorkflow:
 
         # 使用工具保存执行记录
         await memory_tool.save_current_execution_records(self.state)
-
-        brief = "\n\n".join(results)
-        return brief
+        
+        return "\n\n".join(results)
+        
 
     def _build_state(
         self,

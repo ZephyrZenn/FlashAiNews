@@ -54,7 +54,7 @@ class AgentExecutor:
             history_memory=history_memory,
         )
         log_step(state, "   ↳ 正在撰写深度内容...")
-        result = self.write_with_review(writing_material, state, point)
+        result = await self.write_with_review(writing_material, state, point)
         log_step(state, f"   ↳ ✅ 话题 '{point['topic']}' 撰写完成")
         return result
 
@@ -97,7 +97,7 @@ class AgentExecutor:
             history_memory=history_memory,
         )
         log_step(state, "   ↳ 正在撰写深度内容...")
-        result = self.write_with_review(writing_material, state, point)
+        result = await self.write_with_review(writing_material, state, point)
         log_step(state, f"   ↳ ✅ 话题 '{point['topic']}' 撰写完成")
         return result
 
@@ -117,18 +117,18 @@ class AgentExecutor:
             articles=raw_articles,
         )
         log_step(state, "   ↳ 正在生成快讯...")
-        result = self.writer.write(writing_material)
+        result = await self.writer.write(writing_material)
         log_step(state, f"   ↳ ✅ 快讯 '{point['topic']}' 生成完成")
         return result
 
-    def write_with_review(
+    async def write_with_review(
         self, writing_material: WritingMaterial, state: AgentState, point: FocalPoint
     ) -> str:
         count = 0
         review = None
         while count < self.max_retries:
-            result = self.writer.write(writing_material, review)
-            review = self.critic.critic(result, writing_material)
+            result = await self.writer.write(writing_material, review)
+            review = await self.critic.critic(result, writing_material)
             has_critical_error = any(
                 finding["severity"] == "CRITICAL" for finding in review["findings"]
             )
@@ -143,7 +143,7 @@ class AgentExecutor:
                 break
             log_step(
                 state,
-                f"   ↳ ❌ 话题 '{point['topic']}' 未通过审查，原因: {review}，重试 {count + 1} 次",
+                f"   ↳ ❌ 话题 '{point['topic']}' 未通过审查，原因: {review['decision_logic']}，重试 {count + 1} 次",
             )
             count += 1
         return result

@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TABLE IF NOT EXISTS feeds
 (
     id           INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -55,13 +57,11 @@ CREATE TABLE IF NOT EXISTS feed_group_items
 CREATE TABLE IF NOT EXISTS feed_brief
 (
     id         INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    group_id   INTEGER      NOT NULL,
+    group_ids  INTEGER[]      NOT NULL,
     content    TEXT         NOT NULL,
     created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS summary_memories
 (
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS excluded_feed_item_ids
 );
 CREATE INDEX idx_feed_items_feed_id_pub_date ON feed_items (feed_id, pub_date);
 CREATE UNIQUE INDEX idx_group_items_group_feed_id ON feed_group_items (feed_group_id, feed_id);
-CREATE INDEX idx_feed_brief_group_id ON feed_brief (group_id);
+CREATE INDEX idx_feed_brief_group_ids ON feed_brief USING GIN (group_ids);
 CREATE UNIQUE INDEX idx_is_default_unique ON feed_groups (is_default) WHERE is_default = TRUE;
 CREATE INDEX idx_summary_memories_topic ON summary_memories USING GIN (topic gin_trgm_ops);
 CREATE INDEX idx_excluded_feed_item_ids_group_ids ON excluded_feed_item_ids USING GIN (group_ids);

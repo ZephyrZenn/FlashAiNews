@@ -18,6 +18,10 @@ from apps.backend.services.scheduler_service import (
     shutdown_scheduler,
     update_schedule_jobs,
 )
+from apps.backend.services.system_scheduler import (
+    init_system_scheduler,
+    shutdown_system_scheduler,
+)
 from core.db.pool import close_async_pool, close_pool
 
 # 配置日志
@@ -42,13 +46,16 @@ async def lifespan(app: FastAPI):
     logger.info("Initialize scheduler, thread pool")
     config = load_config()
     init_thread_pool()
-    # Start scheduler and load all schedules
+    # Start user scheduler and load all schedules
     init_scheduler()
     update_schedule_jobs()
+    # Start system scheduler for maintenance tasks
+    init_system_scheduler()
     init_agent()
     yield
     logger.info("Shutdown scheduler, thread pool")
     shutdown_scheduler()
+    shutdown_system_scheduler()
     # Shutdown: Clean up thread pool
     shutdown_thread_pool()
     close_pool()

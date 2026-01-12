@@ -6,7 +6,7 @@ from typing import Optional
 
 from google import genai
 from google.genai import types
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from core.config.loader import get_config
 from core.models.feed import FeedArticle
@@ -32,21 +32,24 @@ class AIGenerator(ABC):
         self.model = model
 
     @abstractmethod
-    def completion(self, prompt, **kwargs) -> str:
+    async def completion(self, prompt, **kwargs) -> str:
         raise NotImplementedError()
 
 
 class GeminiGenerator(AIGenerator):
     def __init__(self, api_key: str, model: str):
         super().__init__(api_key=api_key, base_url=None, model=model)
+        # 创建客户端实例，避免每次调用都创建
+        self.client = genai.Client(
+            api_key=self.api_key,
+            http_options=types.HttpOptions(api_version="v1alpha"),
+        )
 
-    def completion(self, prompt, **kwargs) -> str:
+    async def completion(self, prompt, **kwargs) -> str:
         try:
-            client = genai.Client(
-                api_key=self.api_key,
-                http_options=types.HttpOptions(api_version="v1alpha"),
+            resp = await self.client.aio.models.generate_content(
+                model=self.model, contents=prompt
             )
-            resp = client.models.generate_content(model=self.model, contents=prompt)
             return resp.text
         except Exception as e:
             logger.error(f"Error in GeminiGenerator: {e}", exc_info=True)
@@ -56,11 +59,12 @@ class GeminiGenerator(AIGenerator):
 class OpenAIGenerator(AIGenerator):
     def __init__(self, base_url, model, api_key):
         super().__init__(base_url=base_url, model=model, api_key=api_key)
+        # 创建异步客户端实例，避免每次调用都创建
+        self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
-    def completion(self, prompt, **kwargs) -> str:
+    async def completion(self, prompt, **kwargs) -> str:
         try:
-            client = OpenAI(api_key=self.api_key, base_url=self.base_url)
-            resp = client.chat.completions.create(
+            resp = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "user", "content": prompt},

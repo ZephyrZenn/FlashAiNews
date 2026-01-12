@@ -42,15 +42,39 @@ const unwrap = async <T>(promise: Promise<{ data: ApiResponse<T> }>) => {
 export const api = {
   // Briefs
   getLatestBrief: () => unwrap<FeedBrief | null>(client.get<FeedBriefResponse>('/')),
+  getBriefs: (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const query = params.toString();
+    return unwrap<FeedBrief[]>(
+      client.get<FeedBriefListResponse>(`/briefs/${query ? `?${query}` : ''}`),
+    );
+  },
   getDefaultBriefs: () => unwrap<FeedBrief[]>(
     client.get<FeedBriefListResponse>('/briefs/default'),
   ),
-  getTodayBriefByGroup: (groupId: number) =>
-    unwrap<FeedBrief | null>(client.get<FeedBriefResponse>(`/briefs/${groupId}/today`)),
-  getHistoryBriefByGroup: (groupId: number) =>
-    unwrap<FeedBrief[]>(client.get<FeedBriefListResponse>(`/briefs/${groupId}/history`)),
-  generateTodayBrief: () =>
-    unwrap<null>(client.post<ApiResponse<null>>('/briefs/generate')),
+  generateBrief: (groupIds: number[], focus: string = '') =>
+    unwrap<{ task_id: string }>(
+      client.post<ApiResponse<{ task_id: string }>>('/briefs/generate', {
+        group_ids: groupIds,
+        focus,
+      })
+    ),
+  getBriefGenerationStatus: (taskId: string) =>
+    unwrap<{
+      task_id: string;
+      status: 'pending' | 'running' | 'completed' | 'failed';
+      logs: Array<{ text: string; time: string }>;
+      result?: string;
+      error?: string;
+    }>(client.get<ApiResponse<{
+      task_id: string;
+      status: 'pending' | 'running' | 'completed' | 'failed';
+      logs: Array<{ text: string; time: string }>;
+      result?: string;
+      error?: string;
+    }>>(`/briefs/generate/${taskId}`)),
 
   // Groups
   getGroups: () => unwrap<FeedGroup[]>(client.get<FeedGroupListResponse>('/groups/')),

@@ -1,13 +1,14 @@
 import asyncio
 import datetime
+import os
 from pathlib import Path
 import typer
 
+from agent.tools import ToolBox, fetch_web_contents_tool, web_search_tool
 from core.config.loader import load_config
 from core.constants import SUMMARY_LENGTH
 from core.crawler.crawler import fetch_all_contents
 from core.parsers import parse_feed, parse_opml
-from core.pipeline import pipeline
 
 cmd_tool = typer.Typer()
 
@@ -27,10 +28,10 @@ def sumup(
         feeds = parse_opml(file_text)
 
     articles = parse_feed(feeds)
-    for feed in articles.keys():
+    for feed, feed_articles in articles.items():
         recent_24h_articles = [
             a
-            for a in articles[feed]
+            for a in feed_articles
             if (
                 a.pub_date - datetime.datetime.now()
             ).total_seconds()
@@ -57,6 +58,13 @@ def sumup(
     with open(out, "w") as f:
         f.write(brief)
 
+def create_toolbox():
+    toolbox = ToolBox()
+    
+    if os.getenv("TAVILY_API_KEY"):
+        toolbox.register(fetch_web_contents_tool, tags=["web", "crawler"])
+        toolbox.register(web_search_tool, tags=["web", "search"])
+    return toolbox
 
 if __name__ == "__main__":
     cmd_tool()

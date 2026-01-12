@@ -37,6 +37,6 @@ class AgentTest(unittest.TestCase):
         def on_step(message: str):
             print(f"[STEP] {message}")
 
-        result = asyncio.run(agent.summarize(48, [1], on_step=on_step))
+        result = asyncio.run(agent.summarize(24, [1], on_step=on_step))
         print("\n=== 最终结果 ===")
         print(result)

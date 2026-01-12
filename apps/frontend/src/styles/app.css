@@ -1,9 +1,224 @@
-@import './scrollbar.css';
-@import './layout.css';
-@import './cards.css';
-@import './content.css';
-@import './tables.css';
-@import './utilities.css';
-@import './feedback.css';
-@import './forms.css';
-@import './modals.css';
+@import 'tailwindcss';
+@import './index.css';
+@import './day-picker-custom.css';
+
+/* Custom scrollbar - matching t.tsx exactly */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+/* Terminal scrollbar */
+.custom-scrollbar-terminal::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar-terminal::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+.custom-scrollbar-terminal::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Animate in utilities - matching t.tsx */
+.animate-in {
+  animation-fill-mode: both;
+}
+.fade-in {
+  animation-name: fadeIn;
+  animation-duration: 500ms;
+}
+.zoom-in-95 {
+  animation-name: zoomIn95;
+  animation-duration: 200ms;
+}
+.slide-in-from-bottom-4 {
+  animation-name: slideInFromBottom;
+  animation-duration: 500ms;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn95 {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Selection color */
+::selection {
+  background-color: rgb(199 210 254 / 0.5);
+}
+
+/* ============================================
+   Markdown Prose Custom Styles
+   ============================================ */
+
+/* Hide footnotes */
+.prose .footnotes {
+  display: none !important;
+}
+
+.prose .footnote-ref {
+  display: none !important;
+}
+
+.prose [data-footnote-ref] {
+  display: none !important;
+}
+
+.prose [data-footnote-backref] {
+  display: none !important;
+}
+
+/* Heading styles - emphasize hierarchy */
+.prose h1 {
+  font-size: 2.25em !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  margin-top: 1.5em !important;
+  margin-bottom: 0.8em !important;
+  color: #1e293b !important; /* slate-800 */
+  border-bottom: 2px solid #e2e8f0 !important;
+  padding-bottom: 0.5em !important;
+}
+
+.prose h2 {
+  font-size: 1.75em !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  margin-top: 1.4em !important;
+  margin-bottom: 0.7em !important;
+  color: #334155 !important; /* slate-700 */
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding-bottom: 0.4em !important;
+}
+
+.prose h3 {
+  font-size: 1.375em !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  margin-top: 1.2em !important;
+  margin-bottom: 0.6em !important;
+  color: #475569 !important; /* slate-600 */
+}
+
+.prose h4 {
+  font-size: 1.125em !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin-top: 1.1em !important;
+  margin-bottom: 0.5em !important;
+  color: #64748b !important; /* slate-500 */
+}
+
+.prose h5 {
+  font-size: 1.05em !important;
+  font-weight: 600 !important;
+  line-height: 1.45 !important;
+  margin-top: 1em !important;
+  margin-bottom: 0.45em !important;
+  color: #64748b !important;
+}
+
+.prose h6 {
+  font-size: 0.95em !important;
+  font-weight: 600 !important;
+  line-height: 1.45 !important;
+  margin-top: 0.9em !important;
+  margin-bottom: 0.4em !important;
+  color: #64748b !important;
+}
+
+/* Custom link styles */
+.prose a {
+  color: #6366f1 !important; /* indigo-600 */
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+}
+
+.prose a:hover {
+  color: #4f46e5 !important; /* indigo-700 */
+  text-decoration: underline !important;
+}
+
+.prose a:visited {
+  color: #818cf8 !important; /* indigo-400 */
+}
+
+.prose a:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Date input custom styles */
+.date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  filter: invert(46%) sepia(8%) saturate(817%) hue-rotate(178deg) brightness(96%) contrast(87%);
+}
+
+.date-input:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  filter: invert(37%) sepia(94%) saturate(2070%) hue-rotate(229deg) brightness(94%) contrast(92%);
+}
+
+.date-input:focus::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  filter: invert(37%) sepia(94%) saturate(2070%) hue-rotate(229deg) brightness(94%) contrast(92%);
+}
+
+/* Firefox date input */
+.date-input::-moz-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.date-input:hover::-moz-calendar-picker-indicator,
+.date-input:focus::-moz-calendar-picker-indicator {
+  opacity: 1;
+}

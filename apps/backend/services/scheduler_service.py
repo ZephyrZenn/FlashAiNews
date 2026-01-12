@@ -11,7 +11,6 @@ from typing import List, Optional, Tuple, Union
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from apps.backend.crons import generate_scheduled_brief
-from apps.backend.services.feed_service import retrieve_new_feeds
 
 logger = logging.getLogger(__name__)
 
@@ -73,10 +72,6 @@ def _get_scheduler() -> BackgroundScheduler:
     global _scheduler
     if _scheduler is None:
         _scheduler = BackgroundScheduler()
-
-        _scheduler.add_job(
-            retrieve_new_feeds, "cron", id="retrieve_new_feeds", hour="*/6", minute=0
-        )
     return _scheduler
 
 

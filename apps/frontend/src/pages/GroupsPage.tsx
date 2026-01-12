@@ -1,392 +1,289 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-
+import {
+  Plus,
+  Trash2,
+  Edit3,
+  FolderPlus,
+} from 'lucide-react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useApiMutation } from '@/hooks/useApiMutation';
+import { Layout } from '@/components/Layout';
+import { Modal } from '@/components/Modal';
+import { Select } from '@/components/ui/Select';
 import type { Feed, FeedGroup } from '@/types/api';
-import { Loader } from '@/components/Loader';
-import { EmptyState } from '@/components/EmptyState';
 import { useToast } from '@/context/ToastContext';
 import { useConfirm } from '@/context/ConfirmDialogContext';
 
 const GroupsPage = () => {
   const queryClient = useQueryClient();
-  const groupsQuery = useApiQuery<FeedGroup[]>(queryKeys.groups, api.getGroups);
-  const feedsQuery = useApiQuery<Feed[]>(queryKeys.feeds, api.getFeeds);
+  const { data: groups } = useApiQuery<FeedGroup[]>(queryKeys.groups, api.getGroups);
+  const { data: feeds } = useApiQuery<Feed[]>(queryKeys.feeds, api.getFeeds);
   const { showToast } = useToast();
   const { confirm } = useConfirm();
 
-  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<{
+    id?: number;
+    name: string;
+    description: string;
+    sources: number[];
+  } | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
 
-  useEffect(() => {
-    if (!groupsQuery.data) {
-      return;
-    }
-    if (groupsQuery.data.length === 0) {
-      setSelectedGroupId(null);
-      return;
-    }
-    const exists = groupsQuery.data.some((group) => group.id === selectedGroupId);
-    if (!exists) {
-      setSelectedGroupId(groupsQuery.data[0].id);
-    }
-  }, [groupsQuery.data, selectedGroupId]);
+  const allFeeds = feeds ?? [];
+  const allGroups = groups ?? [];
 
-  const groupDetailQuery = useApiQuery<FeedGroup>(
-    queryKeys.groupDetail(selectedGroupId ?? -1),
-    () => api.getGroupDetail(selectedGroupId ?? -1),
-    { enabled: Boolean(selectedGroupId) },
-  );
-
-  const selectedGroup = groupDetailQuery.data;
-
-  const [editTitle, setEditTitle] = useState('');
-  const [editDesc, setEditDesc] = useState('');
-  const [editFeedIds, setEditFeedIds] = useState<number[]>([]);
-
-  useEffect(() => {
-    if (selectedGroup) {
-      setEditTitle(selectedGroup.title);
-      setEditDesc(selectedGroup.desc);
-      setEditFeedIds(selectedGroup.feeds.map((feed) => feed.id));
-    }
-  }, [selectedGroup]);
-
-  const toggleFeedSelection = (feedId: number) => {
-    setEditFeedIds((prev) =>
-      prev.includes(feedId) ? prev.filter((id) => id !== feedId) : [...prev, feedId],
-    );
-  };
-
-  const updateMutation = useApiMutation(async () => {
-    if (!selectedGroupId) {
-      return;
-    }
-    await api.updateGroup(selectedGroupId, {
-      title: editTitle,
-      desc: editDesc,
-      feedIds: editFeedIds,
+  const createMutation = useApiMutation(async () => {
+    if (!editingGroup) return;
+    await api.createGroup({
+      title: editingGroup.name,
+      desc: editingGroup.description,
+      feedIds: editingGroup.sources,
     });
   }, {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups });
-      if (selectedGroupId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.groupDetail(selectedGroupId) });
-      }
-      showToast('Group updated successfully.');
+      setIsModalOpen(false);
+      showToast('分组创建成功');
     },
     onError: (error) => {
-      showToast(error.message || 'Failed to update group.', { type: 'error' });
+      showToast(error.message || '创建分组失败', { type: 'error' });
     },
   });
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newGroupTitle, setNewGroupTitle] = useState('');
-  const [newGroupDesc, setNewGroupDesc] = useState('');
-  const [newGroupFeedIds, setNewGroupFeedIds] = useState<number[]>([]);
-
-  const openCreateModal = () => {
-    setNewGroupTitle('');
-    setNewGroupDesc('');
-    setNewGroupFeedIds([]);
-    setIsCreateOpen(true);
-  };
-
-  const closeCreateModal = () => {
-    setIsCreateOpen(false);
-  };
-
-  const toggleNewGroupFeed = (feedId: number) => {
-    setNewGroupFeedIds((prev) =>
-      prev.includes(feedId) ? prev.filter((id) => id !== feedId) : [...prev, feedId],
-    );
-  };
-
-  const createMutation = useApiMutation(async () => {
-    const newId = await api.createGroup({
-      title: newGroupTitle,
-      desc: newGroupDesc,
-      feedIds: newGroupFeedIds,
+  const updateMutation = useApiMutation(async () => {
+    if (!editingGroup?.id) return;
+    await api.updateGroup(editingGroup.id, {
+      title: editingGroup.name,
+      desc: editingGroup.description,
+      feedIds: editingGroup.sources,
     });
-    return newId;
   }, {
-    onSuccess: (gid) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups });
-      if (gid) {
-        setSelectedGroupId(gid);
-      }
-      closeCreateModal();
-      showToast('Group created successfully.');
+      setIsModalOpen(false);
+      showToast('分组更新成功');
     },
     onError: (error) => {
-      showToast(error.message || 'Failed to create group.', { type: 'error' });
+      showToast(error.message || '更新分组失败', { type: 'error' });
     },
   });
 
   const deleteMutation = useApiMutation(async (groupId: number) => {
     await api.deleteGroup(groupId);
   }, {
-    onSuccess: (_, groupId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.groups });
-      queryClient.invalidateQueries({ queryKey: queryKeys.groupDetail(groupId) });
-      setSelectedGroupId(null);
-      showToast('Group deleted successfully.');
+      showToast('分组删除成功');
     },
     onError: (error) => {
-      showToast(error.message || 'Failed to delete group.', { type: 'error' });
+      showToast(error.message || '删除分组失败', { type: 'error' });
     },
   });
 
-  const allFeeds: Feed[] = feedsQuery.data ?? [];
-  const orderedGroups = useMemo<FeedGroup[]>(
-    () => groupsQuery.data ?? [],
-    [groupsQuery.data],
-  );
-
-  const handleDeleteGroup = async () => {
-    if (!selectedGroupId || deleteMutation.isPending) {
-      return;
+  const handleOpenModal = (group?: FeedGroup) => {
+    if (group) {
+      setEditingGroup({
+        id: group.id,
+        name: group.title,
+        description: group.desc,
+        sources: group.feeds.map((f) => f.id),
+      });
+    } else {
+      setEditingGroup({ name: '', description: '', sources: [] });
     }
-    const group = orderedGroups.find((item) => item.id === selectedGroupId);
+    setSelectedSourceId('');
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteGroup = async (groupId: number) => {
+    const group = allGroups.find((g) => g.id === groupId);
     const confirmed = await confirm({
-      title: 'Delete group',
-      description: `Remove "${group?.title ?? 'this group'}" and detach its feeds? This cannot be undone.`,
-      confirmLabel: 'Delete group',
-      cancelLabel: 'Keep group',
+      title: '删除分组',
+      description: `确定要删除"${group?.title ?? '此分组'}"吗？此操作无法撤销。`,
+      confirmLabel: '删除',
+      cancelLabel: '取消',
       tone: 'danger',
     });
-    if (!confirmed) {
-      return;
+    if (confirmed) {
+      deleteMutation.mutate(groupId);
     }
-    deleteMutation.mutate(selectedGroupId);
   };
 
-  const handleUpdateSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    updateMutation.mutate();
+  const handleSaveGroup = () => {
+    if (!editingGroup || !editingGroup.name) return;
+    if (editingGroup.id) {
+      updateMutation.mutate();
+    } else {
+      createMutation.mutate();
+    }
   };
 
-  const handleCreateSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    createMutation.mutate();
+  const handleRemoveSourceFromGroup = (sourceId: number) => {
+    if (!editingGroup) return;
+    setEditingGroup({
+      ...editingGroup,
+      sources: editingGroup.sources.filter((id) => id !== sourceId),
+    });
   };
 
-  const renderFeedSelector = (
-    selectedIds: number[],
-    toggle: (feedId: number) => void,
-    emptyCopy: string,
-  ) => {
-    if (feedsQuery.isLoading) {
-      return <Loader label="Loading feeds" />;
-    }
-    if (allFeeds.length === 0) {
-      return <span className="muted">{emptyCopy}</span>;
-    }
-    return (
-      <div className="checkbox-list">
-        {allFeeds.map((feed: Feed) => (
-          <label key={feed.id} className="checkbox-row">
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(feed.id)}
-              onChange={() => toggle(feed.id)}
-            />
-            <span>{feed.title}</span>
-          </label>
-        ))}
-      </div>
-    );
+  const handleAddSourceToGroup = () => {
+    if (!selectedSourceId || !editingGroup) return;
+    const sourceId = parseInt(selectedSourceId);
+    if (editingGroup.sources.includes(sourceId)) return;
+    setEditingGroup({
+      ...editingGroup,
+      sources: [...editingGroup.sources, sourceId],
+    });
+    setSelectedSourceId('');
   };
 
   return (
-    <div className="page page-fill groups-page">
-      <header className="main-header">
-        <div>
-          <h1>Groups</h1>
-          <p className="muted">Organize feeds into thematic groups for daily summaries.</p>
-        </div>
-        <button type="button" className="button" onClick={openCreateModal}>
-          New group
-        </button>
-      </header>
-
-      <div className="split-layout groups-layout">
-        <section className="card card-scroll">
-          <div className="card-header">
-            <h3 className="section-title">Feed Groups</h3>
-          </div>
-          <div className="card-body-scroll">
-            {groupsQuery.isLoading ? (
-              <div className="card-placeholder">
-                <Loader label="Loading groups" />
-              </div>
-            ) : orderedGroups.length === 0 ? (
-              <div className="card-placeholder">
-                <EmptyState
-                  title="No groups yet"
-                  description="Create your first group to start summarizing related feeds together."
-                />
-              </div>
-            ) : (
-              <div className="history-list">
-              {orderedGroups.map((group: FeedGroup) => (
-                  <button
-                    type="button"
-                    key={group.id}
-                    className={`history-item${selectedGroupId === group.id ? ' active' : ''}`}
-                    onClick={() => setSelectedGroupId(group.id)}
-                  >
-                    <div className="history-item-title">{group.title}</div>
-                    <div className="muted history-item-subtitle">
-                      {group.desc || 'No description provided.'}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="card card-scroll">
-          <div className="card-header">
-            <h3 className="section-title">Group details</h3>
-          </div>
-          <div className="card-body-scroll">
-            {selectedGroupId && groupDetailQuery.isLoading ? (
-              <div className="card-placeholder">
-                <Loader label="Loading group" />
-              </div>
-            ) : selectedGroup ? (
-              <form className="form-grid group-form" onSubmit={handleUpdateSubmit}>
-                <div className="form-row">
-                  <label htmlFor="group-title">Title</label>
-                  <input
-                    id="group-title"
-                    className="input"
-                    value={editTitle}
-                    onChange={(event) => setEditTitle(event.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-row">
-                  <label htmlFor="group-desc">Description</label>
-                  <textarea
-                    id="group-desc"
-                    className="textarea"
-                    value={editDesc}
-                    onChange={(event) => setEditDesc(event.target.value)}
-                    placeholder="Explain what this group covers"
-                  />
-                </div>
-
-                <div className="form-row fill">
-                  <label>Feeds</label>
-                  <div className="form-row-content">
-                    {renderFeedSelector(
-                      editFeedIds,
-                      toggleFeedSelection,
-                      'No feeds available. Create one first.',
-                    )}
-                  </div>
-                </div>
-
-                <div className="page-actions sticky-actions">
-                  <button className="button" type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? 'Saving…' : 'Save changes'}
-                  </button>
-                  <button
-                    type="button"
-                    className="button danger"
-                    onClick={() => {
-                      void handleDeleteGroup();
-                    }}
-                    disabled={deleteMutation.isPending || !selectedGroupId}
-                  >
-                    {deleteMutation.isPending ? 'Deleting…' : 'Delete group'}
-                  </button>
-                </div>
-              </form>
-            ) : orderedGroups.length === 0 ? (
-              <div className="card-placeholder">
-                <EmptyState
-                  title="Create a group"
-                  description="Add a group to start editing its details."
-                />
-              </div>
-            ) : (
-              <div className="card-placeholder">
-                <EmptyState
-                  title="Select a group"
-                  description="Choose a group from the list to view and edit its details."
-                />
-              </div>
-            )}
-          </div>
-        </section>
-      </div>
-
-      {isCreateOpen ? (
-        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={closeCreateModal}>
+    <Layout onNewClick={() => handleOpenModal()}>
+      <div className="h-full overflow-y-auto p-10 custom-scrollbar grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 content-start">
+        {allGroups.map((group) => (
           <div
-            className="modal-content card"
-            onClick={(event) => event.stopPropagation()}
+            key={group.id}
+            className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-md transition-all relative group/card flex flex-col min-h-[220px]"
           >
-            <div className="modal-header">
-              <h3 className="section-title" style={{ marginBottom: 0 }}>Create group</h3>
-              <button type="button" className="modal-close" onClick={closeCreateModal} aria-label="Close">
-                ×
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteGroup(group.id);
+              }}
+              className="absolute top-6 right-6 opacity-0 group-hover/card:opacity-100 p-2.5 text-rose-300 hover:text-rose-500 transition-all hover:bg-rose-50 rounded-2xl z-10"
+            >
+              <Trash2 size={18} />
+            </button>
+            <div className="flex-1 min-w-0 pr-6">
+              <h3 className="text-xl font-black text-slate-800 mb-2 truncate">
+                {group.title}
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed line-clamp-3 mb-4">
+                {group.desc || '暂无描述信息'}
+              </p>
+            </div>
+            <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between shrink-0">
+              <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest italic">
+                {group.feeds?.length || 0} 个订阅源
+              </span>
+              <button
+                onClick={() => handleOpenModal(group)}
+                className="text-slate-300 hover:text-indigo-600 p-2 transition-colors"
+              >
+                <Edit3 size={18} />
               </button>
             </div>
-            <form className="form-grid modal-body" onSubmit={handleCreateSubmit}>
-              <div className="form-row">
-                <label htmlFor="new-group-title">Title</label>
-                <input
-                  id="new-group-title"
-                  className="input"
-                  value={newGroupTitle}
-                  onChange={(event) => setNewGroupTitle(event.target.value)}
-                  required
+          </div>
+        ))}
+
+        {/* Add new button */}
+        <button
+          onClick={() => handleOpenModal()}
+          className="border-2 border-dashed border-slate-200 rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all min-h-[220px]"
+        >
+          <FolderPlus size={36} strokeWidth={1.5} className="mb-2" />
+          <span className="text-sm font-black uppercase">新建分组</span>
+        </button>
+      </div>
+
+      {/* Modal - exactly matching t.tsx */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingGroup?.id ? '编辑分组' : '新建订阅分组'}
+        onConfirm={handleSaveGroup}
+      >
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                分组名称
+              </label>
+              <input
+                type="text"
+                value={editingGroup?.name || ''}
+                onChange={(e) =>
+                  setEditingGroup((prev) =>
+                    prev ? { ...prev, name: e.target.value } : null
+                  )
+                }
+                className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                描述
+              </label>
+              <textarea
+                value={editingGroup?.description || ''}
+                onChange={(e) =>
+                  setEditingGroup((prev) =>
+                    prev ? { ...prev, description: e.target.value } : null
+                  )
+                }
+                rows={2}
+                className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 resize-none outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-4 block">
+              下属源管理
+            </label>
+            <div className="space-y-2 mb-4 max-h-40 overflow-y-auto custom-scrollbar">
+              {(editingGroup?.sources || []).map((sourceId) => {
+                const source = allFeeds.find((f) => f.id === sourceId);
+                return (
+                  source && (
+                    <div
+                      key={sourceId}
+                      className="flex items-center justify-between p-3 bg-slate-50 rounded-xl"
+                    >
+                      <span className="text-xs font-bold">{source.title}</span>
+                      <button
+                        onClick={() => handleRemoveSourceFromGroup(sourceId)}
+                        className="text-rose-400"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Select
+                  value={selectedSourceId}
+                  onChange={(value) => setSelectedSourceId(value)}
+                  placeholder="关联已有源..."
+                  options={[
+                    { value: '', label: '关联已有源...' },
+                    ...allFeeds
+                      .filter((f) => !(editingGroup?.sources || []).includes(f.id))
+                      .map((f) => ({
+                        value: f.id.toString(),
+                        label: f.title,
+                      })),
+                  ]}
                 />
               </div>
-              <div className="form-row">
-                <label htmlFor="new-group-desc">Description</label>
-                <textarea
-                  id="new-group-desc"
-                  className="textarea"
-                  value={newGroupDesc}
-                  onChange={(event) => setNewGroupDesc(event.target.value)}
-                  placeholder="What does this group cover?"
-                />
-              </div>
-              <div className="form-row">
-                <label>Feeds</label>
-                {renderFeedSelector(
-                  newGroupFeedIds,
-                  toggleNewGroupFeed,
-                  'Add feeds before grouping them.',
-                )}
-              </div>
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="button secondary"
-                  onClick={closeCreateModal}
-                  disabled={createMutation.isPending}
-                >
-                  Cancel
-                </button>
-                <button className="button" type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Creating…' : 'Create group'}
-                </button>
-              </div>
-            </form>
+              <button
+                onClick={handleAddSourceToGroup}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md active:scale-95"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
         </div>
-      ) : null}
-    </div>
+      </Modal>
+    </Layout>
   );
 };
 

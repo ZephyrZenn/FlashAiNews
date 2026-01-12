@@ -159,7 +159,7 @@ const SummaryPage = () => {
             </div>
             <div className="flex-1 flex overflow-hidden relative">
               {/* 主内容区域 */}
-              <div className="flex-1 overflow-y-auto px-12 py-10 text-lg leading-[2.0] text-slate-700 font-medium custom-scrollbar prose prose-slate max-w-none">
+              <div className="flex-1 overflow-y-auto px-12 py-10 text-md leading-[2.0] text-slate-700 font-medium custom-scrollbar prose prose-slate max-w-none">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{

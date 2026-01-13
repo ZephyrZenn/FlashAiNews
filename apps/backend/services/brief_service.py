@@ -30,6 +30,9 @@ def generate_brief_for_groups(group_ids: list[int], focus: str = ""):
     Generate brief for specific groups with optional focus.
     Synchronous version for scheduled tasks.
     """
+    if not group_ids:
+        raise ValueError("group_ids cannot be empty")
+
     # 延迟导入避免循环依赖
     from agent import get_agent
 
@@ -48,6 +51,9 @@ async def generate_brief_for_groups_async(
     Generate brief for specific groups asynchronously with optional step callback.
     Returns the generated brief content.
     """
+    if not group_ids:
+        raise ValueError("group_ids cannot be empty")
+
     # 延迟导入避免循环依赖
     from agent import get_agent
 

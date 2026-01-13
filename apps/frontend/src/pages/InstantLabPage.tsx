@@ -200,7 +200,7 @@ const InstantLabPage = () => {
             {/* Group selection */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2">
-                目标分组
+                目标分组 <span className="text-rose-400">*</span>
               </label>
               <div className="flex flex-wrap gap-2 px-1">
                 {allGroups.map((group) => (
@@ -217,6 +217,9 @@ const InstantLabPage = () => {
                   </button>
                 ))}
               </div>
+              {selectedGroupsForGen.length === 0 && (
+                <p className="text-xs text-rose-400 mt-2 ml-2">请至少选择一个分组</p>
+              )}
             </div>
 
             {/* Generate button */}

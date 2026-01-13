@@ -1,24 +1,18 @@
 """Scheduler management utilities for brief generation."""
 
-import json
 import logging
-import os
 import uuid
 from datetime import time
-from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from apps.backend.crons import generate_scheduled_brief
+from core.db.pool import get_connection
 
 logger = logging.getLogger(__name__)
 
 _scheduler: Optional[BackgroundScheduler] = None
-
-# Schedule configuration file path
-_SCHEDULE_CONFIG_FILE = os.getenv("SCHEDULE_CONFIG_FILE", "schedules.json")
-_SCHEDULE_CONFIG_PATH = Path(_SCHEDULE_CONFIG_FILE)
 
 
 class Schedule:
@@ -48,22 +42,14 @@ class Schedule:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Schedule":
-        time_value = data["time"]
-        # Handle both string and time object
-        if isinstance(time_value, str):
-            hour, minute = map(int, time_value.split(":"))
-            schedule_time = time(hour, minute)
-        elif isinstance(time_value, time):  # type: ignore
-            schedule_time = time_value
-        else:
-            raise ValueError(f"Invalid time format: {time_value}")
+    def from_db_row(cls, row: tuple) -> "Schedule":
+        """Create Schedule from database row (id, time, focus, group_ids, enabled)."""
         return cls(
-            id=data["id"],
-            time=schedule_time,
-            focus=data["focus"],
-            group_ids=data["group_ids"],
-            enabled=data.get("enabled", True),
+            id=row[0],
+            time=row[1],
+            focus=row[2],
+            group_ids=list(row[3]) if row[3] else [],
+            enabled=row[4],
         )
 
 
@@ -138,29 +124,47 @@ def remove_schedule_job(schedule_id: str) -> None:
 
 
 def _load_schedules() -> List[Schedule]:
-    """Load schedules from configuration file."""
-    if not _SCHEDULE_CONFIG_PATH.exists():
-        return []
+    """Load all schedules from database."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, time, focus, group_ids, enabled
+                FROM schedules
+                ORDER BY time
+            """)
+            rows = cur.fetchall()
+            return [Schedule.from_db_row(row) for row in rows]
 
-    try:
-        with open(_SCHEDULE_CONFIG_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return [Schedule.from_dict(item) for item in data]
-    except Exception as e:
-        logger.error(f"Error loading schedules: {e}")
-        return []
+
+def _save_schedule(schedule: Schedule) -> None:
+    """Insert or update a schedule in database."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO schedules (id, time, focus, group_ids, enabled)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET
+                    time = EXCLUDED.time,
+                    focus = EXCLUDED.focus,
+                    group_ids = EXCLUDED.group_ids,
+                    enabled = EXCLUDED.enabled,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (
+                schedule.id,
+                schedule.time,
+                schedule.focus,
+                schedule.group_ids,
+                schedule.enabled,
+            ))
+    logger.info(f"Saved schedule {schedule.id} to database")
 
 
-def _save_schedules(schedules: List[Schedule]) -> None:
-    """Save schedules to configuration file."""
-    try:
-        data = [s.to_dict() for s in schedules]
-        with open(_SCHEDULE_CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        logger.info(f"Saved {len(schedules)} schedules to {_SCHEDULE_CONFIG_PATH}")
-    except Exception as e:
-        logger.error(f"Error saving schedules: {e}")
-        raise
+def _delete_schedule_from_db(schedule_id: str) -> bool:
+    """Delete a schedule from database. Returns True if deleted."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM schedules WHERE id = %s", (schedule_id,))
+            return cur.rowcount > 0
 
 
 def get_all_schedules() -> List[Schedule]:
@@ -170,16 +174,23 @@ def get_all_schedules() -> List[Schedule]:
 
 def get_schedule(schedule_id: str) -> Optional[Schedule]:
     """Get a schedule by ID."""
-    schedules = _load_schedules()
-    for schedule in schedules:
-        if schedule.id == schedule_id:
-            return schedule
-    return None
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, time, focus, group_ids, enabled
+                FROM schedules
+                WHERE id = %s
+            """, (schedule_id,))
+            row = cur.fetchone()
+            if row:
+                return Schedule.from_db_row(row)
+            return None
 
 
 def create_schedule(time_str: str, focus: str, group_ids: List[int]) -> Schedule:
     """Create a new schedule."""
-    schedules = _load_schedules()
+    if not group_ids:
+        raise ValueError("group_ids cannot be empty")
 
     # Generate ID
     schedule_id = str(uuid.uuid4())[:8]
@@ -203,8 +214,7 @@ def create_schedule(time_str: str, focus: str, group_ids: List[int]) -> Schedule
         enabled=True,
     )
 
-    schedules.append(schedule)
-    _save_schedules(schedules)
+    _save_schedule(schedule)
 
     # Add to scheduler
     add_schedule_job(schedule_id, hour, minute, group_ids, focus)
@@ -221,53 +231,49 @@ def update_schedule(
     enabled: Optional[bool] = None,
 ) -> Optional[Schedule]:
     """Update an existing schedule."""
-    schedules = _load_schedules()
+    if group_ids is not None and len(group_ids) == 0:
+        raise ValueError("group_ids cannot be empty")
 
-    for schedule in schedules:
-        if schedule.id == schedule_id:
-            if time_str is not None:
-                # Parse time - handle both string and time object
-                if isinstance(time_str, str):
-                    hour, minute = map(int, time_str.split(":"))
-                    schedule.time = time(hour, minute)
-                elif isinstance(time_str, time):
-                    schedule.time = time_str
-                else:
-                    raise ValueError(f"Invalid time format: {time_str}")
-            if focus is not None:
-                schedule.focus = focus
-            if group_ids is not None:
-                schedule.group_ids = group_ids
-            if enabled is not None:
-                schedule.enabled = enabled
+    schedule = get_schedule(schedule_id)
+    if not schedule:
+        return None
 
-            _save_schedules(schedules)
+    if time_str is not None:
+        # Parse time - handle both string and time object
+        if isinstance(time_str, str):
+            hour, minute = map(int, time_str.split(":"))
+            schedule.time = time(hour, minute)
+        elif isinstance(time_str, time):
+            schedule.time = time_str
+        else:
+            raise ValueError(f"Invalid time format: {time_str}")
+    if focus is not None:
+        schedule.focus = focus
+    if group_ids is not None:
+        schedule.group_ids = group_ids
+    if enabled is not None:
+        schedule.enabled = enabled
 
-            # Update scheduler job
-            remove_schedule_job(schedule_id)
-            if schedule.enabled:
-                add_schedule_job(
-                    schedule.id,
-                    schedule.time.hour,
-                    schedule.time.minute,
-                    schedule.group_ids,
-                    schedule.focus,
-                )
+    _save_schedule(schedule)
 
-            logger.info(f"Updated schedule {schedule_id}")
-            return schedule
+    # Update scheduler job
+    remove_schedule_job(schedule_id)
+    if schedule.enabled:
+        add_schedule_job(
+            schedule.id,
+            schedule.time.hour,
+            schedule.time.minute,
+            schedule.group_ids,
+            schedule.focus,
+        )
 
-    return None
+    logger.info(f"Updated schedule {schedule_id}")
+    return schedule
 
 
 def delete_schedule(schedule_id: str) -> bool:
     """Delete a schedule."""
-    schedules = _load_schedules()
-    original_count = len(schedules)
-    schedules = [s for s in schedules if s.id != schedule_id]
-
-    if len(schedules) < original_count:
-        _save_schedules(schedules)
+    if _delete_schedule_from_db(schedule_id):
         remove_schedule_job(schedule_id)
         logger.info(f"Deleted schedule {schedule_id}")
         return True

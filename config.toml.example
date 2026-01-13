@@ -1,9 +1,6 @@
 # NewsCollector Configuration Example
 # Copy this file to config.toml and update with your settings
 
-# Default time for brief generation
-brief_time = "08:00"
-
 [model]
 # Default model to use for generating briefs
 model = "gpt-4"

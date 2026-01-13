@@ -5,12 +5,7 @@ from typing import Optional
 
 import toml
 
-from core.models.config import (
-    GlobalConfig,
-    GlobalConfigModel,
-    ModelConfig,
-    ModelConfigModel,
-)
+from core.models.config import GlobalConfig, ModelConfig
 from core.models.generator import ModelProvider
 
 from .utils import (
@@ -52,21 +47,29 @@ def get_config_path() -> str:
         return paths.dev
 
 
-def _validate_global_config(config: dict) -> GlobalConfigModel:
-    """Validate global configuration using Pydantic"""
-    try:
-        return GlobalConfigModel(**config)
-    except Exception as e:
-        raise ConfigValidationError(f"Global configuration validation failed: {e}")
+def _validate_model_config(config: dict) -> None:
+    """Validate model configuration required fields."""
+    required = ["model", "provider", "api_key"]
+    for field in required:
+        value = config.get(field)
+        if not value or (isinstance(value, str) and not value.strip()):
+            raise ConfigValidationError(f"Missing required field: model.{field}")
+    
+    provider = config["provider"]
+    valid_providers = [p.value for p in ModelProvider]
+    if provider not in valid_providers:
+        raise ConfigValidationError(
+            f"Invalid provider: {provider}. Must be one of: {valid_providers}"
+        )
 
 
-def _to_model_config(config: ModelConfigModel) -> ModelConfig:
-    """Convert pydantic model configuration to dataclass representation"""
+def _to_model_config(config: dict) -> ModelConfig:
+    """Convert dict configuration to ModelConfig dataclass."""
     return ModelConfig(
-        model=config.model,
-        provider=ModelProvider(config.provider),
-        api_key=config.api_key,
-        base_url=config.base_url,
+        model=config["model"].strip(),
+        provider=ModelProvider(config["provider"]),
+        api_key=config["api_key"].strip(),
+        base_url=config.get("base_url"),
     )
 
 
@@ -117,10 +120,11 @@ def load_config(reload: bool = False, use_env_overrides: bool = True, path: Opti
         raise ConfigValidationError(f"Error reading configuration file: {e}")
 
     # Validate and build global config
-    global_model = _validate_global_config(file_config)
+    model_config = file_config.get("model", {})
+    _validate_model_config(model_config)
     
     global_cfg = GlobalConfig(
-        model=_to_model_config(global_model.model),
+        model=_to_model_config(model_config),
     )
 
     _config = global_cfg

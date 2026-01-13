@@ -2,23 +2,20 @@ from typing import Optional
 
 from core.config.loader import get_config
 from core.config.utils import write_config
-from apps.backend.models.setting import ModelConfig, Setting
+from core.models.config import ModelConfig
+
+from apps.backend.models.converters import model_config_to_vo
+from apps.backend.models.view_model import SettingVO
 
 
-def get_setting():
+def get_setting() -> SettingVO:
+    """Get current settings as a VO for API response."""
     config = get_config()
-    model_cfg = config.model
-    return Setting(
-        model=ModelConfig(
-            model=model_cfg.model,
-            provider=model_cfg.provider,
-            api_key=model_cfg.api_key,
-            base_url=model_cfg.base_url or "",
-        ),
-    )
+    return SettingVO(model=model_config_to_vo(config.model))
 
 
-def update_setting(model: Optional[ModelConfig]):
+def update_setting(model: Optional[ModelConfig]) -> None:
+    """Update settings with a new model configuration."""
     cfg = get_config()
     if model:
         cfg.model = model

@@ -8,7 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from agent import init_agent
 from core.config.loader import load_config
 from apps.backend.config.thread import init_thread_pool, shutdown_thread_pool
-from apps.backend.exception import BizException, handle_biz_exception, handle_exception
+from fastapi.exceptions import RequestValidationError
+from apps.backend.exception import (
+    BizException,
+    handle_biz_exception,
+    handle_exception,
+    handle_validation_exception,
+)
 from apps.backend.middleware import LogMiddleware
 from apps.backend.models.common import success_with_data
 from apps.backend.models.view_model import FeedBriefResponse
@@ -82,6 +88,7 @@ app.add_middleware(
 app.add_middleware(LogMiddleware)
 
 # Exception Handler
+app.add_exception_handler(RequestValidationError, handle_validation_exception)
 app.add_exception_handler(BizException, handle_biz_exception)
 app.add_exception_handler(Exception, handle_exception)
 

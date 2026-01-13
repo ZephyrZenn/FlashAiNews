@@ -24,7 +24,7 @@ class AgentPlanner:
         )
         log_step(state, f"🔍 提取到 {len(keywords)} 个关键词: {keywords}")
         memories = await memory_tool.search_memory(keywords)
-        memory_topics = [m.topic for m in memories.values()] if memories else []
+        memory_topics = [m["topic"] for m in memories.values()] if memories else []
         log_step(state, f"🔍 从记忆中找到 {len(memories)} 个相关记忆: {memory_topics}")
         state["history_memories"] = memories
 

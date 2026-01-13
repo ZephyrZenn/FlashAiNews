@@ -79,6 +79,17 @@ CREATE TABLE IF NOT EXISTS excluded_feed_item_ids
     group_ids INTEGER[] NOT NULL,
     pub_date TIMESTAMP NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS schedules
+(
+    id         VARCHAR(8) PRIMARY KEY,
+    time       TIME        NOT NULL,
+    focus      VARCHAR(512) NOT NULL DEFAULT '',
+    group_ids  INTEGER[]   NOT NULL,
+    enabled    BOOLEAN     NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 CREATE INDEX idx_feed_items_feed_id_pub_date ON feed_items (feed_id, pub_date);
 CREATE UNIQUE INDEX idx_group_items_group_feed_id ON feed_group_items (feed_group_id, feed_id);
 CREATE INDEX idx_feed_brief_group_ids ON feed_brief USING GIN (group_ids);

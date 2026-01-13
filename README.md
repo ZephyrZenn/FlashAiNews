@@ -82,9 +82,6 @@ You can also override model configuration via environment variables:
 Create `config.toml` in the project root (copy from `config.toml.example`):
 
 ```toml
-# Daily brief generation time (24-hour format)
-brief_time = "08:00"
-
 [model]
 # Model configuration
 model = "gpt-4"
@@ -94,14 +91,15 @@ base_url = "https://api.openai.com/v1"  # Required for OpenAI-compatible APIs
 ```
 
 The configuration file supports:
-- `brief_time` - Time when daily briefs are generated (format: `HH:MM`)
 - `[model]` section - LLM model configuration
   - `model` - Model name (e.g., `gpt-4`, `gpt-4o-mini`, `deepseek-chat`)
   - `provider` - Provider type: `openai` or `gemini`
   - `api_key` - API key for the model provider
   - `base_url` - Base URL for the API (required for OpenAI-compatible APIs)
 
-You can also configure these settings via the frontend settings page.
+Schedule management (daily brief generation times) is configured via the frontend settings page and stored in the database.
+
+You can also configure model settings via the frontend settings page.
 
 ## Manual Development
 

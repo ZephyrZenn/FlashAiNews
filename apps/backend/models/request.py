@@ -1,10 +1,10 @@
 from datetime import datetime, time, date
 from typing import Optional, Union
 
-from pydantic import validator
+from pydantic import validator, Field
 
 from .common import CamelModel
-from core.models.config import ModelConfig
+from core.models.generator import ModelProvider
 
 
 def _normalize_brief_time(value: Union[time, str]) -> time:
@@ -36,8 +36,31 @@ class ModifyFeedRequest(CamelModel):
     desc: str
     url: str
 
+
+class ModelConfigRequest(CamelModel):
+    """Pydantic model for model configuration in requests"""
+    model: str = Field(..., description="Model name")
+    provider: str = Field(..., description="Model provider (openai, deepseek, gemini)")
+    api_key: str = Field(..., description="API key for the model provider")
+    base_url: Optional[str] = Field(None, description="Base URL for the model provider")
+
+    @validator("model", "provider", "api_key")
+    def validate_required_fields(cls, v):
+        if not v or (isinstance(v, str) and not v.strip()):
+            raise ValueError("Field cannot be empty")
+        return v.strip() if isinstance(v, str) else v
+
+    @validator("provider")
+    def validate_provider(cls, v):
+        try:
+            ModelProvider(v)
+        except ValueError as e:
+            raise ValueError(f"Invalid provider: {e}")
+        return v
+
+
 class ModifySettingRequest(CamelModel):
-    model: Optional[ModelConfig] = None
+    model: Optional[ModelConfigRequest] = None
 
 
 class CreateScheduleRequest(CamelModel):
@@ -48,6 +71,12 @@ class CreateScheduleRequest(CamelModel):
     @validator("time")
     def validate_time(cls, value):
         return _normalize_brief_time(value)
+
+    @validator("group_ids")
+    def validate_group_ids(cls, value):
+        if not value:
+            raise ValueError("group_ids cannot be empty")
+        return value
 
 
 class UpdateScheduleRequest(CamelModel):
@@ -61,6 +90,12 @@ class UpdateScheduleRequest(CamelModel):
         if value is None:
             return value
         return _normalize_brief_time(value)
+
+    @validator("group_ids")
+    def validate_group_ids(cls, value):
+        if value is not None and len(value) == 0:
+            raise ValueError("group_ids cannot be empty")
+        return value
 
 class GetBriefsRequest(CamelModel):
     start_date: Optional[date] = None

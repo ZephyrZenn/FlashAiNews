@@ -200,7 +200,7 @@ const GroupsPage = () => {
         <div className="space-y-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+              <label className="block text-[12px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
                 分组名称
               </label>
               <input
@@ -215,7 +215,7 @@ const GroupsPage = () => {
               />
             </div>
             <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+              <label className="block text-[12px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
                 描述
               </label>
               <textarea
@@ -232,7 +232,7 @@ const GroupsPage = () => {
           </div>
 
           <div className="pt-4 border-t border-slate-100">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-4 block">
+            <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-4 block">
               下属源管理
             </label>
             <div className="space-y-2 mb-4 max-h-40 overflow-y-auto custom-scrollbar">
@@ -244,7 +244,7 @@ const GroupsPage = () => {
                       key={sourceId}
                       className="flex items-center justify-between p-3 bg-slate-50 rounded-xl"
                     >
-                      <span className="text-xs font-bold">{source.title}</span>
+                      <span className="text-sm font-bold">{source.title}</span>
                       <button
                         onClick={() => handleRemoveSourceFromGroup(sourceId)}
                         className="text-rose-400"
@@ -271,6 +271,7 @@ const GroupsPage = () => {
                         label: f.title,
                       })),
                   ]}
+                  className="text-sm"
                 />
               </div>
               <button

@@ -131,7 +131,14 @@ const SchedulesPage = () => {
   };
 
   const handleSaveSchedule = () => {
-    if (!editingSchedule || !editingSchedule.time) return;
+    if (!editingSchedule || !editingSchedule.time) {
+      showToast('请输入执行时间', { type: 'error' });
+      return;
+    }
+    if (editingSchedule.groupIds.length === 0) {
+      showToast('请至少选择一个分组', { type: 'error' });
+      return;
+    }
     if (editingSchedule.id) {
       updateMutation.mutate();
     } else {
@@ -312,7 +319,7 @@ const SchedulesPage = () => {
 
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
-              涉及分组
+              涉及分组 <span className="text-rose-400">*</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {allGroups.map((g) => (
@@ -329,6 +336,9 @@ const SchedulesPage = () => {
                 </button>
               ))}
             </div>
+            {editingSchedule?.groupIds.length === 0 && (
+              <p className="text-xs text-rose-400 mt-2 ml-1">请至少选择一个分组</p>
+            )}
           </div>
 
           <div>

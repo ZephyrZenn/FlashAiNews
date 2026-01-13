@@ -54,9 +54,9 @@ def retrieve_new_feeds(group_ids: list[int] = None):
                             from feeds
                             where id in (SELECT feed_id
                                          FROM feed_group_items
-                                         WHERE id in (%s))
+                                         WHERE feed_group_id = ANY(%s))
                             """,
-                    (tuple(group_ids),),
+                    (group_ids,),
                 )
                 feeds = [
                     Feed(row[0], row[1], row[2], row[3], row[4], row[5])

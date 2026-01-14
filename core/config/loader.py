@@ -49,7 +49,7 @@ def get_config_path() -> str:
 
 def _validate_model_config(config: dict) -> None:
     """Validate model configuration required fields."""
-    required = ["model", "provider", "api_key"]
+    required = ["model", "provider"]
     for field in required:
         value = config.get(field)
         if not value or (isinstance(value, str) and not value.strip()):
@@ -61,15 +61,76 @@ def _validate_model_config(config: dict) -> None:
         raise ConfigValidationError(
             f"Invalid provider: {provider}. Must be one of: {valid_providers}"
         )
+    
+    # Validate base_url is required for OTHER provider
+    if provider == ModelProvider.OTHER.value:
+        base_url = config.get("base_url")
+        if not base_url or (isinstance(base_url, str) and not base_url.strip()):
+            raise ConfigValidationError(
+                "base_url is required when provider is 'other'"
+            )
+
+
+def get_api_key_for_provider(provider: ModelProvider) -> str:
+    """Get the API key for a given provider from environment variables.
+    
+    Environment variable mapping:
+    - OPENAI: OPENAI_API_KEY
+    - DEEPSEEK: DEEPSEEK_API_KEY
+    - GEMINI: GEMINI_API_KEY
+    - OTHER: MODEL_API_KEY
+    """
+    env_var_map = {
+        ModelProvider.OPENAI: "OPENAI_API_KEY",
+        ModelProvider.DEEPSEEK: "DEEPSEEK_API_KEY",
+        ModelProvider.GEMINI: "GEMINI_API_KEY",
+        ModelProvider.OTHER: "MODEL_API_KEY",
+    }
+    
+    env_var = env_var_map.get(provider)
+    if not env_var:
+        raise ConfigValidationError(f"Unknown provider: {provider}")
+    
+    api_key = os.getenv(env_var)
+    if not api_key:
+        raise ConfigValidationError(
+            f"Missing API key. Please set {env_var} environment variable for provider '{provider.value}'"
+        )
+    
+    return api_key
+
+
+def get_base_url_for_provider(provider: ModelProvider, config_base_url: Optional[str] = None) -> Optional[str]:
+    """Get the base URL for a given provider.
+    
+    Auto-determined URLs:
+    - OPENAI: https://api.openai.com/v1
+    - DEEPSEEK: https://api.deepseek.com
+    - GEMINI: None (uses Google SDK)
+    - OTHER: Must be provided in config
+    """
+    base_url_map = {
+        ModelProvider.OPENAI: "https://api.openai.com/v1",
+        ModelProvider.DEEPSEEK: "https://api.deepseek.com",
+        ModelProvider.GEMINI: None,
+        ModelProvider.OTHER: config_base_url,
+    }
+    
+    return base_url_map.get(provider)
 
 
 def _to_model_config(config: dict) -> ModelConfig:
     """Convert dict configuration to ModelConfig dataclass."""
+    provider = ModelProvider(config["provider"])
+    config_base_url = config.get("base_url")
+    
+    # Get auto-determined base_url (or use config for OTHER)
+    base_url = get_base_url_for_provider(provider, config_base_url)
+    
     return ModelConfig(
         model=config["model"].strip(),
-        provider=ModelProvider(config["provider"]),
-        api_key=config["api_key"].strip(),
-        base_url=config.get("base_url"),
+        provider=provider,
+        base_url=base_url,
     )
 
 
@@ -138,20 +199,14 @@ def load_config(reload: bool = False, use_env_overrides: bool = True, path: Opti
 
 
 def _apply_env_overrides(config: dict) -> dict:
-    """Apply environment variable overrides to configuration"""
+    """Apply environment variable overrides to configuration.
+    
+    Note: API keys are now read directly from environment variables based on provider,
+    not stored in config. Base URLs are auto-determined except for OTHER provider.
+    """
     # Override model configuration from environment variables
     if "model" not in config:
         config["model"] = {}
-
-    # Override API key from environment
-    if api_key := os.getenv("MODEL_API_KEY"):
-        config["model"]["api_key"] = api_key
-        logger.debug("Overriding api_key from MODEL_API_KEY environment variable")
-
-    # Override base URL from environment
-    if base_url := os.getenv("MODEL_BASE_URL"):
-        config["model"]["base_url"] = base_url
-        logger.debug("Overriding base_url from MODEL_BASE_URL environment variable")
 
     # Override model name from environment
     if model_name := os.getenv("MODEL_NAME"):
@@ -163,6 +218,10 @@ def _apply_env_overrides(config: dict) -> dict:
         config["model"]["provider"] = provider
         logger.debug("Overriding provider from MODEL_PROVIDER environment variable")
 
+    # Override base_url from environment (only applies to OTHER provider)
+    if base_url := os.getenv("MODEL_BASE_URL"):
+        config["model"]["base_url"] = base_url
+        logger.debug("Overriding base_url from MODEL_BASE_URL environment variable")
 
     return config
 

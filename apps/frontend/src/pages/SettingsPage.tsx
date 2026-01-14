@@ -4,7 +4,6 @@ import {
   Settings,
   Cpu,
   Globe,
-  Key,
   Database,
   Save,
   Check,
@@ -25,9 +24,8 @@ const SettingsPage = () => {
 
   const [systemConfig, setSystemConfig] = useState({
     modelName: 'gpt-4o-mini',
-    provider: 'OpenAI',
-    apiKey: '',
-    baseUrl: 'https://api.openai.com/v1',
+    provider: 'openai',
+    baseUrl: '',
   });
   const [showSaveToast, setShowSaveToast] = useState(false);
 
@@ -36,9 +34,8 @@ const SettingsPage = () => {
     if (setting) {
       setSystemConfig({
         modelName: setting.model.model || 'gpt-4o-mini',
-        provider: setting.model.provider || 'OpenAI',
-        apiKey: '', // Don't show the masked API key
-        baseUrl: setting.model.baseUrl || 'https://api.openai.com/v1',
+        provider: setting.model.provider || 'openai',
+        baseUrl: setting.model.baseUrl || '',
       });
     }
   }, [setting]);
@@ -48,8 +45,8 @@ const SettingsPage = () => {
       model: {
         model: systemConfig.modelName,
         provider: systemConfig.provider,
-        apiKey: systemConfig.apiKey,
-        baseUrl: systemConfig.baseUrl,
+        // Only send baseUrl for 'other' provider
+        baseUrl: systemConfig.provider === 'other' ? systemConfig.baseUrl : undefined,
       },
     });
   }, {
@@ -88,8 +85,8 @@ const SettingsPage = () => {
             </div>
           </div>
 
-          {/* 2x2 Grid */}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+          {/* Form Fields */}
+          <div className="space-y-6">
             {/* Model Name */}
             <div>
               <div className="flex items-center gap-2 mb-2 ml-1">
@@ -122,48 +119,40 @@ const SettingsPage = () => {
                   setSystemConfig({ ...systemConfig, provider: value })
                 }
                 options={[
-                  { value: 'OpenAI', label: 'OpenAI' },
-                  { value: 'Gemini', label: 'Gemini' },
+                  { value: 'openai', label: 'OpenAI' },
+                  { value: 'deepseek', label: 'Deepseek' },
+                  { value: 'gemini', label: 'Gemini' },
+                  { value: 'other', label: 'Other (OpenAI Compatible)' },
                 ]}
               />
+              <p className="text-xs text-slate-400 mt-2 ml-1">
+                API Key 需在环境变量中配置: OPENAI_API_KEY / DEEPSEEK_API_KEY / GEMINI_API_KEY / MODEL_API_KEY
+              </p>
             </div>
 
-            {/* API KEY */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 ml-1">
-                <Key size={14} className="text-indigo-500" />
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  API KEY
-                </label>
+            {/* Base URL - Only show for 'other' provider */}
+            {systemConfig.provider === 'other' && (
+              <div>
+                <div className="flex items-center gap-2 mb-2 ml-1">
+                  <Database size={14} className="text-indigo-500" />
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Base URL
+                  </label>
+                </div>
+                <input
+                  type="text"
+                  value={systemConfig.baseUrl}
+                  onChange={(e) =>
+                    setSystemConfig({ ...systemConfig, baseUrl: e.target.value })
+                  }
+                  placeholder="https://your-api-provider.com/v1"
+                  className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono text-slate-500"
+                />
+                <p className="text-xs text-slate-400 mt-2 ml-1">
+                  请输入 OpenAI 兼容 API 的 Base URL
+                </p>
               </div>
-              <input
-                type="password"
-                value={systemConfig.apiKey}
-                onChange={(e) =>
-                  setSystemConfig({ ...systemConfig, apiKey: e.target.value })
-                }
-                placeholder="••••••••••••"
-                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono"
-              />
-            </div>
-
-            {/* Base URL */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 ml-1">
-                <Database size={14} className="text-indigo-500" />
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Base URL
-                </label>
-              </div>
-              <input
-                type="text"
-                value={systemConfig.baseUrl}
-                onChange={(e) =>
-                  setSystemConfig({ ...systemConfig, baseUrl: e.target.value })
-                }
-                className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono text-slate-500 text-xs"
-              />
-            </div>
+            )}
           </div>
 
           {/* Footer */}

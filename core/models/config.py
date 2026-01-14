@@ -17,5 +17,4 @@ class ModelConfig:
 
     model: str
     provider: ModelProvider
-    api_key: str
-    base_url: Optional[str] = None
+    base_url: Optional[str] = None  # Only required for OTHER provider

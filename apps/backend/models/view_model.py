@@ -26,10 +26,14 @@ class FeedBriefVO(CamelModel):
 
 
 class ModelSettingVO(CamelModel):
+    """Model setting view object.
+    
+    Note: API keys are managed via environment variables, not exposed in API.
+    Base URL is only present for 'other' provider.
+    """
     model: str
     provider: str
-    api_key: str
-    base_url: str
+    base_url: Optional[str] = None  # Only present for 'other' provider
 
 class SettingVO(CamelModel):
     model: ModelSettingVO

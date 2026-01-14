@@ -38,13 +38,16 @@ class ModifyFeedRequest(CamelModel):
 
 
 class ModelConfigRequest(CamelModel):
-    """Pydantic model for model configuration in requests"""
+    """Pydantic model for model configuration in requests.
+    
+    Note: API keys are read from environment variables based on provider.
+    Base URL is only required for 'other' provider.
+    """
     model: str = Field(..., description="Model name")
-    provider: str = Field(..., description="Model provider (openai, deepseek, gemini)")
-    api_key: str = Field(..., description="API key for the model provider")
-    base_url: Optional[str] = Field(None, description="Base URL for the model provider")
+    provider: str = Field(..., description="Model provider (openai, deepseek, gemini, other)")
+    base_url: Optional[str] = Field(None, description="Base URL - only required for 'other' provider")
 
-    @validator("model", "provider", "api_key")
+    @validator("model", "provider")
     def validate_required_fields(cls, v):
         if not v or (isinstance(v, str) and not v.strip()):
             raise ValueError("Field cannot be empty")
@@ -57,6 +60,14 @@ class ModelConfigRequest(CamelModel):
         except ValueError as e:
             raise ValueError(f"Invalid provider: {e}")
         return v
+
+    @validator("base_url", always=True)
+    def validate_base_url(cls, v, values):
+        provider = values.get("provider")
+        if provider == "other":
+            if not v or (isinstance(v, str) and not v.strip()):
+                raise ValueError("base_url is required when provider is 'other'")
+        return v.strip() if isinstance(v, str) and v else v
 
 
 class ModifySettingRequest(CamelModel):

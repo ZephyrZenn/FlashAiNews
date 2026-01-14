@@ -8,7 +8,7 @@ from google import genai
 from google.genai import types
 from openai import AsyncOpenAI
 
-from core.config.loader import get_config
+from core.config.loader import get_api_key_for_provider, get_config
 from core.models.feed import FeedArticle
 from core.models.generator import ModelProvider
 
@@ -80,9 +80,13 @@ class OpenAIGenerator(AIGenerator):
 def build_generator() -> AIGenerator:
     config = get_config()
     model_cfg = config.model
+    
+    # Get API key from environment variable based on provider
+    api_key = get_api_key_for_provider(model_cfg.provider)
+    
     return _build_generator(
         generator_type=model_cfg.provider,
-        api_key=model_cfg.api_key,
+        api_key=api_key,
         base_url=model_cfg.base_url,
         model=model_cfg.model,
     )
@@ -97,7 +101,7 @@ def _build_generator(
     """
     Build an AI generator based on the model type.
     Args:
-        generator_type (GeneratorType): The type of generator to create
+        generator_type (ModelProvider): The type of generator to create
         api_key (str): The API key for the AI service.
         base_url (str): The base URL for the AI service.
         model (str): The model to use for summarization.
@@ -106,7 +110,8 @@ def _build_generator(
     """
     if generator_type == ModelProvider.GEMINI:
         return GeminiGenerator(api_key=api_key, model=model)
-    elif generator_type == ModelProvider.OPENAI:
+    elif generator_type in (ModelProvider.OPENAI, ModelProvider.DEEPSEEK, ModelProvider.OTHER):
+        # All OpenAI-compatible providers use OpenAIGenerator
         return OpenAIGenerator(base_url=base_url, model=model, api_key=api_key)
     else:
         raise ValueError(f"Unsupported generator type: {generator_type}")

@@ -29,8 +29,7 @@ export interface FeedBrief {
 export interface ModelSetting {
   model: string;
   provider: string;
-  apiKey: string;
-  baseUrl: string;
+  baseUrl?: string; // Only present for 'other' provider
 }
 
 export interface Setting {
@@ -65,8 +64,7 @@ export interface ModifySettingPayload {
   model?: {
     model: string;
     provider: string;
-    apiKey: string;
-    baseUrl?: string;
+    baseUrl?: string; // Only required for 'other' provider
   };
 }
 

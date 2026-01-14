@@ -1,5 +1,6 @@
 """Converters between core dataclasses and API Pydantic models."""
 
+from core.config.loader import get_base_url_for_provider
 from core.models.config import ModelConfig
 from core.models.generator import ModelProvider
 
@@ -7,21 +8,21 @@ from .request import ModelConfigRequest
 from .view_model import ModelSettingVO
 
 
-def model_config_to_vo(config: ModelConfig, mask_api_key: bool = True) -> ModelSettingVO:
+def model_config_to_vo(config: ModelConfig) -> ModelSettingVO:
     """Convert core ModelConfig dataclass to API response VO.
     
     Args:
         config: The core ModelConfig dataclass
-        mask_api_key: If True, mask the API key in the response
     
     Returns:
         ModelSettingVO for API response
+    
+    Note: API keys are managed via environment variables, not exposed in API.
     """
     return ModelSettingVO(
         model=config.model,
         provider=config.provider.value,
-        api_key="********" if mask_api_key else config.api_key,
-        base_url=config.base_url or "",
+        base_url=config.base_url if config.provider == ModelProvider.OTHER else None,
     )
 
 
@@ -33,10 +34,14 @@ def request_to_model_config(request: ModelConfigRequest) -> ModelConfig:
     
     Returns:
         ModelConfig dataclass for business logic
+    
+    Note: Base URL is auto-determined except for 'other' provider.
     """
+    provider = ModelProvider(request.provider)
+    base_url = get_base_url_for_provider(provider, request.base_url)
+    
     return ModelConfig(
         model=request.model,
-        provider=ModelProvider(request.provider),
-        api_key=request.api_key,
-        base_url=request.base_url,
+        provider=provider,
+        base_url=base_url,
     )

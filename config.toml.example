@@ -1,12 +1,22 @@
-# NewsCollector Configuration Example
+# FlashAiNews Configuration Example
 # Copy this file to config.toml and update with your settings
 
 [model]
-# Default model to use for generating briefs
+# Model name to use for generating briefs
 model = "gpt-4"
-provider = "openai"
-api_key = "sk-your-openai-api-key"
-base_url = "https://api.openai.com/v1"
 
-# Base model configuration controls the generator.
-# Additional models are no longer configured in this file.
+# Provider options: "openai", "deepseek", "gemini", "other"
+# API keys are read from environment variables:
+#   - openai: OPENAI_API_KEY
+#   - deepseek: DEEPSEEK_API_KEY  
+#   - gemini: GEMINI_API_KEY
+#   - other: MODEL_API_KEY
+provider = "openai"
+
+# Base URL is automatically determined for built-in providers:
+#   - openai: https://api.openai.com/v1
+#   - deepseek: https://api.deepseek.com
+#   - gemini: (uses Google SDK)
+# 
+# Only required when provider = "other":
+# base_url = "https://your-custom-api.com/v1"

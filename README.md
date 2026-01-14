@@ -31,12 +31,19 @@ PS: It's another round of information moisture. Be careful about what you see.
  POSTGRES_HOST=db
  POSTGRES_DB=flashnews
  POSTGRES_PORT=5432
+ 
+ # Set API key for your chosen provider (choose one):
+ OPENAI_API_KEY=sk-your-openai-api-key
+ # DEEPSEEK_API_KEY=your-deepseek-api-key
+ # GEMINI_API_KEY=your-gemini-api-key
+ # MODEL_API_KEY=your-custom-api-key  # For "other" provider
+ 
  TAVILY_API_KEY=your-tavily-api-key  # Optional: enables web search enhancement
  ENV
 
 # 3. Create LLM configuration
  cp config.toml.example config.toml
- # Edit config.toml and set your API key and model settings
+ # Edit config.toml to set model name and provider
 
 # 4. Launch everything
  cd infra/docker
@@ -65,17 +72,22 @@ The following environment variables are required for the backend:
 - `POSTGRES_DB` - PostgreSQL database name
 - `POSTGRES_PORT` - PostgreSQL database port (default: `5432`)
 
+**API Keys** (set based on your provider):
+
+- `OPENAI_API_KEY` - API key for OpenAI provider
+- `DEEPSEEK_API_KEY` - API key for Deepseek provider
+- `GEMINI_API_KEY` - API key for Google Gemini provider
+- `MODEL_API_KEY` - API key for "other" OpenAI-compatible providers
+
 Optional environment variables:
 
 - `TAVILY_API_KEY` - Tavily API key for web search enhancement. When provided, enables the `SEARCH_ENHANCE` strategy in the Agent pipeline, allowing the system to search the web for additional context when RSS feeds provide limited information.
 
 You can also override model configuration via environment variables:
 
-- `MODEL_API_KEY` - Override API key from config file
-- `MODEL_BASE_URL` - Override base URL from config file
 - `MODEL_NAME` - Override model name from config file
 - `MODEL_PROVIDER` - Override provider from config file
-- `BRIEF_TIME` - Override brief generation time from config file
+- `MODEL_BASE_URL` - Override base URL (only used for "other" provider)
 
 ### Configuration File
 
@@ -83,23 +95,32 @@ Create `config.toml` in the project root (copy from `config.toml.example`):
 
 ```toml
 [model]
-# Model configuration
+# Model name to use
 model = "gpt-4"
-provider = "openai"  # Options: "openai"(support all OpenAI-compatible API), "gemini"
-api_key = "your-api-key"
-base_url = "https://api.openai.com/v1"  # Required for OpenAI-compatible APIs
+
+# Provider options: "openai", "deepseek", "gemini", "other"
+provider = "openai"
+
+# Base URL is automatically determined for built-in providers:
+#   - openai: https://api.openai.com/v1
+#   - deepseek: https://api.deepseek.com
+#   - gemini: (uses Google SDK)
+#
+# Only required when provider = "other":
+# base_url = "https://your-custom-api.com/v1"
 ```
 
 The configuration file supports:
 - `[model]` section - LLM model configuration
   - `model` - Model name (e.g., `gpt-4`, `gpt-4o-mini`, `deepseek-chat`)
-  - `provider` - Provider type: `openai` or `gemini`
-  - `api_key` - API key for the model provider
-  - `base_url` - Base URL for the API (required for OpenAI-compatible APIs)
+  - `provider` - Provider type: `openai`, `deepseek`, `gemini`, or `other`
+  - `base_url` - Custom API base URL (only required for `other` provider)
+
+**Note**: API keys are managed via environment variables, not in the config file. This improves security by keeping secrets out of configuration files.
 
 Schedule management (daily brief generation times) is configured via the frontend settings page and stored in the database.
 
-You can also configure model settings via the frontend settings page.
+You can also configure model name and provider via the frontend settings page.
 
 ## Manual Development
 
@@ -113,6 +134,13 @@ export POSTGRES_PASSWORD=flashnews
 export POSTGRES_HOST=localhost
 export POSTGRES_DB=flashnews
 export POSTGRES_PORT=5432
+
+# Set API key for your chosen provider (choose one):
+export OPENAI_API_KEY=sk-your-openai-api-key
+# export DEEPSEEK_API_KEY=your-deepseek-api-key
+# export GEMINI_API_KEY=your-gemini-api-key
+# export MODEL_API_KEY=your-custom-api-key  # For "other" provider
+
 export TAVILY_API_KEY=your-tavily-api-key  # Optional
 export ENV=dev  # Enables auto-reload
 ```
@@ -126,7 +154,7 @@ pip install -r requirements.txt
 
 # Create config.toml from example
 cp config.toml.example config.toml
-# Edit config.toml with your API keys
+# Edit config.toml to set model name and provider
 
 python run-backend.py
 ```

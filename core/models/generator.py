@@ -7,6 +7,8 @@ class ModelProvider(Enum):
 
     GEMINI = "gemini"
     OPENAI = "openai"
+    DEEPSEEK = "deepseek"
+    OTHER = "other"
 
 
 def enum_factory(items):

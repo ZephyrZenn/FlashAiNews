@@ -1,6 +1,6 @@
 from typing import Optional
 
-from core.config.loader import get_config
+from core.config.loader import get_config, reload_config
 from core.config.utils import write_config
 from core.models.config import ModelConfig
 
@@ -15,8 +15,14 @@ def get_setting() -> SettingVO:
 
 
 def update_setting(model: Optional[ModelConfig]) -> None:
-    """Update settings with a new model configuration."""
+    """Update settings with a new model configuration.
+    
+    Note: Only model name, provider, and base_url (for 'other' provider) are saved.
+    API keys are managed via environment variables.
+    """
     cfg = get_config()
     if model:
         cfg.model = model
     write_config(cfg)
+    # Reload config to pick up changes
+    reload_config()

@@ -42,13 +42,16 @@ def get_config_summary(config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def create_default_config() -> Dict[str, Any]:
-    """Create a default configuration template"""
+    """Create a default configuration template.
+    
+    Note: API keys are read from environment variables based on provider.
+    Base URLs are auto-determined except for 'other' provider.
+    """
     return {
         "model": {
             "model": "gpt-4",
             "provider": "openai",
-            "api_key": "sk-your-openai-api-key",
-            "base_url": "https://api.openai.com/v1",
+            # base_url is only needed for provider = "other"
         },
     }
 

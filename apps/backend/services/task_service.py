@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional, List
 from enum import Enum
 
+from core.brief_generator import APIKeyNotConfiguredError
+
 logger = logging.getLogger(__name__)
 
 class TaskStatus(str, Enum):
@@ -107,6 +109,13 @@ async def execute_brief_generation_task(task_id: str):
             task.error = "任务被取消"
             task.add_log("❌ 任务被取消")
         raise
+    except APIKeyNotConfiguredError as e:
+        logger.warning(f"Task {task_id} failed: API key not configured - {e}")
+        if task_id in _tasks:
+            task = _tasks[task_id]
+            task.status = TaskStatus.FAILED
+            task.error = f"API Key 未配置。请设置环境变量 {e.env_var}"
+            task.add_log(f"❌ API Key 未配置: 请设置环境变量 {e.env_var}")
     except Exception as e:
         logger.exception(f"Task {task_id} failed: {e}")
         # 确保任务状态被更新

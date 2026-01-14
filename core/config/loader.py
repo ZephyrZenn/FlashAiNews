@@ -71,8 +71,8 @@ def _validate_model_config(config: dict) -> None:
             )
 
 
-def get_api_key_for_provider(provider: ModelProvider) -> str:
-    """Get the API key for a given provider from environment variables.
+def get_api_key_env_var(provider: ModelProvider) -> str:
+    """Get the environment variable name for a provider's API key.
     
     Environment variable mapping:
     - OPENAI: OPENAI_API_KEY
@@ -86,18 +86,45 @@ def get_api_key_for_provider(provider: ModelProvider) -> str:
         ModelProvider.GEMINI: "GEMINI_API_KEY",
         ModelProvider.OTHER: "MODEL_API_KEY",
     }
+    return env_var_map.get(provider, "MODEL_API_KEY")
+
+
+def get_api_key_for_provider(provider: ModelProvider) -> Optional[str]:
+    """Get the API key for a given provider from environment variables.
     
-    env_var = env_var_map.get(provider)
-    if not env_var:
-        raise ConfigValidationError(f"Unknown provider: {provider}")
-    
+    Returns None if not configured, allowing the system to start without API keys.
+    """
+    env_var = get_api_key_env_var(provider)
     api_key = os.getenv(env_var)
+    
     if not api_key:
-        raise ConfigValidationError(
-            f"Missing API key. Please set {env_var} environment variable for provider '{provider.value}'"
+        logger.warning(
+            f"API key not configured. Set {env_var} environment variable for provider '{provider.value}'"
         )
+        return None
     
     return api_key
+
+
+def is_api_key_configured(provider: Optional[ModelProvider] = None) -> bool:
+    """Check if the API key is configured for the given or current provider.
+    
+    Args:
+        provider: Optional provider to check. If None, uses current config provider.
+    
+    Returns:
+        True if API key is configured, False otherwise.
+    """
+    if provider is None:
+        try:
+            config = get_config()
+            provider = config.model.provider
+        except Exception:
+            return False
+    
+    env_var = get_api_key_env_var(provider)
+    api_key = os.getenv(env_var)
+    return bool(api_key and api_key.strip())
 
 
 def get_base_url_for_provider(provider: ModelProvider, config_base_url: Optional[str] = None) -> Optional[str]:

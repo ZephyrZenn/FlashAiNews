@@ -1,6 +1,6 @@
 """Converters between core dataclasses and API Pydantic models."""
 
-from core.config.loader import get_base_url_for_provider
+from core.config.loader import get_base_url_for_provider, is_api_key_configured, get_api_key_env_var
 from core.models.config import ModelConfig
 from core.models.generator import ModelProvider
 
@@ -23,6 +23,8 @@ def model_config_to_vo(config: ModelConfig) -> ModelSettingVO:
         model=config.model,
         provider=config.provider.value,
         base_url=config.base_url if config.provider == ModelProvider.OTHER else None,
+        api_key_configured=is_api_key_configured(config.provider),
+        api_key_env_var=get_api_key_env_var(config.provider),
     )
 
 

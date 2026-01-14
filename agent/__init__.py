@@ -1,19 +1,52 @@
+import logging
 from typing import Optional
 from agent.pipeline.planner import AgentPlanner
 from agent.pipeline.executor import AgentExecutor
 from agent.models import AgentState, RawArticle, StepCallback, log_step
 from agent.tools import db_tool, memory_tool
-from core.brief_generator import build_generator
+from core.brief_generator import build_generator, APIKeyNotConfiguredError
 from core.models.feed import FeedGroup
+
+logger = logging.getLogger(__name__)
 
 
 class SummarizeAgenticWorkflow:
-    def __init__(self):
-        client = build_generator()
-        self.planner = AgentPlanner(client)
-        self.executor = AgentExecutor(client)
+    def __init__(self, lazy_init: bool = False):
+        """Initialize the agent workflow.
+        
+        Args:
+            lazy_init: If True, defer AI client initialization until first use.
+                      This allows the app to start without API keys configured.
+        """
+        self._client = None
+        self._planner = None
+        self._executor = None
         self.state_tracker = {}
         self.state = None
+        
+        if not lazy_init:
+            self._init_client()
+    
+    def _init_client(self):
+        """Initialize the AI client and pipeline components.
+        
+        Raises:
+            APIKeyNotConfiguredError: If the API key is not configured.
+        """
+        if self._client is None:
+            self._client = build_generator()
+            self._planner = AgentPlanner(self._client)
+            self._executor = AgentExecutor(self._client)
+    
+    @property
+    def planner(self) -> AgentPlanner:
+        self._init_client()
+        return self._planner
+    
+    @property
+    def executor(self) -> AgentExecutor:
+        self._init_client()
+        return self._executor
 
     async def summarize(
         self,
@@ -22,6 +55,9 @@ class SummarizeAgenticWorkflow:
         focus: str = "",
         on_step: Optional[StepCallback] = None,
     ):
+        # This will raise APIKeyNotConfiguredError if API key is not set
+        self._init_client()
+        
         groups, articles = await db_tool.get_recent_group_update(hour_gap, group_ids)
 
         self.state = self._build_state(groups, articles, focus, on_step)
@@ -66,15 +102,26 @@ _agent_instance: Optional[SummarizeAgenticWorkflow] = None
 
 
 def init_agent() -> SummarizeAgenticWorkflow:
-    """应用启动时调用，初始化 Agent 单例"""
+    """应用启动时调用，初始化 Agent 单例。
+    
+    Uses lazy initialization so the app can start without API keys configured.
+    API key errors will only occur when actually using the agent.
+    """
     global _agent_instance
     if _agent_instance is None:
-        _agent_instance = SummarizeAgenticWorkflow()
+        # Use lazy_init=True to allow app to start without API key
+        _agent_instance = SummarizeAgenticWorkflow(lazy_init=True)
+        logger.info("Agent initialized (lazy mode - API key checked on first use)")
     return _agent_instance
 
 
 def get_agent() -> SummarizeAgenticWorkflow:
-    """获取 Agent 单例实例"""
+    """获取 Agent 单例实例。
+    
+    Raises:
+        RuntimeError: If agent is not initialized.
+        APIKeyNotConfiguredError: When summarize() is called without API key configured.
+    """
     if _agent_instance is None:
         raise RuntimeError("Agent 未初始化，请先调用 init_agent()")
     return _agent_instance

@@ -30,6 +30,8 @@ export interface ModelSetting {
   model: string;
   provider: string;
   baseUrl?: string; // Only present for 'other' provider
+  apiKeyConfigured: boolean; // Whether the API key is configured
+  apiKeyEnvVar: string; // Environment variable name for the API key
 }
 
 export interface Setting {

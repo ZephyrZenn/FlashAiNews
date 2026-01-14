@@ -8,7 +8,7 @@ from google import genai
 from google.genai import types
 from openai import AsyncOpenAI
 
-from core.config.loader import get_api_key_for_provider, get_config
+from core.config.loader import get_api_key_for_provider, get_config, get_api_key_env_var
 from core.models.feed import FeedArticle
 from core.models.generator import ModelProvider
 
@@ -16,6 +16,17 @@ logger = logging.getLogger(__name__)
 
 """Brief generator for summarizing articles using AI models.
 This module provides an abstract base class for AI generators and concrete implementations"""
+
+
+class APIKeyNotConfiguredError(Exception):
+    """Raised when API key is not configured for the current provider."""
+    
+    def __init__(self, provider: ModelProvider):
+        self.provider = provider
+        self.env_var = get_api_key_env_var(provider)
+        super().__init__(
+            f"API key not configured. Please set {self.env_var} environment variable for provider '{provider.value}'"
+        )
 
 
 class AIGenerator(ABC):
@@ -78,11 +89,19 @@ class OpenAIGenerator(AIGenerator):
 
 
 def build_generator() -> AIGenerator:
+    """Build an AI generator based on current configuration.
+    
+    Raises:
+        APIKeyNotConfiguredError: If the API key is not set for the current provider.
+    """
     config = get_config()
     model_cfg = config.model
     
     # Get API key from environment variable based on provider
     api_key = get_api_key_for_provider(model_cfg.provider)
+    
+    if not api_key:
+        raise APIKeyNotConfiguredError(model_cfg.provider)
     
     return _build_generator(
         generator_type=model_cfg.provider,

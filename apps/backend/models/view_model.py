@@ -34,6 +34,9 @@ class ModelSettingVO(CamelModel):
     model: str
     provider: str
     base_url: Optional[str] = None  # Only present for 'other' provider
+    api_key_configured: bool = False  # Whether the API key is configured
+    api_key_env_var: str = ""  # Environment variable name for the API key
+
 
 class SettingVO(CamelModel):
     model: ModelSettingVO

@@ -7,6 +7,7 @@ import {
   Database,
   Save,
   Check,
+  AlertTriangle,
 } from 'lucide-react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
@@ -85,6 +86,22 @@ const SettingsPage = () => {
             </div>
           </div>
 
+          {/* API Key Warning */}
+          {setting && !setting.model.apiKeyConfigured && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+              <AlertTriangle size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">
+                  API Key 未配置
+                </p>
+                <p className="text-xs text-amber-600 mt-1">
+                  请设置环境变量 <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono">{setting.model.apiKeyEnvVar}</code> 以启用 AI 功能。
+                  未配置 API Key 将无法生成 Brief。
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Form Fields */}
           <div className="space-y-6">
             {/* Model Name */}
@@ -125,9 +142,6 @@ const SettingsPage = () => {
                   { value: 'other', label: 'Other (OpenAI Compatible)' },
                 ]}
               />
-              <p className="text-xs text-slate-400 mt-2 ml-1">
-                API Key 需在环境变量中配置: OPENAI_API_KEY / DEEPSEEK_API_KEY / GEMINI_API_KEY / MODEL_API_KEY
-              </p>
             </div>
 
             {/* Base URL - Only show for 'other' provider */}

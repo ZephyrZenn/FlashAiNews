@@ -11,7 +11,14 @@ import {
   Plus,
   RefreshCw,
   ArrowLeft,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
+import { useState } from 'react';
+import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
+import { useApiQuery } from '@/hooks/useApiQuery';
+import type { Setting } from '@/types/api';
 
 const readViewItems = [
   { to: '/', label: '今日摘要', icon: Calendar },
@@ -40,6 +47,11 @@ export const Layout = ({
 }: LayoutProps) => {
   const location = useLocation();
   const activeTab = location.pathname;
+  const [dismissedWarning, setDismissedWarning] = useState(false);
+  
+  // Fetch settings to check API key configuration
+  const { data: setting } = useApiQuery<Setting>(queryKeys.settings, api.getSetting);
+  const showApiKeyWarning = setting && !setting.model.apiKeyConfigured && !dismissedWarning;
 
   const getPageTitle = () => {
     switch (activeTab) {
@@ -123,20 +135,57 @@ export const Layout = ({
         <div className="p-6 border-t border-slate-50">
           <NavLink
             to="/settings"
-            className={`w-full flex items-center justify-center gap-2 p-3 rounded-2xl transition-all text-xs font-bold ${
+            className={`w-full flex items-center justify-center gap-2 p-3 rounded-2xl transition-all text-xs font-bold relative ${
               activeTab === '/settings'
                 ? 'bg-indigo-50 text-indigo-600'
-                : 'bg-slate-50 text-slate-400 hover:text-indigo-600'
+                : showApiKeyWarning
+                  ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                  : 'bg-slate-50 text-slate-400 hover:text-indigo-600'
             }`}
           >
-            <Settings size={16} />
-            <span>系统设置</span>
+            {showApiKeyWarning ? (
+              <AlertTriangle size={16} className="text-amber-500" />
+            ) : (
+              <Settings size={16} />
+            )}
+            <span>{showApiKeyWarning ? '需要配置' : '系统设置'}</span>
+            {showApiKeyWarning && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full animate-pulse" />
+            )}
           </NavLink>
         </div>
       </aside>
 
       {/* 主内容 */}
       <div className="flex-1 flex flex-col min-w-0 relative">
+        {/* API Key Warning Banner */}
+        {showApiKeyWarning && (
+          <div className="bg-amber-500 text-white px-4 py-3 flex items-center justify-between shrink-0 z-30">
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={20} className="flex-shrink-0" />
+              <div className="text-sm">
+                <span className="font-bold">API Key 未配置：</span>
+                <span className="ml-1">
+                  请设置环境变量 <code className="bg-amber-600 px-1.5 py-0.5 rounded font-mono text-xs">{setting?.model.apiKeyEnvVar}</code> 以启用 AI 功能
+                </span>
+                <NavLink 
+                  to="/settings" 
+                  className="ml-2 underline underline-offset-2 hover:text-amber-100 font-medium"
+                >
+                  查看设置
+                </NavLink>
+              </div>
+            </div>
+            <button 
+              onClick={() => setDismissedWarning(true)}
+              className="p-1 hover:bg-amber-600 rounded transition-colors"
+              title="暂时关闭提示"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
+
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-8 shrink-0 z-20">
           <div className="text-xl font-black text-slate-800 flex items-center gap-3">
             {showBackButton && onBackClick && (

@@ -29,8 +29,15 @@ class AgentCritic:
         response = await self.client.completion(prompt)
         try:
             result: AgentCriticResult = extract_json(response)
-            logger.info("Parsed critic response: %s", result)
+            logger.info("Parsed critic response successfully, status: %s", result.get("status"))
             return result
         except Exception as e:
-            logger.error("Failed to parse critic response: %s", response, exc_info=True)
-            raise ValueError(f"Failed to parse critic response: {response}") from e
+            # Log a truncated version to avoid huge log entries
+            response_preview = response[:500] + "..." if len(response) > 500 else response
+            logger.error(
+                "Failed to parse critic response. Error: %s\nResponse preview: %s", 
+                str(e), 
+                response_preview,
+                exc_info=True
+            )
+            raise ValueError(f"Failed to parse critic response: {str(e)}") from e

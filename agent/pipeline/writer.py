@@ -23,37 +23,21 @@ class AgentWriter:
         if writing_material["style"] == "FLASH":
             return WRITER_FLASH_NEWS_PROMPT.format(
                 topic=writing_material["topic"],
-                articles_content="\n\n".join(
-                    f"{article['title']}\n{article['content']}"
-                    for article in writing_material["articles"]
-                ),
+                articles=writing_material["articles"],
             )
-        ext_info = (
-            "\n\n".join(
-                f"[{result['title']}]({result['url']}) - {result['content']}"
-                for result in writing_material["ext_info"]
-            )
-            if "ext_info" in writing_material and writing_material["ext_info"]
-            else ""
-        )
 
-        history_memories = (
-            "\n".join(
-                f"{memory['id']} | {memory['topic']} | {memory['reasoning']} | {memory['content']}"
-                for memory in writing_material["history_memory"]
-            )
-            if "history_memory" in writing_material
-            and writing_material["history_memory"]
-            else ""
+        ext_info = (
+            writing_material["ext_info"]
+            if "ext_info" in writing_material and writing_material["ext_info"]
+            else []
         )
+        history_memories = writing_material.get("history_memory", [])
+
         return WRITER_DEEP_DIVE_PROMPT_TEMPLATE.format(
             topic=writing_material["topic"],
             writing_guide=writing_material["writing_guide"],
             reasoning=writing_material["reasoning"],
-            raw_content="\n\n".join(
-                f"{article['title']}\n{article['content']}"
-                for article in writing_material["articles"]
-            ),
+            articles=writing_material["articles"],
             ext_info=ext_info,
             review=review if review else "",
             history_memories=history_memories,

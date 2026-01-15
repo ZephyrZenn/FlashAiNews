@@ -67,10 +67,11 @@ class SummarizeAgenticWorkflow:
 
         log_step(self.state, "📋 开始规划阶段...")
         plan = await self.planner.plan(self.state)
+        logger.info("Plan: %s", plan)
 
         log_step(self.state, "⚡ 开始执行阶段...")
         results = await self.executor.execute(self.state)
-
+        logger.info("Results: %s", results)
         log_step(self.state, f"✅ Agent执行完成，共生成 {len(results)} 篇内容")
 
         # 使用工具保存执行记录

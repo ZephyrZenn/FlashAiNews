@@ -75,7 +75,9 @@ class AgentExecutor:
             urls = [result["url"] for result in search_results]
             contents = await search_tool.fetch_web_contents(urls)
             for result in search_results:
-                result["content"] = contents[result["url"]]
+                result["content"] = contents.get(result["url"], "")
+            # 过滤掉抓取失败的结果
+            search_results = [r for r in search_results if r.get("content")]
         else:
             log_step(state, "   ↳ 搜索引擎不可用，跳过搜索扩展")
             search_results = []

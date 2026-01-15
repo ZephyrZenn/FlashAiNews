@@ -5,9 +5,9 @@ GLOBAL_PLANNER_PROMPT_TEMPLATE = """
 # 输入数据
 - 当前日期: {current_date}
 - 用户关注点: {focus}
-- 原始文章池(id | title | group_title | summary，每行一个): 
+- 原始文章池: 
 {raw_articles} 
-- 历史记忆(id | topic | reasoning | content，每行一个): 
+- 历史记忆: 
 {history_memories} 
 # 运行逻辑
 1. 语义聚类 (Cross-Group Clustering): 如果不同的文章在探讨同一事件，请将其关联。
@@ -56,9 +56,9 @@ GROUP_PLANNER_PROMPT_TEMPLATE = """
 # 输入数据
 - 当前日期: {current_date}
 - 用户关注点: {focus}
-- 原始文章池(id | title | group_title | summary，每行一个): 
+- 原始文章池: 
 {raw_articles} 
-- 历史记忆(id | topic | reasoning | content，每行一个): 
+- 历史记忆: 
 {history_memories} 
 # 价值判定标准 (必读)
 1. 忽略以下内容：纯 UI 微调、常规服务器维护、翻译纠错、不带任何技术/市场评论的 PR 原文。
@@ -105,10 +105,13 @@ WRITER_DEEP_DIVE_PROMPT_TEMPLATE = """
 你是一位资深科技编辑，擅长将零散的资讯缝合为逻辑严密的深度观察报告。你现在被一个极其严厉的校对员盯着，请你在引用数据时必须做到精准，但在总结观点时要大胆使用金句。
 
 # 输入素材
-1. 【核心资讯】: {raw_content}
-2. 【背景补全】: {ext_info}
+1. 【核心资讯】: 
+{articles}
+2. 【背景补全】: 
+{ext_info}
 3. 【总编写作指南】: {writing_guide}
-4. 【历史记忆】: {history_memories}
+4. 【历史记忆】: 
+{history_memories}
 5. 【审查结果】: {review}
 
 # 任务要求
@@ -134,8 +137,8 @@ WRITER_FLASH_NEWS_PROMPT = """
 你是一位高级资讯简报员，擅长用最简练的语言概括核心事件。
 
 # 输入素材
-以下是今日的一组散点资讯：
-{articles_content}
+以下是今日的一组散点资讯:
+{articles}
 
 # 任务要求
 1. **一句话总结**: 每一条新闻只保留一行，字数控制在 30-50 字之间。
@@ -155,10 +158,12 @@ CRITIC_PROMPT_TEMPLATE = """
 你是一位拥有 20 年经验的“资深总编级核查员”。你不仅精通事实核查（Fact-checking），更懂得如何在“严谨性”与“可读性”之间取得平衡。你的目标是拦截那些会导致误导的【核心错误】，同时保护【合理的创意性概括】。
 
 # 输入数据
-1. 【原始素材池】: {source_material} (包含所有相关的 RSS 原文及搜索结果)
+1. 【原始素材池】: 
+{source_material}
 2. 【初稿内容】: {draft_content}
 3. 【总编初始指令】: {original_guide}
-4. 【历史记忆】: {history_memories}
+4. 【历史记忆】: 
+{history_memories}
 # 审核分级准则 (核心进化)
 请根据以下严重程度对发现的问题进行分类：
 

@@ -1,9 +1,12 @@
+import logging
 from typing import Literal
 
 from agent.tools.base import BaseTool, ToolSchema, ToolParameter
 from core.crawler import fetch_all_contents
 from core.crawler.search_engine import get_search_client, search
 from core.models.search import SearchResult
+
+logger = logging.getLogger(__name__)
 
 
 class FetchWebContentsTool(BaseTool[dict[str, str]]):
@@ -188,7 +191,7 @@ class WebSearchTool(BaseTool[list[SearchResult]]):
         success = sum(1 for r in search_results if contents.get(r["url"]))
         failed = total - success
         if failed > 0:
-            print(f"[SEARCH] 📊 抓取统计: 成功 {success}/{total}, 失败 {failed} 条")
+            logger.info("📊 抓取统计: 成功 %d/%d, 失败 %d 条", success, total, failed)
 
         # 过滤掉获取内容失败的结果
         return [

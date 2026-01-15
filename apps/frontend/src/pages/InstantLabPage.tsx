@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Zap,
   PlayCircle,
@@ -18,6 +18,8 @@ interface LogEntry {
   time: string;
 }
 
+const TASK_STORAGE_KEY = 'instant_lab_active_task';
+
 const InstantLabPage = () => {
   const queryClient = useQueryClient();
   const { data: groups } = useApiQuery<FeedGroup[]>(queryKeys.groups, api.getGroups);
@@ -28,9 +30,46 @@ const InstantLabPage = () => {
   const [agentLogs, setAgentLogs] = useState<LogEntry[]>([]);
   const [generationFocus, setGenerationFocus] = useState('');
   const [selectedGroupsForGen, setSelectedGroupsForGen] = useState<number[]>([]);
+  const [isRecovering, setIsRecovering] = useState(true); // 标记是否正在恢复状态
   const logEndRef = useRef<HTMLDivElement>(null);
 
   const allGroups = groups ?? [];
+
+  // 组件挂载时检查是否有正在运行的任务
+  useEffect(() => {
+    const recoverTask = async () => {
+      const savedTaskId = localStorage.getItem(TASK_STORAGE_KEY);
+      if (savedTaskId) {
+        try {
+          // 从后端获取任务状态
+          const status = await api.getBriefGenerationStatus(savedTaskId);
+          if (status.status === 'pending' || status.status === 'running') {
+            // 任务仍在运行，恢复状态
+            setTaskId(savedTaskId);
+            setIsGenerating(true);
+            // 恢复已有的日志
+            if (status.logs.length > 0) {
+              setAgentLogs(
+                status.logs.map(log => ({
+                  text: log.text,
+                  time: new Date(log.time).toLocaleTimeString(),
+                }))
+              );
+            }
+          } else {
+            // 任务已完成或失败，清除存储
+            localStorage.removeItem(TASK_STORAGE_KEY);
+          }
+        } catch {
+          // 任务不存在或出错，清除存储
+          localStorage.removeItem(TASK_STORAGE_KEY);
+        }
+      }
+      setIsRecovering(false);
+    };
+
+    recoverTask();
+  }, []);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -39,31 +78,42 @@ const InstantLabPage = () => {
     }
   }, [agentLogs]);
 
+  // 任务完成时的处理
+  const handleTaskComplete = useCallback(() => {
+    setIsGenerating(false);
+    setTaskId(null);
+    localStorage.removeItem(TASK_STORAGE_KEY);
+    showToast('简报生成成功！');
+    queryClient.invalidateQueries({ queryKey: queryKeys.briefs() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.defaultBriefs });
+  }, [showToast, queryClient]);
+
+  // 任务失败时的处理
+  const handleTaskError = useCallback((error: string) => {
+    setIsGenerating(false);
+    setTaskId(null);
+    localStorage.removeItem(TASK_STORAGE_KEY);
+    showToast(`生成失败: ${error}`, { type: 'error' });
+  }, [showToast]);
+
+  // 日志更新处理
+  const handleLogUpdate = useCallback((logs: Array<{ text: string; time: string }>) => {
+    setAgentLogs(
+      logs.map(log => ({
+        text: log.text,
+        time: new Date(log.time).toLocaleTimeString(),
+      }))
+    );
+  }, []);
+
   // 使用轮询 hook 获取任务状态
   useTaskPolling({
     taskId,
-    enabled: !!taskId && isGenerating,
-    interval: 10000, // 每秒轮询一次
-    onLogUpdate: (logs) => {
-      setAgentLogs(
-        logs.map(log => ({
-          text: log.text,
-          time: new Date(log.time).toLocaleTimeString(),
-        }))
-      );
-    },
-    onComplete: () => {
-      setIsGenerating(false);
-      setTaskId(null);
-      showToast('简报生成成功！');
-      queryClient.invalidateQueries({ queryKey: queryKeys.briefs() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.defaultBriefs });
-    },
-    onError: (error) => {
-      setIsGenerating(false);
-      setTaskId(null);
-      showToast(`生成失败: ${error}`, { type: 'error' });
-    },
+    enabled: !!taskId && isGenerating && !isRecovering,
+    interval: 10000, // 每10秒轮询一次
+    onLogUpdate: handleLogUpdate,
+    onComplete: handleTaskComplete,
+    onError: handleTaskError,
   });
 
   const startGeneration = async () => {
@@ -79,6 +129,8 @@ const InstantLabPage = () => {
         generationFocus
       );
       
+      // 保存到 localStorage，以便页面切换后恢复
+      localStorage.setItem(TASK_STORAGE_KEY, task_id);
       setTaskId(task_id);
     } catch (error) {
       setIsGenerating(false);
@@ -92,6 +144,7 @@ const InstantLabPage = () => {
     setTaskId(null);
     setGenerationFocus('');
     setSelectedGroupsForGen([]);
+    localStorage.removeItem(TASK_STORAGE_KEY);
   };
 
   const toggleGroupForGen = (groupId: number) => {
@@ -101,6 +154,17 @@ const InstantLabPage = () => {
         : [...prev, groupId]
     );
   };
+
+  // 恢复状态时显示加载
+  if (isRecovering) {
+    return (
+      <Layout>
+        <div className="h-full overflow-hidden p-12 flex flex-col items-center justify-center">
+          <div className="text-slate-400 text-sm">检查任务状态...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   // Console view - when generating or has logs
   if (isGenerating || agentLogs.length > 0) {

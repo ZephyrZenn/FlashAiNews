@@ -30,11 +30,9 @@ class AgentPlanner:
 
         log_step(state, "🤖 正在调用LLM进行规划...")
         prompt = self._build_prompt(state)
-        # logger.info(f"Sending planner prompt to LLM: {prompt}")
-        print(f"Sending planner prompt to LLM: {prompt}")
+        logger.info("Sending planner prompt to LLM: %s", prompt)
         response = await self.client.completion(prompt)
-        # logger.info(f"Received planner response from LLM: {response}")
-        print(f"Received planner response from LLM: {response}")
+        logger.info("Received planner response from LLM: %s", response)
         try:
             result: AgentPlanResult = extract_json(response)
             logger.info("Parsed planner response: %s", result)
@@ -56,19 +54,22 @@ class AgentPlanner:
             raise ValueError(f"Failed to parse planner response: {response}") from e
 
     def _build_prompt(self, state: AgentState) -> str:
-        raw_articles = "\n".join(
-            [
-                f"{article['id']} | {article['title']} | {article['group_title']} | {article['summary']}"
-                for article in state["raw_articles"]
-            ]
+        history_memories = [
+            {
+                "id": memory["id"],
+                "topic": memory["topic"],
+                "reasoning": memory["reasoning"],
+            }
+            for memory in state["history_memories"].values()
+        ]
+        template = (
+            GROUP_PLANNER_PROMPT_TEMPLATE
+            if len(state["groups"]) == 1
+            else GLOBAL_PLANNER_PROMPT_TEMPLATE
         )
-        template = GROUP_PLANNER_PROMPT_TEMPLATE if len(state["groups"]) == 1 else GLOBAL_PLANNER_PROMPT_TEMPLATE
         return template.format(
             current_date=datetime.now().strftime("%Y-%m-%d"),
             focus=state["focus"],
-            raw_articles=raw_articles,
-            history_memories="\n".join(
-                    f"{memory['id']} | {memory['topic']} | {memory['reasoning']} | {memory['content']}"
-                    for memory in state["history_memories"].values()
-                ),
-            )
+            raw_articles=state["raw_articles"],
+            history_memories=history_memories,
+        )

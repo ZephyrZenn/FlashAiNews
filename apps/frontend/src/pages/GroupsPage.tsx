@@ -143,23 +143,23 @@ const GroupsPage = () => {
 
   return (
     <Layout onNewClick={() => handleOpenModal()}>
-      <div className="h-full overflow-y-auto p-10 custom-scrollbar grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 content-start">
+      <div className="h-full overflow-y-auto p-4 md:p-10 custom-scrollbar grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 content-start">
         {allGroups.map((group) => (
           <div
             key={group.id}
-            className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-md transition-all relative group/card flex flex-col min-h-[220px]"
+            className="bg-white border border-slate-100 rounded-[2.5rem] p-6 md:p-8 shadow-sm hover:shadow-md transition-all relative group/card flex flex-col min-h-[200px] md:min-h-[220px]"
           >
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleDeleteGroup(group.id);
               }}
-              className="absolute top-6 right-6 opacity-0 group-hover/card:opacity-100 p-2.5 text-rose-300 hover:text-rose-500 transition-all hover:bg-rose-50 rounded-2xl z-10"
+              className="absolute top-4 md:top-6 right-4 md:right-6 opacity-0 group-hover/card:opacity-100 p-2 md:p-2.5 text-rose-300 hover:text-rose-500 transition-all hover:bg-rose-50 rounded-2xl z-10 min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <Trash2 size={18} />
             </button>
-            <div className="flex-1 min-w-0 pr-6">
-              <h3 className="text-xl font-black text-slate-800 mb-2 truncate">
+            <div className="flex-1 min-w-0 pr-4 md:pr-6">
+              <h3 className="text-lg md:text-xl font-black text-slate-800 mb-2 truncate">
                 {group.title}
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed line-clamp-3 mb-4">
@@ -172,7 +172,7 @@ const GroupsPage = () => {
               </span>
               <button
                 onClick={() => handleOpenModal(group)}
-                className="text-slate-300 hover:text-indigo-600 p-2 transition-colors"
+                className="text-slate-300 hover:text-indigo-600 p-2 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 <Edit3 size={18} />
               </button>
@@ -183,10 +183,10 @@ const GroupsPage = () => {
         {/* Add new button */}
         <button
           onClick={() => handleOpenModal()}
-          className="border-2 border-dashed border-slate-200 rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all min-h-[220px]"
+          className="border-2 border-dashed border-slate-200 rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all min-h-[200px] md:min-h-[220px]"
         >
-          <FolderPlus size={36} strokeWidth={1.5} className="mb-2" />
-          <span className="text-sm font-black uppercase">新建分组</span>
+          <FolderPlus size={32} className="md:w-9 md:h-9 mb-2" strokeWidth={1.5} />
+          <span className="text-xs md:text-sm font-black uppercase">新建分组</span>
         </button>
       </div>
 

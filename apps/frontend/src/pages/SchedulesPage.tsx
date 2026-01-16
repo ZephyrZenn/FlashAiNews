@@ -161,31 +161,31 @@ const SchedulesPage = () => {
 
   return (
     <Layout onNewClick={() => handleOpenModal()}>
-      <div className="h-full overflow-y-auto p-12 custom-scrollbar">
-        <div className="max-w-5xl mx-auto space-y-6">
+      <div className="h-full overflow-y-auto p-4 md:p-12 custom-scrollbar">
+        <div className="max-w-5xl mx-auto space-y-4 md:space-y-6">
           {allSchedules.map((task) => {
             const isActive = task.enabled;
             
             return (
               <div
                 key={task.id}
-                className={`bg-white rounded-[2.5rem] border transition-all duration-500 flex items-center p-8 gap-8 shadow-sm group relative ${
+                className={`bg-white rounded-2xl md:rounded-[2.5rem] border transition-all duration-500 flex flex-col md:flex-row items-stretch md:items-center p-4 md:p-8 gap-4 md:gap-8 shadow-sm group relative ${
                   isActive
                     ? 'border-slate-100'
                     : 'border-slate-50 opacity-60 bg-slate-50/50'
                 }`}
               >
                 {/* Time display */}
-                <div className="flex flex-col items-center shrink-0 w-24">
+                <div className="flex flex-row md:flex-col items-center md:items-center shrink-0 w-auto md:w-24 gap-4 md:gap-0">
                   <span
-                    className={`text-3xl font-black transition-all ${
+                    className={`text-2xl md:text-3xl font-black transition-all ${
                       isActive ? 'text-slate-800' : 'text-slate-400'
                     }`}
                   >
                     {task.time}
                   </span>
                   <div
-                    className={`mt-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       isActive
                         ? 'bg-indigo-50 text-indigo-600 animate-pulse'
                         : 'bg-slate-200 text-slate-500'
@@ -195,7 +195,7 @@ const SchedulesPage = () => {
                   </div>
                 </div>
 
-                <div className="h-12 w-[1px] bg-slate-100 hidden md:block" />
+                <div className="h-[1px] md:h-12 w-full md:w-[1px] bg-slate-100" />
 
                 {/* Content */}
                 <div className="flex-1 min-w-0 space-y-3">
@@ -236,39 +236,39 @@ const SchedulesPage = () => {
                 </div>
 
                 {/* Controls */}
-                <div className="flex items-center gap-6">
+                <div className="flex items-center justify-between md:justify-end gap-4 md:gap-6">
                   <div className="flex flex-col items-center gap-2">
                     <button
                       onClick={() => handleToggleSchedule(task)}
-                      className={`relative w-20 h-10 rounded-full transition-all duration-300 flex items-center px-1 shadow-inner ${
+                      className={`relative w-16 md:w-20 h-8 md:h-10 rounded-full transition-all duration-300 flex items-center px-1 shadow-inner min-h-[44px] md:min-h-0 ${
                         isActive ? 'bg-emerald-500' : 'bg-slate-300'
                       }`}
                     >
                       <div
-                        className={`absolute transition-all duration-300 h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center ${
-                          isActive ? 'translate-x-10' : 'translate-x-0'
+                        className={`absolute transition-all duration-300 h-6 w-6 md:h-8 md:w-8 rounded-full bg-white shadow-md flex items-center justify-center ${
+                          isActive ? 'translate-x-8 md:translate-x-10' : 'translate-x-0'
                         }`}
                       >
                         <Power
-                          size={14}
-                          className={
+                          size={12}
+                          className={`md:w-[14px] md:h-[14px] ${
                             isActive ? 'text-emerald-500' : 'text-slate-400'
-                          }
+                          }`}
                         />
                       </div>
                     </button>
                   </div>
-                  <div className="h-10 w-[1px] bg-slate-100" />
-                  <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="h-10 w-[1px] bg-slate-100 hidden md:block" />
+                  <div className="flex flex-row md:flex-col gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
                     <button
                       onClick={() => handleOpenModal(task)}
-                      className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                      className="p-2 md:p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
                       <Edit3 size={18} />
                     </button>
                     <button
                       onClick={() => handleDeleteSchedule(task.id)}
-                      className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                      className="p-2 md:p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -281,10 +281,10 @@ const SchedulesPage = () => {
           {/* Add new button */}
           <button
             onClick={() => handleOpenModal()}
-            className="w-full py-12 border-2 border-dashed border-slate-200 rounded-[3rem] flex flex-col items-center justify-center text-slate-300 hover:text-indigo-600 transition-all gap-3"
+            className="w-full py-8 md:py-12 border-2 border-dashed border-slate-200 rounded-2xl md:rounded-[3rem] flex flex-col items-center justify-center text-slate-300 hover:text-indigo-600 transition-all gap-2 md:gap-3 min-h-[120px] md:min-h-0"
           >
-            <Plus size={36} />
-            <span className="text-sm font-black uppercase tracking-[0.2em]">
+            <Plus size={32} className="md:w-9 md:h-9" />
+            <span className="text-xs md:text-sm font-black uppercase tracking-[0.2em]">
               新建自动化方案
             </span>
           </button>

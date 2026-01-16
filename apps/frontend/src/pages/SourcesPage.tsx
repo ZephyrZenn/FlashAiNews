@@ -132,11 +132,11 @@ const SourcesPage = () => {
   return (
     <Layout onNewClick={() => handleOpenModal()}>
       {/* Grid layout matching t.tsx sources exactly */}
-      <div className="h-full overflow-y-auto p-10 custom-scrollbar grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-4 content-start">
+      <div className="h-full overflow-y-auto p-4 md:p-10 custom-scrollbar grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-x-4 md:gap-y-4 content-start">
         {allSourcesWithGroupInfo.map((source) => (
           <div
             key={source.id}
-            className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all relative group flex flex-col justify-between h-[130px]"
+            className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-sm hover:shadow-md transition-all relative group flex flex-col justify-between min-h-[120px] md:h-[130px]"
           >
             <div>
               <div className="flex justify-between items-start mb-3">
@@ -158,7 +158,7 @@ const SourcesPage = () => {
                   </button>
                 </div>
               </div>
-              <h4 className="font-bold text-slate-800 text-sm truncate mb-1">
+              <h4 className="font-bold text-slate-800 text-xs md:text-sm truncate mb-1">
                 {source.title}
               </h4>
             </div>
@@ -166,7 +166,7 @@ const SourcesPage = () => {
               <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-1.5 py-0.5 rounded truncate max-w-[80px]">
                 {source.groupName}
               </span>
-              <ExternalLink size={12} className="text-slate-200" />
+              <ExternalLink size={12} className="text-slate-200 flex-shrink-0" />
             </div>
           </div>
         ))}
@@ -174,7 +174,7 @@ const SourcesPage = () => {
         {/* Add new button */}
         <button
           onClick={() => handleOpenModal()}
-          className="border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-300 hover:text-indigo-600 h-[130px] transition-all"
+          className="border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-300 hover:text-indigo-600 min-h-[120px] md:h-[130px] transition-all min-w-[44px] min-h-[44px]"
         >
           <Plus size={24} />
           <span className="text-[10px] font-bold mt-2 uppercase">添加源</span>

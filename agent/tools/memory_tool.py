@@ -1,3 +1,4 @@
+import logging
 from typing import Sequence
 
 from psycopg.rows import dict_row
@@ -5,6 +6,16 @@ from psycopg.rows import dict_row
 from agent.tools.base import BaseTool, ToolSchema, ToolParameter
 from agent.models import AgentState, SummaryMemory
 from core.db.pool import execute_async_transaction, get_async_connection
+from core.embedding import (
+    embed_text,
+    embed_texts,
+    is_embedding_configured,
+    EmbeddingError,
+)
+
+logger = logging.getLogger(__name__)
+
+SUMMARY_EMBEDDING_MAX_LENGTH = 300
 
 
 class SaveExecutionRecordsTool(BaseTool[None]):
@@ -21,7 +32,8 @@ class SaveExecutionRecordsTool(BaseTool[None]):
             description=(
                 "将 Agent 的执行记录持久化到数据库。包括两部分数据：\n"
                 "1. 已处理的文章ID列表 - 存入 excluded_feed_item_ids 表，防止后续重复处理\n"
-                "2. 生成的摘要记忆 - 存入 summary_memories 表，作为历史知识供后续查询"
+                "2. 生成的摘要记忆 - 存入 summary_memories 表，作为历史知识供后续查询\n"
+                "3. 如果配置了 embedding 服务，会同时生成并存储向量嵌入用于语义搜索"
             ),
             parameters=[
                 ToolParameter(
@@ -49,6 +61,7 @@ class SaveExecutionRecordsTool(BaseTool[None]):
                 "此操作使用数据库事务，确保两部分数据的原子性写入",
                 "如果 raw_articles 或 summary_results 为空，对应部分会被跳过",
                 "focal_points 和 summary_results 的数量必须一一对应",
+                "embedding 生成失败不会阻止记录保存，但会记录警告日志",
             ],
         )
 
@@ -61,7 +74,8 @@ class SaveExecutionRecordsTool(BaseTool[None]):
         """
         group_ids = [group.id for group in state["groups"]]
         excluded_articles = [
-            (article["id"], group_ids, article["pub_date"]) for article in state["raw_articles"]
+            (article["id"], group_ids, article["pub_date"])
+            for article in state["raw_articles"]
         ]
 
         # 安全检查：确保 focal_points 和 summary_results 长度匹配
@@ -73,10 +87,38 @@ class SaveExecutionRecordsTool(BaseTool[None]):
                 f"focal_points 数量 ({len(focal_points)}) 与 summary_results 数量 ({len(summary_results)}) 不匹配"
             )
 
-        summary_memories = [
-            (point["topic"], point["reasoning"], result)
-            for point, result in zip(focal_points, summary_results)
-        ]
+        # 准备摘要记忆数据
+        summary_memories = []
+        embeddings = None
+
+        if focal_points:
+            # 尝试生成 embeddings
+            if is_embedding_configured():
+                try:
+                    # 使用 topic + reasoning + content 作为 embedding 的文本
+                    # 这样可以更好地捕捉完整语义
+                    texts_to_embed = [
+                        f"{point['topic']}: {point['reasoning']}\n\n{result[:SUMMARY_EMBEDDING_MAX_LENGTH]}"
+                        for point, result in zip(focal_points, summary_results)
+                    ]
+                    embeddings = await embed_texts(texts_to_embed)
+                    logger.info(
+                        "Generated %d embeddings for summary memories", len(embeddings)
+                    )
+                except EmbeddingError as e:
+                    logger.warning(
+                        "Failed to generate embeddings, saving without vectors: %s", e
+                    )
+                    embeddings = None
+            else:
+                logger.debug("Embedding service not configured, skipping vector generation")
+
+            # 构建记忆数据
+            for i, (point, result) in enumerate(zip(focal_points, summary_results)):
+                embedding = embeddings[i] if embeddings else None
+                summary_memories.append(
+                    (point["topic"], point["reasoning"], result, embedding)
+                )
 
         async def save_to_db(cur):
             if excluded_articles:
@@ -88,19 +130,33 @@ class SaveExecutionRecordsTool(BaseTool[None]):
                     excluded_articles,
                 )
             if summary_memories:
-                await cur.executemany(
-                    """
-                    INSERT INTO summary_memories (topic, reasoning, content)
-                    VALUES (%s, %s, %s)
-                    """,
-                    summary_memories,
-                )
+                # 根据是否有 embedding 使用不同的 SQL
+                if embeddings:
+                    await cur.executemany(
+                        """
+                        INSERT INTO summary_memories (topic, reasoning, content, embedding)
+                        VALUES (%s, %s, %s, %s::vector)
+                        """,
+                        summary_memories,
+                    )
+                else:
+                    # 不包含 embedding 的情况
+                    memories_without_embedding = [
+                        (m[0], m[1], m[2]) for m in summary_memories
+                    ]
+                    await cur.executemany(
+                        """
+                        INSERT INTO summary_memories (topic, reasoning, content)
+                        VALUES (%s, %s, %s)
+                        """,
+                        memories_without_embedding,
+                    )
 
         await execute_async_transaction(save_to_db)
 
 
 class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
-    """搜索历史记忆的工具"""
+    """搜索历史记忆的工具，支持向量语义搜索和关键词搜索"""
 
     @property
     def name(self) -> str:
@@ -111,17 +167,19 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
         return ToolSchema(
             name=self.name,
             description=(
-                "在历史摘要记忆库中搜索相关内容。使用模糊匹配（ILIKE）在 topic 字段中搜索，"
-                "返回匹配的历史摘要记录。这对于获取上下文背景、了解历史事件发展、"
-                "或避免生成重复内容非常有用。"
+                "在历史摘要记忆库中搜索相关内容。支持两种搜索模式：\n"
+                "1. 向量语义搜索（默认）：使用 embedding 进行语义相似度搜索，能理解语义而非仅匹配字面\n"
+                "2. 关键词搜索（备选）：当向量搜索不可用时，使用 ILIKE 模糊匹配\n"
+                "返回匹配的历史摘要记录。"
             ),
             parameters=[
                 ToolParameter(
                     name="queries",
                     type="Sequence[str]",
                     description=(
-                        "搜索关键词列表。支持多个关键词同时搜索，使用 OR 逻辑匹配。"
-                        "例如 ['OpenAI', 'GPT'] 会匹配包含任一关键词的记忆"
+                        "搜索关键词/查询文本列表。\n"
+                        "- 向量搜索模式：关键词会被合并为一段文本进行语义匹配\n"
+                        "- 关键词模式：使用 OR 逻辑匹配任一关键词"
                     ),
                     required=True,
                 ),
@@ -138,6 +196,13 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
                     description="返回结果的最大数量",
                     required=False,
                     default="10",
+                ),
+                ToolParameter(
+                    name="similarity_threshold",
+                    type="float",
+                    description="向量搜索的相似度阈值（0-1），只返回相似度高于此值的结果",
+                    required=False,
+                    default="0.3",
                 ),
             ],
             returns=(
@@ -159,10 +224,10 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
                 "search_memory(queries=['特斯拉'], days_ago=90, limit=20) - 搜索90天内特斯拉相关的最多20条记忆",
             ],
             notes=[
-                "搜索使用 ILIKE 模糊匹配，不区分大小写",
+                "优先使用向量语义搜索，能理解同义词和语义相关性",
+                "当向量搜索不可用时，自动回退到关键词模糊匹配",
                 "空的关键词会被自动过滤",
-                "结果按创建时间降序排列，最新的在前",
-                "如果所有关键词都为空，返回空字典",
+                "向量搜索结果按相似度降序排列，关键词搜索按时间降序",
             ],
         )
 
@@ -171,20 +236,23 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
         queries: Sequence[str],
         days_ago: int = 30,
         limit: int = 10,
+        similarity_threshold: float = 0.3,
     ) -> dict[int, SummaryMemory]:
         """
-        搜索记忆
+        搜索记忆，优先使用向量搜索
 
         Args:
-            queries: 搜索关键词序列
+            queries: 搜索关键词/查询文本序列
             days_ago: 搜索多少天前的记忆
             limit: 返回结果数量限制
+            similarity_threshold: 向量搜索相似度阈值
 
         Returns:
             记忆ID到记忆对象的映射
         """
-        patterns = [f"%{q}%" for q in queries if q and q.strip()]
-        if not patterns:
+        # 过滤空查询
+        valid_queries = [q for q in queries if q and q.strip()]
+        if not valid_queries:
             return {}
 
         if days_ago <= 0:
@@ -192,6 +260,86 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
 
         if limit <= 0:
             raise ValueError("limit 必须大于 0")
+
+        # 尝试使用向量搜索
+        if is_embedding_configured():
+            try:
+                return await self._vector_search(
+                    valid_queries, days_ago, limit, similarity_threshold
+                )
+            except EmbeddingError as e:
+                logger.warning("Vector search failed, falling back to keyword search: %s", e)
+            except Exception as e:
+                logger.warning("Vector search error, falling back to keyword search: %s", e)
+
+        # 回退到关键词搜索
+        return await self._keyword_search(valid_queries, days_ago, limit)
+
+    async def _vector_search(
+        self,
+        queries: list[str],
+        days_ago: int,
+        limit: int,
+        similarity_threshold: float,
+    ) -> dict[int, SummaryMemory]:
+        """使用向量相似度进行语义搜索"""
+        # 将所有查询合并为一段文本
+        combined_query = " ".join(queries)
+        query_embedding = await embed_text(combined_query)
+
+        async with get_async_connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                # 使用余弦相似度搜索
+                # 1 - (embedding <=> query) 得到相似度分数 (0-1)
+                await cur.execute(
+                    """
+                    SELECT 
+                        id, topic, reasoning, content,
+                        1 - (embedding <=> %s::vector) as similarity
+                    FROM summary_memories
+                    WHERE embedding IS NOT NULL
+                      AND created_at >= NOW() - (%s * INTERVAL '1 day')
+                      AND 1 - (embedding <=> %s::vector) >= %s
+                    ORDER BY embedding <=> %s::vector
+                    LIMIT %s
+                    """,
+                    (
+                        query_embedding,
+                        days_ago,
+                        query_embedding,
+                        similarity_threshold,
+                        query_embedding,
+                        limit,
+                    ),
+                )
+                rows = await cur.fetchall()
+                
+                if rows:
+                    logger.info(
+                        "Vector search found %d memories (similarity range: %.3f - %.3f)",
+                        len(rows),
+                        rows[-1]["similarity"] if rows else 0,
+                        rows[0]["similarity"] if rows else 0,
+                    )
+                
+                return {
+                    row["id"]: SummaryMemory(
+                        id=row["id"],
+                        topic=row["topic"],
+                        reasoning=row["reasoning"],
+                        content=row["content"],
+                    )
+                    for row in rows
+                }
+
+    async def _keyword_search(
+        self,
+        queries: list[str],
+        days_ago: int,
+        limit: int,
+    ) -> dict[int, SummaryMemory]:
+        """使用关键词模糊匹配搜索（备选方案）"""
+        patterns = [f"%{q}%" for q in queries]
 
         async with get_async_connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
@@ -207,12 +355,143 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
                     (patterns, days_ago, limit),
                 )
                 rows = await cur.fetchall()
+                logger.info("Keyword search found %d memories", len(rows))
                 return {row["id"]: SummaryMemory(**row) for row in rows}
+
+
+class BackfillEmbeddingsTool(BaseTool[int]):
+    """为现有记忆补充 embedding 的工具"""
+
+    @property
+    def name(self) -> str:
+        return "backfill_embeddings"
+
+    @property
+    def schema(self) -> ToolSchema:
+        return ToolSchema(
+            name=self.name,
+            description=(
+                "为数据库中缺少 embedding 的历史记忆记录生成并补充向量嵌入。"
+                "这是一个一次性的数据迁移操作，用于将现有数据升级到支持向量搜索。"
+            ),
+            parameters=[
+                ToolParameter(
+                    name="batch_size",
+                    type="int",
+                    description="每批处理的记录数量，用于控制 API 调用频率",
+                    required=False,
+                    default="50",
+                ),
+                ToolParameter(
+                    name="max_records",
+                    type="int",
+                    description="最大处理记录数，0 表示处理所有缺少 embedding 的记录",
+                    required=False,
+                    default="0",
+                ),
+            ],
+            returns="返回成功处理的记录数量",
+            when_to_use=(
+                "在以下场景使用此工具：\n"
+                "1. 首次启用向量搜索功能后，为历史数据生成 embedding\n"
+                "2. 数据库迁移后需要补充缺失的 embedding"
+            ),
+            usage_examples=[
+                "backfill_embeddings() - 为所有缺少 embedding 的记录生成向量",
+                "backfill_embeddings(batch_size=100) - 每批处理 100 条记录",
+            ],
+            notes=[
+                "此操作会调用 embedding API，可能产生费用",
+                "大量数据时建议分批执行",
+                "已有 embedding 的记录会被跳过",
+            ],
+        )
+
+    async def _execute(
+        self,
+        batch_size: int = 50,
+        max_records: int = 0,
+    ) -> int:
+        """
+        为缺少 embedding 的记录生成向量
+
+        Args:
+            batch_size: 每批处理数量
+            max_records: 最大处理数量，0 表示全部
+
+        Returns:
+            处理的记录数量
+        """
+        if not is_embedding_configured():
+            raise RuntimeError("Embedding service not configured")
+
+        total_processed = 0
+
+        while True:
+            # 获取一批缺少 embedding 的记录
+            async with get_async_connection() as conn:
+                async with conn.cursor(row_factory=dict_row) as cur:
+                    limit = batch_size
+                    if max_records > 0:
+                        limit = min(batch_size, max_records - total_processed)
+                    
+                    if limit <= 0:
+                        break
+
+                    await cur.execute(
+                        """
+                        SELECT id, topic, reasoning, content
+                        FROM summary_memories
+                        WHERE embedding IS NULL
+                        LIMIT %s
+                        """,
+                        (limit,),
+                    )
+                    rows = await cur.fetchall()
+
+            if not rows:
+                break
+
+            # 生成 embeddings - 包含 topic + reasoning + content
+            texts = [
+                f"{row['topic']}: {row['reasoning']}\n\n{row['content'][:SUMMARY_EMBEDDING_MAX_LENGTH]}"
+                for row in rows
+            ]
+            try:
+                embeddings = await embed_texts(texts)
+            except EmbeddingError as e:
+                logger.error("Failed to generate embeddings in backfill: %s", e)
+                raise
+
+            # 更新数据库
+            updates = [(emb, row["id"]) for row, emb in zip(rows, embeddings)]
+            
+            async def update_embeddings(cur):
+                await cur.executemany(
+                    """
+                    UPDATE summary_memories
+                    SET embedding = %s::vector
+                    WHERE id = %s
+                    """,
+                    updates,
+                )
+
+            await execute_async_transaction(update_embeddings)
+            
+            total_processed += len(rows)
+            logger.info("Backfill progress: %d records processed", total_processed)
+
+            if max_records > 0 and total_processed >= max_records:
+                break
+
+        logger.info("Backfill completed: %d total records processed", total_processed)
+        return total_processed
 
 
 # 创建工具实例
 save_execution_records_tool = SaveExecutionRecordsTool()
 search_memory_tool = SearchMemoryTool()
+backfill_embeddings_tool = BackfillEmbeddingsTool()
 
 
 # 保留原有函数接口以兼容现有代码
@@ -238,6 +517,25 @@ async def search_memory(
     新代码建议使用 search_memory_tool.execute() 获取带错误处理的结果。
     """
     result = await search_memory_tool.execute(queries, days_ago, limit)
+    if result.success:
+        return result.data
+    raise RuntimeError(result.error)
+
+
+async def backfill_embeddings(
+    batch_size: int = 50,
+    max_records: int = 0,
+) -> int:
+    """为历史记忆补充 embedding（兼容函数）
+
+    Args:
+        batch_size: 每批处理数量
+        max_records: 最大处理数量，0 表示全部
+
+    Returns:
+        处理的记录数量
+    """
+    result = await backfill_embeddings_tool.execute(batch_size, max_records)
     if result.success:
         return result.data
     raise RuntimeError(result.error)

@@ -40,3 +40,8 @@ class AgentTest(unittest.TestCase):
         result = asyncio.run(agent.summarize(24, [1], on_step=on_step))
         print("\n=== 最终结果 ===")
         print(result)
+
+    def test_embedding(self):
+        from agent.tools.memory_tool import backfill_embeddings
+        result = asyncio.run(backfill_embeddings())
+        print(result)

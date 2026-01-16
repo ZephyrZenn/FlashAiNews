@@ -32,9 +32,7 @@
 .custom-scrollbar-terminal {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) rgba(255, 255, 255, 0.02);
-}
-
-.custom-scrollbar-terminal::-webkit-scrollbar {
+}.custom-scrollbar-terminal::-webkit-scrollbar {
   width: 6px;
 }.custom-scrollbar-terminal::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.02);

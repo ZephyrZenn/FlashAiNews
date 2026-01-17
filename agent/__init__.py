@@ -1,105 +1,20 @@
 import logging
 from typing import Optional
-from agent.pipeline.planner import AgentPlanner
-from agent.pipeline.executor import AgentExecutor
-from agent.models import AgentState, RawArticle, StepCallback, log_step
-from agent.tools import db_tool, memory_tool
+from agent.tools import create_default_toolbox
+from agent.workflow import SummarizeAgenticWorkflow
+from agent.tools.filter_tool import KeywordExtractorTool
+from agent.boost_agent import BoostAgent
 from core.brief_generator import build_generator, APIKeyNotConfiguredError
-from core.models.feed import FeedGroup
 
 logger = logging.getLogger(__name__)
 
 
-class SummarizeAgenticWorkflow:
-    def __init__(self, lazy_init: bool = False):
-        """Initialize the agent workflow.
-        
-        Args:
-            lazy_init: If True, defer AI client initialization until first use.
-                      This allows the app to start without API keys configured.
-        """
-        self._client = None
-        self._planner = None
-        self._executor = None
-        self.state_tracker = {}
-        self.state = None
-        
-        if not lazy_init:
-            self._init_client()
-    
-    def _init_client(self):
-        """Initialize the AI client and pipeline components.
-        
-        Raises:
-            APIKeyNotConfiguredError: If the API key is not configured.
-        """
-        if self._client is None:
-            self._client = build_generator()
-            self._planner = AgentPlanner(self._client)
-            self._executor = AgentExecutor(self._client)
-    
-    @property
-    def planner(self) -> AgentPlanner:
-        self._init_client()
-        return self._planner
-    
-    @property
-    def executor(self) -> AgentExecutor:
-        self._init_client()
-        return self._executor
 
-    async def summarize(
-        self,
-        hour_gap: int,
-        group_ids: Optional[list[int]],
-        focus: str = "",
-        on_step: Optional[StepCallback] = None,
-    ):
-        # This will raise APIKeyNotConfiguredError if API key is not set
-        self._init_client()
-        
-        groups, articles = await db_tool.get_recent_group_update(hour_gap, group_ids)
-
-        self.state = self._build_state(groups, articles, focus, on_step)
-        log_step(
-            self.state, f"🚀 Agent启动，获取到 {len(self.state['raw_articles'])} 篇文章"
-        )
-
-        log_step(self.state, "📋 开始规划阶段...")
-        plan = await self.planner.plan(self.state)
-        logger.info("Plan: %s", plan)
-
-        log_step(self.state, "⚡ 开始执行阶段...")
-        results = await self.executor.execute(self.state)
-        logger.info("Results: %s", results)
-        log_step(self.state, f"✅ Agent执行完成，共生成 {len(results)} 篇内容")
-
-        # 使用工具保存执行记录
-        await memory_tool.save_current_execution_records(self.state)
-        
-        return "\n\n".join(results)
-        
-
-    def _build_state(
-        self,
-        groups: list[FeedGroup],
-        articles: list[RawArticle],
-        focus: str = "",
-        on_step: Optional[StepCallback] = None,
-    ) -> AgentState:
-        state = AgentState(
-            groups=groups, raw_articles=articles, log_history=[], focus=focus
-        )
-        if on_step:
-            state["on_step"] = on_step
-        return state
-
-    def get_log_history(self) -> list[str]:
-        return self.state["log_history"]
 
 
 # 单例实例
 _agent_instance: Optional[SummarizeAgenticWorkflow] = None
+_boost_agent_instance: Optional[BoostAgent] = None
 
 
 def init_agent() -> SummarizeAgenticWorkflow:
@@ -126,3 +41,55 @@ def get_agent() -> SummarizeAgenticWorkflow:
     if _agent_instance is None:
         raise RuntimeError("Agent 未初始化，请先调用 init_agent()")
     return _agent_instance
+
+
+def init_boost_agent() -> Optional[BoostAgent]:
+    """初始化 Function Calling Agent 单例。
+    
+    Uses lazy initialization so the app can start without API keys configured.
+    API key errors will only occur when actually using the agent.
+    
+    Returns:
+        FlexibleFunctionCallAgent 实例，如果 API key 未配置则返回 None
+    """
+    global _boost_agent_instance
+    if _boost_agent_instance is None:
+        try:
+            client = build_generator()
+            toolbox = create_default_toolbox()
+            # 注册需要 client 的工具
+            keyword_tool = KeywordExtractorTool(client)
+            toolbox.register(keyword_tool, tags=["analysis", "llm"])
+            _boost_agent_instance = BoostAgent(client, toolbox)
+            logger.info("Flexible Function Calling Agent initialized (lazy mode)")
+        except APIKeyNotConfiguredError:
+            # 延迟初始化，允许应用启动时没有 API key
+            logger.info("Flexible Agent will be initialized on first use (API key not configured)")
+            return None
+    return _boost_agent_instance
+
+
+def get_boost_agent() -> BoostAgent:
+    """获取 Function Calling Agent 单例实例。
+    
+    Raises:
+        RuntimeError: If agent is not initialized and API key is not configured.
+        APIKeyNotConfiguredError: When API key is not configured.
+    """
+    global _boost_agent_instance
+    if _boost_agent_instance is None:
+        # 尝试初始化
+        agent = init_boost_agent()
+        if agent is None:
+            # API key 未配置，尝试再次初始化以触发异常
+            try:
+                client = build_generator()
+                toolbox = create_default_toolbox()
+                keyword_tool = KeywordExtractorTool(client)
+                toolbox.register(keyword_tool, tags=["analysis", "llm"])
+                _boost_agent_instance = BoostAgent(client, toolbox)
+            except APIKeyNotConfiguredError as e:
+                raise RuntimeError(
+                    "Boost Agent 未初始化且 API key 未配置，请先配置 API key"
+                ) from e
+    return _boost_agent_instance

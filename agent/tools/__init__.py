@@ -53,7 +53,12 @@ from agent.tools.base import (
 )
 
 # 工具类导出
-from agent.tools.db_tool import RecentGroupUpdateTool
+from agent.tools.db_tool import (
+    RecentGroupUpdateTool,
+    GetAllFeedsTool,
+    GetRecentFeedUpdateTool,
+    GetArticleContentTool,
+)
 from agent.tools.memory_tool import (
     SaveExecutionRecordsTool,
     SearchMemoryTool,
@@ -64,9 +69,15 @@ from agent.tools.search_tool import (
     WebSearchTool,
 )
 from agent.tools.filter_tool import KeywordExtractorTool
+from agent.tools.writing_tool import WriteArticleTool, ReviewArticleTool
 
 # 工具实例导出
-from agent.tools.db_tool import recent_group_update_tool
+from agent.tools.db_tool import (
+    recent_group_update_tool,
+    get_all_feeds_tool,
+    get_recent_feed_update_tool,
+    get_article_content_tool,
+)
 from agent.tools.memory_tool import (
     save_execution_records_tool,
     search_memory_tool,
@@ -101,7 +112,10 @@ def create_default_toolbox() -> ToolBox:
     toolbox = ToolBox()
 
     # 数据库相关工具
-    toolbox.register(recent_group_update_tool, tags=["database", "query", "feed"])
+    toolbox.register(recent_group_update_tool, tags=["database", "query", "feed", "group"])
+    toolbox.register(get_all_feeds_tool, tags=["database", "query", "feed"])
+    toolbox.register(get_recent_feed_update_tool, tags=["database", "query", "feed"])
+    toolbox.register(get_article_content_tool, tags=["database", "query", "feed", "content"])
 
     # 记忆相关工具
     toolbox.register(save_execution_records_tool, tags=["database", "memory", "write"])
@@ -134,14 +148,20 @@ __all__ = [
     "default_toolbox",
     # 工具类
     "RecentGroupUpdateTool",
+    "GetAllFeedsTool",
+    "GetRecentFeedUpdateTool",
     "SaveExecutionRecordsTool",
     "SearchMemoryTool",
     "BackfillEmbeddingsTool",
     "FetchWebContentsTool",
     "WebSearchTool",
     "KeywordExtractorTool",
+    "WriteArticleTool",
+    "ReviewArticleTool",
     # 工具实例
     "recent_group_update_tool",
+    "get_all_feeds_tool",
+    "get_recent_feed_update_tool",
     "save_execution_records_tool",
     "search_memory_tool",
     "backfill_embeddings_tool",

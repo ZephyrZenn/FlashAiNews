@@ -30,38 +30,24 @@ class SaveExecutionRecordsTool(BaseTool[None]):
         return ToolSchema(
             name=self.name,
             description=(
-                "将 Agent 的执行记录持久化到数据库。包括两部分数据：\n"
-                "1. 已处理的文章ID列表 - 存入 excluded_feed_item_ids 表，防止后续重复处理\n"
-                "2. 生成的摘要记忆 - 存入 summary_memories 表，作为历史知识供后续查询\n"
-                "3. 如果配置了 embedding 服务，会同时生成并存储向量嵌入用于语义搜索"
+                "将 Agent 的执行记录持久化到数据库。包括两部分数据："
+                "1. 已处理的文章ID列表 - 存入 excluded_feed_item_ids 表，防止后续重复处理；"
+                "2. 生成的摘要记忆 - 存入 summary_memories 表，作为历史知识供后续查询；"
+                "3. 如果配置了 embedding 服务，会同时生成并存储向量嵌入用于语义搜索。"
+                "无返回值，执行成功表示数据已持久化到数据库。"
             ),
             parameters=[
                 ToolParameter(
                     name="state",
                     type="AgentState",
                     description=(
-                        "Agent 的完整状态对象，包含：\n"
-                        "  - raw_articles: 本次处理的原始文章列表\n"
-                        "  - plan.focal_points: 规划的焦点主题列表\n"
-                        "  - summary_results: 生成的摘要结果列表"
+                        "Agent 的完整状态对象，包含："
+                        "raw_articles（本次处理的原始文章列表）、"
+                        "plan.focal_points（规划的焦点主题列表）、"
+                        "summary_results（生成的摘要结果列表）"
                     ),
                     required=True,
                 ),
-            ],
-            returns="无返回值。执行成功表示数据已持久化到数据库",
-            when_to_use=(
-                "在 Agent 完成一轮摘要生成后调用，用于：\n"
-                "1. 记录已处理的文章，避免下次运行时重复处理相同内容\n"
-                "2. 保存生成的摘要作为知识库，供后续查询相关历史信息"
-            ),
-            usage_examples=[
-                "save_execution_records(state) - 在 Agent 执行完成后保存状态",
-            ],
-            notes=[
-                "此操作使用数据库事务，确保两部分数据的原子性写入",
-                "如果 raw_articles 或 summary_results 为空，对应部分会被跳过",
-                "focal_points 和 summary_results 的数量必须一一对应",
-                "embedding 生成失败不会阻止记录保存，但会记录警告日志",
             ],
         )
 
@@ -72,11 +58,17 @@ class SaveExecutionRecordsTool(BaseTool[None]):
         Args:
             state: Agent状态对象
         """
-        group_ids = [group.id for group in state["groups"]]
-        excluded_articles = [
-            (article["id"], group_ids, article["pub_date"])
-            for article in state["raw_articles"]
-        ]
+        # 判断是否是新Agent（groups为空表示新Agent，不使用Group）
+        is_new_agent = not state.get("groups", [])
+        
+        # 只有旧workflow才保存到exclude表
+        excluded_articles = []
+        if not is_new_agent:
+            group_ids = [group.id for group in state["groups"]]
+            excluded_articles = [
+                (article["id"], group_ids, article["pub_date"])
+                for article in state["raw_articles"]
+            ]
 
         # 安全检查：确保 focal_points 和 summary_results 长度匹配
         focal_points = state.get("plan", {}).get("focal_points", [])
@@ -121,6 +113,7 @@ class SaveExecutionRecordsTool(BaseTool[None]):
                 )
 
         async def save_to_db(cur):
+            # 只有旧workflow才保存到exclude表
             if excluded_articles:
                 await cur.executemany(
                     """
@@ -167,19 +160,19 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
         return ToolSchema(
             name=self.name,
             description=(
-                "在历史摘要记忆库中搜索相关内容。支持两种搜索模式：\n"
-                "1. 向量语义搜索（默认）：使用 embedding 进行语义相似度搜索，能理解语义而非仅匹配字面\n"
-                "2. 关键词搜索（备选）：当向量搜索不可用时，使用 ILIKE 模糊匹配\n"
-                "返回匹配的历史摘要记录。"
+                "在历史摘要记忆库中搜索相关内容。支持两种搜索模式："
+                "1. 向量语义搜索（默认）：使用 embedding 进行语义相似度搜索，能理解语义而非仅匹配字面；"
+                "2. 关键词搜索（备选）：当向量搜索不可用时，使用 ILIKE 模糊匹配。"
+                "返回 dict[int, SummaryMemory]，键为记忆ID，值为包含 id、topic、reasoning、content 的 SummaryMemory 对象。"
             ),
             parameters=[
                 ToolParameter(
                     name="queries",
                     type="Sequence[str]",
                     description=(
-                        "搜索关键词/查询文本列表。\n"
-                        "- 向量搜索模式：关键词会被合并为一段文本进行语义匹配\n"
-                        "- 关键词模式：使用 OR 逻辑匹配任一关键词"
+                        "搜索关键词/查询文本列表。"
+                        "向量搜索模式：关键词会被合并为一段文本进行语义匹配；"
+                        "关键词模式：使用 OR 逻辑匹配任一关键词"
                     ),
                     required=True,
                 ),
@@ -204,30 +197,6 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
                     required=False,
                     default="0.3",
                 ),
-            ],
-            returns=(
-                "返回 dict[int, SummaryMemory]，键为记忆ID，值为 SummaryMemory 对象，包含：\n"
-                "  - id: 记忆唯一标识\n"
-                "  - topic: 主题\n"
-                "  - reasoning: 生成时的推理过程\n"
-                "  - content: 摘要内容"
-            ),
-            when_to_use=(
-                "在以下场景使用此工具：\n"
-                "1. 生成新摘要前，查询是否有相关历史内容，避免重复\n"
-                "2. 需要了解某个话题的历史背景和发展脉络\n"
-                "3. 为当前新闻提供历史上下文补充"
-            ),
-            usage_examples=[
-                "search_memory(queries=['人工智能', 'AI']) - 搜索AI相关的历史记忆",
-                "search_memory(queries=['苹果', 'iPhone'], days_ago=7) - 搜索最近7天内苹果相关记忆",
-                "search_memory(queries=['特斯拉'], days_ago=90, limit=20) - 搜索90天内特斯拉相关的最多20条记忆",
-            ],
-            notes=[
-                "优先使用向量语义搜索，能理解同义词和语义相关性",
-                "当向量搜索不可用时，自动回退到关键词模糊匹配",
-                "空的关键词会被自动过滤",
-                "向量搜索结果按相似度降序排列，关键词搜索按时间降序",
             ],
         )
 
@@ -373,6 +342,7 @@ class BackfillEmbeddingsTool(BaseTool[int]):
             description=(
                 "为数据库中缺少 embedding 的历史记忆记录生成并补充向量嵌入。"
                 "这是一个一次性的数据迁移操作，用于将现有数据升级到支持向量搜索。"
+                "返回成功处理的记录数量。"
             ),
             parameters=[
                 ToolParameter(
@@ -389,21 +359,6 @@ class BackfillEmbeddingsTool(BaseTool[int]):
                     required=False,
                     default="0",
                 ),
-            ],
-            returns="返回成功处理的记录数量",
-            when_to_use=(
-                "在以下场景使用此工具：\n"
-                "1. 首次启用向量搜索功能后，为历史数据生成 embedding\n"
-                "2. 数据库迁移后需要补充缺失的 embedding"
-            ),
-            usage_examples=[
-                "backfill_embeddings() - 为所有缺少 embedding 的记录生成向量",
-                "backfill_embeddings(batch_size=100) - 每批处理 100 条记录",
-            ],
-            notes=[
-                "此操作会调用 embedding API，可能产生费用",
-                "大量数据时建议分批执行",
-                "已有 embedding 的记录会被跳过",
             ],
         )
 

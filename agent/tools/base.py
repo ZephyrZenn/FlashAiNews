@@ -73,37 +73,26 @@ class ToolParameter:
 
 @dataclass
 class ToolSchema:
-    """工具的完整描述 Schema，供 LLM 理解和调用
+    """工具描述 Schema，用于 Function Calling
 
     Attributes:
         name: 工具名称（唯一标识符）
         description: 工具功能的详细描述
         parameters: 参数列表
-        returns: 返回值说明
-        usage_examples: 使用示例
-        when_to_use: 何时使用此工具的说明
-        notes: 注意事项
     """
 
     name: str
     description: str
     parameters: list[ToolParameter] = field(default_factory=list)
-    returns: str = ""
-    usage_examples: list[str] = field(default_factory=list)
-    when_to_use: str = ""
-    notes: list[str] = field(default_factory=list)
 
     def to_prompt(self) -> str:
-        """将 Schema 转换为可供 LLM 阅读的提示文本"""
+        """将 Schema 转换为可供 LLM 阅读的提示文本（向后兼容）"""
         lines = [
             f"## {self.name}",
             "",
             f"**功能**: {self.description}",
             "",
         ]
-
-        if self.when_to_use:
-            lines.extend([f"**使用时机**: {self.when_to_use}", ""])
 
         if self.parameters:
             lines.append("**参数**:")
@@ -113,21 +102,6 @@ class ToolSchema:
                 lines.append(
                     f"  - `{p.name}` ({p.type}) {required_mark}: {p.description}{default_info}"
                 )
-            lines.append("")
-
-        if self.returns:
-            lines.extend([f"**返回值**: {self.returns}", ""])
-
-        if self.usage_examples:
-            lines.append("**示例**:")
-            for example in self.usage_examples:
-                lines.append(f"  - {example}")
-            lines.append("")
-
-        if self.notes:
-            lines.append("**注意事项**:")
-            for note in self.notes:
-                lines.append(f"  - {note}")
             lines.append("")
 
         return "\n".join(lines)

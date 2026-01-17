@@ -1,10 +1,9 @@
-import asyncio
-from agent.tools.base import SyncTool, ToolSchema, ToolParameter
+from agent.tools.base import BaseTool, ToolSchema, ToolParameter
 from agent.models import RawArticle
 from core.brief_generator import AIGenerator
 
 
-class KeywordExtractorTool(SyncTool[list[str]]):
+class KeywordExtractorTool(BaseTool[list[str]]):
     """使用 LLM 从文章中提取关键词的工具"""
 
     def __init__(self, client: AIGenerator):
@@ -23,6 +22,7 @@ class KeywordExtractorTool(SyncTool[list[str]]):
                 "关键词类型包括：公司名称、产品名称、技术术语、人物名称等实体词。"
                 "该工具通过分析文章标题和摘要，识别出最具代表性的 5-8 个关键词，"
                 "可用于后续的信息检索、分类聚合或主题分析。"
+                "返回 list[str]，包含 5-8 个提取出的核心关键词，已去重和清理。"
             ),
             parameters=[
                 ToolParameter(
@@ -35,30 +35,9 @@ class KeywordExtractorTool(SyncTool[list[str]]):
                     required=True,
                 ),
             ],
-            returns=(
-                "返回 list[str]，包含 5-8 个提取出的核心关键词。"
-                "关键词已去重和清理，不包含空白字符"
-            ),
-            when_to_use=(
-                "在以下场景使用此工具：\n"
-                "1. 需要从大量文章中提取热点话题关键词\n"
-                "2. 为后续的 search_memory 搜索准备关键词\n"
-                "3. 对文章进行分类或聚类时需要特征词\n"
-                "4. 生成摘要前分析文章的主要主题"
-            ),
-            usage_examples=[
-                "find_keywords(articles) - 从文章列表中提取关键词",
-                "keywords = find_keywords(articles); search_memory(keywords) - 提取关键词后搜索相关记忆",
-            ],
-            notes=[
-                "此工具使用 LLM 进行分析，会产生 API 调用开销",
-                "输入文章数量过多时，可能因 token 限制而截断",
-                "提取结果为中文关键词，支持中英文混合内容",
-                "返回的关键词数量通常为 5-8 个，取决于内容的丰富程度",
-            ],
         )
 
-    def _execute(self, articles: list[RawArticle]) -> list[str]:
+    async def _execute(self, articles: list[RawArticle]) -> list[str]:
         """
         从文章中提取关键词
 
@@ -71,11 +50,11 @@ class KeywordExtractorTool(SyncTool[list[str]]):
         if not articles:
             return []
 
-        combined_text = "\n".join(
-            [f"{article['title']} | {article['summary']}" for article in articles]
-        )
-
-        if not combined_text.strip():
+        combined_text = [
+            {"title": article["title"], "summary": article["summary"]}
+            for article in articles
+        ]
+        if not combined_text:
             return []
 
         prompt = f"""
@@ -85,8 +64,7 @@ class KeywordExtractorTool(SyncTool[list[str]]):
         {combined_text}
         """
 
-        # 在同步方法中运行异步调用
-        response = asyncio.run(self.client.completion(prompt))
+        response = await self.client.completion(prompt)
 
         if not response:
             return []
@@ -135,7 +113,5 @@ async def find_keywords_with_llm(
     if not response:
         return []
 
-    keywords = [
-        k.strip() for k in response.replace("，", ",").split(",") if k.strip()
-    ]
+    keywords = [k.strip() for k in response.replace("，", ",").split(",") if k.strip()]
     return keywords

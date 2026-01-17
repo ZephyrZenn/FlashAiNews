@@ -1,17 +1,17 @@
 import asyncio
-from agent.models import AgentState, FocalPoint, WritingMaterial, log_step
-from agent.pipeline.critic import AgentCritic
-from agent.pipeline.writer import AgentWriter
+from agent.models import AgentState, FocalPoint, WritingMaterial, AgentCriticResult, log_step
 from agent.tools import search_tool
+from agent.tools.writing_tool import WriteArticleTool, ReviewArticleTool
 from core.brief_generator import AIGenerator
 
 
 class AgentExecutor:
 
     def __init__(self, client: AIGenerator, max_retries: int = 3):
-        self.writer = AgentWriter(client)
-        self.critic = AgentCritic(client)
+        self.client = client
         self.max_retries = max_retries
+        self.write_tool = WriteArticleTool(client)
+        self.review_tool = ReviewArticleTool(client)
 
     async def execute(self, state: AgentState) -> list[str]:
         plan = state["plan"]
@@ -119,7 +119,7 @@ class AgentExecutor:
             articles=raw_articles,
         )
         log_step(state, "   ↳ 正在生成快讯...")
-        result = await self.writer.write(writing_material)
+        result = await self._write_article(writing_material)
         log_step(state, f"   ↳ ✅ 快讯 '{point['topic']}' 生成完成")
         return result
 
@@ -129,8 +129,8 @@ class AgentExecutor:
         count = 0
         review = None
         while count < self.max_retries:
-            result = await self.writer.write(writing_material, review)
-            review = await self.critic.critic(result, writing_material)
+            result = await self._write_article(writing_material, review)
+            review = await self._review_article(result, writing_material)
             has_critical_error = any(
                 finding["severity"] == "CRITICAL" for finding in review["findings"]
             )
@@ -149,3 +149,47 @@ class AgentExecutor:
             )
             count += 1
         return result
+
+    async def _write_article(
+        self, writing_material: WritingMaterial, review: AgentCriticResult | None = None
+    ) -> str:
+        """使用 WriteArticleTool 撰写文章"""
+        # history_memory 现在统一为列表
+        history_memory = writing_material.get("history_memory")
+        if history_memory and not isinstance(history_memory, list):
+            history_memory = [history_memory]
+        
+        result = await self.write_tool.execute(
+            topic=writing_material["topic"],
+            style=writing_material["style"],
+            writing_guide=writing_material["writing_guide"],
+            reasoning=writing_material["reasoning"],
+            articles=writing_material["articles"],
+            ext_info=writing_material.get("ext_info"),
+            history_memory=history_memory,
+            review=review,
+        )
+        if result.success:
+            return result.data
+        raise RuntimeError(f"写作失败: {result.error}")
+
+    async def _review_article(
+        self, draft_content: str, material: WritingMaterial
+    ) -> AgentCriticResult:
+        """使用 ReviewArticleTool 审查文章"""
+        # history_memory 现在统一为列表
+        history_memory = material.get("history_memory")
+        if history_memory and not isinstance(history_memory, list):
+            history_memory = [history_memory]
+        
+        result = await self.review_tool.execute(
+            draft_content=draft_content,
+            topic=material["topic"],
+            writing_guide=material["writing_guide"],
+            articles=material["articles"],
+            ext_info=material.get("ext_info"),
+            history_memory=history_memory,
+        )
+        if result.success:
+            return result.data
+        raise RuntimeError(f"审查失败: {result.error}")

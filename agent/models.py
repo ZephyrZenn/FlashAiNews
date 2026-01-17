@@ -13,7 +13,6 @@ class RawArticle(TypedDict):
     id: str
     title: str
     url: str
-    group_title: list[str]
     summary: str
     pub_date: datetime
     content: NotRequired[str]
@@ -53,7 +52,7 @@ class WritingMaterial(TypedDict):
     reasoning: str
     articles: list[RawArticle]
     ext_info: NotRequired[list[SearchResult]]
-    history_memory: NotRequired[SummaryMemory]
+    history_memory: NotRequired[list[SummaryMemory]]
 
 
 class AgentState(TypedDict):

@@ -46,6 +46,31 @@ class AIGenerator(ABC):
     async def completion(self, prompt, **kwargs) -> str:
         raise NotImplementedError()
 
+    @abstractmethod
+    async def completion_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict] | None = None,
+        tool_choice: str = "auto",
+        **kwargs
+    ) -> dict:
+        """支持 function calling 的 completion 方法
+        
+        Args:
+            messages: 消息列表，格式为 [{"role": "user|assistant|system|tool", "content": "..."}, ...]
+            tools: 工具定义列表，格式为 OpenAI function calling 格式
+            tool_choice: 工具选择策略，"auto" | "none" | {"type": "function", "function": {"name": "..."}}
+            **kwargs: 其他参数
+        
+        Returns:
+            dict with keys:
+                - 'content': str | None - LLM 的文本响应
+                - 'tool_calls': list[dict] - 工具调用列表（如果有），格式为:
+                    [{"id": "...", "function": {"name": "...", "arguments": "..."}}, ...]
+                - 'finish_reason': str - 完成原因
+        """
+        raise NotImplementedError()
+
 
 class GeminiGenerator(AIGenerator):
     def __init__(self, api_key: str, model: str):
@@ -64,6 +89,110 @@ class GeminiGenerator(AIGenerator):
             return resp.text
         except Exception as e:
             logger.error(f"Error in GeminiGenerator: {e}", exc_info=True)
+            raise e
+
+    async def completion_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict] | None = None,
+        tool_choice: str = "auto",
+        **kwargs
+    ) -> dict:
+        """支持 function calling 的 completion 方法（Gemini 格式）"""
+        try:
+            # 转换 messages 格式为 Gemini 格式
+            gemini_contents = []
+            for msg in messages:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                
+                if role == "system":
+                    # Gemini 使用 system_instruction 处理 system 消息
+                    # 这里我们将其作为第一个 user 消息的一部分
+                    if gemini_contents:
+                        existing_text = ""
+                        if gemini_contents[0].get("parts"):
+                            existing_text = gemini_contents[0]["parts"][0].get("text", "")
+                        gemini_contents[0] = {
+                            "role": "user",
+                            "parts": [{"text": f"System: {content}\n\n{existing_text}"}]
+                        }
+                    else:
+                        gemini_contents.append({"role": "user", "parts": [{"text": f"System: {content}"}]})
+                elif role == "user":
+                    gemini_contents.append({"role": "user", "parts": [{"text": content}]})
+                elif role == "assistant":
+                    gemini_contents.append({"role": "model", "parts": [{"text": content}]})
+                elif role == "tool":
+                    # Gemini 使用 function_response 格式
+                    tool_name = msg.get("name", "")
+                    tool_content = msg.get("content", "")
+                    gemini_contents.append({
+                        "role": "function",
+                        "parts": [{
+                            "function_response": {
+                                "name": tool_name,
+                                "response": tool_content
+                            }
+                        }]
+                    })
+
+            # 转换 tools 格式为 Gemini 格式
+            gemini_tools = None
+            if tools:
+                gemini_tools = []
+                for tool in tools:
+                    if tool.get("type") == "function":
+                        func_def = tool.get("function", {})
+                        gemini_tools.append({
+                            "function_declarations": [{
+                                "name": func_def.get("name", ""),
+                                "description": func_def.get("description", ""),
+                                "parameters": func_def.get("parameters", {})
+                            }]
+                        })
+
+            # 构建请求
+            request_params = {
+                "model": self.model,
+                "contents": gemini_contents,
+            }
+
+            if gemini_tools:
+                request_params["tools"] = gemini_tools
+
+            # 添加其他 kwargs
+            request_params.update(kwargs)
+
+            resp = await self.client.aio.models.generate_content(**request_params)
+
+            # 解析响应
+            content = resp.text if hasattr(resp, 'text') and resp.text else None
+            tool_calls = []
+
+            # 检查是否有 function_calls
+            if hasattr(resp, 'candidates') and resp.candidates:
+                candidate = resp.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content:
+                    if hasattr(candidate.content, 'parts'):
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'function_call'):
+                                fc = part.function_call
+                                tool_calls.append({
+                                    "id": f"call_{len(tool_calls)}",  # Gemini 不提供 ID，我们生成一个
+                                    "function": {
+                                        "name": fc.name if hasattr(fc, 'name') else "",
+                                        "arguments": json.dumps(fc.args) if hasattr(fc, 'args') else "{}"
+                                    }
+                                })
+
+            return {
+                "content": content,
+                "tool_calls": tool_calls if tool_calls else None,
+                "finish_reason": getattr(resp.candidates[0], 'finish_reason', None) if hasattr(resp, 'candidates') and resp.candidates else None,
+            }
+        except Exception as e:
+            logger.error(f"Error in GeminiGenerator.completion_with_tools: {e}", exc_info=True)
             raise e
 
 
@@ -85,6 +214,65 @@ class OpenAIGenerator(AIGenerator):
             return resp.choices[0].message.content
         except Exception as e:
             logger.error(f"Error in OpenAIGenerator: {e}", exc_info=True)
+            raise e
+
+    async def completion_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict] | None = None,
+        tool_choice: str = "auto",
+        **kwargs
+    ) -> dict:
+        """支持 function calling 的 completion 方法"""
+        try:
+            # 转换 tool_choice 格式
+            tool_choice_param = None
+            if tool_choice == "none":
+                tool_choice_param = "none"
+            elif tool_choice == "auto":
+                tool_choice_param = "auto"
+            elif isinstance(tool_choice, dict):
+                tool_choice_param = tool_choice
+
+            # 准备请求参数
+            request_params = {
+                "model": self.model,
+                "messages": messages,
+                "stream": False,
+            }
+
+            # 如果有工具，添加 tools 和 tool_choice 参数
+            if tools:
+                request_params["tools"] = tools
+                if tool_choice_param is not None:
+                    request_params["tool_choice"] = tool_choice_param
+
+            # 添加其他 kwargs
+            request_params.update(kwargs)
+
+            resp = await self.client.chat.completions.create(**request_params)
+
+            message = resp.choices[0].message
+
+            # 提取工具调用
+            tool_calls = []
+            if message.tool_calls:
+                for tc in message.tool_calls:
+                    tool_calls.append({
+                        "id": tc.id,
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        }
+                    })
+
+            return {
+                "content": message.content,
+                "tool_calls": tool_calls if tool_calls else None,
+                "finish_reason": resp.choices[0].finish_reason,
+            }
+        except Exception as e:
+            logger.error(f"Error in OpenAIGenerator.completion_with_tools: {e}", exc_info=True)
             raise e
 
 

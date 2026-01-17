@@ -23,7 +23,8 @@ class FetchWebContentsTool(BaseTool[dict[str, str]]):
             description=(
                 "批量抓取指定 URL 列表的网页正文内容。使用异步并发请求提高效率，"
                 "自动处理各种网页格式，提取主要文本内容并清理 HTML 标签。"
-                "适用于需要获取网页详细内容进行分析或摘要的场景。"
+                "返回 dict[str, str]，键为 URL，值为抓取到的网页正文内容。"
+                "如果某个 URL 抓取失败，该 URL 对应的值为空字符串。"
             ),
             parameters=[
                 ToolParameter(
@@ -32,26 +33,6 @@ class FetchWebContentsTool(BaseTool[dict[str, str]]):
                     description="需要抓取内容的 URL 列表。支持 HTTP 和 HTTPS 协议",
                     required=True,
                 ),
-            ],
-            returns=(
-                "返回 dict[str, str]，键为 URL，值为抓取到的网页正文内容。\n"
-                "如果某个 URL 抓取失败，该 URL 对应的值为空字符串"
-            ),
-            when_to_use=(
-                "在以下场景使用此工具：\n"
-                "1. 搜索引擎返回结果后，需要获取完整网页内容\n"
-                "2. 需要补充 RSS 摘要信息，获取原文全文\n"
-                "3. 验证或深入分析某个新闻源的详细内容"
-            ),
-            usage_examples=[
-                "fetch_web_contents(['https://example.com/news1', 'https://example.com/news2'])",
-                "fetch_web_contents(urls) - 传入从搜索结果中提取的 URL 列表",
-            ],
-            notes=[
-                "抓取过程是异步并发的，大量 URL 时效率较高",
-                "某些网站可能因反爬机制导致抓取失败",
-                "返回的内容已经过清理，不包含 HTML 标签",
-                "建议控制单次请求的 URL 数量，避免被目标网站封禁",
             ],
         )
 
@@ -84,11 +65,11 @@ class WebSearchTool(BaseTool[list[SearchResult]]):
             name=self.name,
             description=(
                 "使用搜索引擎搜索互联网内容，并自动抓取搜索结果页面的正文。"
-                "该工具整合了搜索和内容抓取两个步骤：\n"
-                "1. 调用搜索引擎 API 获取搜索结果\n"
-                "2. 并发抓取所有结果页面的正文内容\n"
-                "3. 过滤掉抓取失败的结果，只返回有效内容\n"
-                "适用于需要获取最新互联网信息、补充背景知识的场景。"
+                "该工具整合了搜索和内容抓取两个步骤："
+                "1. 调用搜索引擎 API 获取搜索结果；"
+                "2. 并发抓取所有结果页面的正文内容；"
+                "3. 过滤掉抓取失败的结果，只返回有效内容。"
+                "返回 list[SearchResult]，每个结果包含 title、url、content（已抓取）、score。"
             ),
             parameters=[
                 ToolParameter(
@@ -104,11 +85,9 @@ class WebSearchTool(BaseTool[list[SearchResult]]):
                     name="time_range",
                     type="Literal['day', 'week', 'month', 'year']",
                     description=(
-                        "搜索结果的时间范围限制：\n"
-                        "  - 'day': 过去24小时\n"
-                        "  - 'week': 过去一周\n"
-                        "  - 'month': 过去一个月\n"
-                        "  - 'year': 过去一年"
+                        "搜索结果的时间范围限制："
+                        "'day'（过去24小时）、'week'（过去一周）、"
+                        "'month'（过去一个月）、'year'（过去一年）"
                     ),
                     required=False,
                     default="week",
@@ -120,30 +99,6 @@ class WebSearchTool(BaseTool[list[SearchResult]]):
                     required=False,
                     default="5",
                 ),
-            ],
-            returns=(
-                "返回 list[SearchResult]，每个结果包含：\n"
-                "  - title: 网页标题\n"
-                "  - url: 网页 URL\n"
-                "  - content: 网页正文内容（已抓取）\n"
-                "  - score: 搜索相关性评分"
-            ),
-            when_to_use=(
-                "在以下场景使用此工具：\n"
-                "1. 需要补充当前新闻的背景信息或上下文\n"
-                "2. 验证某个事件或声明的真实性\n"
-                "3. 获取某个话题的最新发展动态\n"
-                "4. RSS 源未覆盖的信息需要从互联网补充"
-            ),
-            usage_examples=[
-                "search_web('OpenAI GPT-5 发布', time_range='day') - 搜索最近一天的 GPT-5 相关新闻",
-                "search_web('特斯拉财报', time_range='week', max_results=10) - 搜索一周内特斯拉财报相关的10条结果",
-                "search_web('人工智能监管政策', time_range='month') - 搜索最近一个月的 AI 监管政策新闻",
-            ],
-            notes=[
-                "部分搜索结果可能因网页抓取失败而被过滤",
-                "搜索引擎有请求频率限制，请勿频繁调用",
-                "返回结果已按相关性排序",
             ],
         )
 

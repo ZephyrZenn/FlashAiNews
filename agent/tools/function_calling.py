@@ -6,7 +6,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from agent.tools.base import BaseTool, SyncTool, ToolType
+    from agent.tools.base import BaseTool, ToolType
 
 
 def _map_type_to_json_schema(python_type: str) -> dict:
@@ -46,7 +46,7 @@ def _map_type_to_json_schema(python_type: str) -> dict:
         return {"type": "string"}
 
 
-def tool_schema_to_openai_format(tool: "BaseTool | SyncTool") -> dict:
+def tool_schema_to_openai_format(tool: "BaseTool") -> dict:
     """将 ToolSchema 转换为 OpenAI function calling 格式
     
     Args:
@@ -90,13 +90,13 @@ def tool_schema_to_openai_format(tool: "BaseTool | SyncTool") -> dict:
             "parameters": {
                 "type": "object",
                 "properties": properties,
-                "required": required if required else None,
+                "required": required,  # 始终使用数组，即使是空数组也符合 JSON Schema 规范
             }
         }
     }
 
 
-def tool_schema_to_gemini_format(tool: "BaseTool | SyncTool") -> dict:
+def tool_schema_to_gemini_format(tool: "BaseTool") -> dict:
     """将 ToolSchema 转换为 Gemini function calling 格式
     
     Args:
@@ -138,7 +138,7 @@ def tool_schema_to_gemini_format(tool: "BaseTool | SyncTool") -> dict:
             "parameters": {
                 "type": "object",
                 "properties": properties,
-                "required": required if required else [],
+                "required": required,  # 始终使用数组，即使是空数组也符合 JSON Schema 规范
             }
         }]
     }

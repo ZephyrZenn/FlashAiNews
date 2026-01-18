@@ -5,8 +5,8 @@ from typing import Optional
 
 import toml
 
-from core.models.config import GlobalConfig, ModelConfig
-from core.models.generator import ModelProvider
+from core.models.config import GlobalConfig, ModelConfig, RateLimitConfig
+from core.models.llm import ModelProvider
 
 from .utils import (
     create_default_config,
@@ -161,6 +161,24 @@ def _to_model_config(config: dict) -> ModelConfig:
     )
 
 
+def _to_rate_limit_config(config: dict) -> RateLimitConfig:
+    """Convert dict configuration to RateLimitConfig dataclass.
+    
+    All fields are optional and will use defaults if not provided.
+    """
+    return RateLimitConfig(
+        # Rate limiting settings
+        requests_per_minute=float(config.get("requests_per_minute", 60.0)),
+        burst_size=int(config.get("burst_size", 10)),
+        enable_rate_limit=config.get("enable_rate_limit", True),
+        # Retry settings
+        max_retries=int(config.get("max_retries", 3)),
+        base_delay=float(config.get("base_delay", 1.0)),
+        max_delay=float(config.get("max_delay", 60.0)),
+        enable_retry=config.get("enable_retry", True),
+    )
+
+
 def load_config(reload: bool = False, use_env_overrides: bool = True, path: Optional[str] = None) -> GlobalConfig:
     """Load configuration with caching, validation, and environment overrides"""
     global _config
@@ -211,8 +229,13 @@ def load_config(reload: bool = False, use_env_overrides: bool = True, path: Opti
     model_config = file_config.get("model", {})
     _validate_model_config(model_config)
     
+    # Parse rate limit config (optional, uses defaults if not present)
+    rate_limit_config = file_config.get("rate_limit", {})
+    rate_limit_cfg = _to_rate_limit_config(rate_limit_config)
+    
     global_cfg = GlobalConfig(
         model=_to_model_config(model_config),
+        rate_limit=rate_limit_cfg,
     )
 
     _config = global_cfg

@@ -163,57 +163,7 @@ class BaseTool(ABC, Generic[T]):
         return f"<Tool: {self.name}>"
 
 
-class SyncTool(ABC, Generic[T]):
-    """同步工具抽象基类"""
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """工具唯一标识名称"""
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def schema(self) -> ToolSchema:
-        """工具的完整 Schema 描述，供 LLM 理解如何使用此工具"""
-        raise NotImplementedError
-
-    @property
-    def description(self) -> str:
-        """工具描述（从 schema 获取）"""
-        return self.schema.description
-
-    @abstractmethod
-    def _execute(self, *args, **kwargs) -> T:
-        """
-        实际执行工具的同步方法（子类实现）
-
-        子类应覆盖此方法并定义具体参数签名
-        """
-        raise NotImplementedError
-
-    def execute(self, *args, **kwargs) -> ToolResult[T]:
-        """
-        执行工具并返回统一的结果结构
-
-        自动处理异常并封装为 ToolResult
-        """
-        try:
-            result = self._execute(*args, **kwargs)
-            return ToolResult.ok(result)
-        except Exception as e:  # noqa: BLE001
-            traceback.print_exc()
-            return ToolResult.from_exception(e)
-
-    def get_prompt(self) -> str:
-        """获取供 LLM 阅读的工具说明"""
-        return self.schema.to_prompt()
-
-    def __repr__(self) -> str:
-        return f"<SyncTool: {self.name}>"
-
-
-def get_all_tools_prompt(tools: list[BaseTool | SyncTool]) -> str:
+def get_all_tools_prompt(tools: list[BaseTool]) -> str:
     """生成所有工具的 LLM 可读提示
 
     Args:
@@ -229,7 +179,7 @@ def get_all_tools_prompt(tools: list[BaseTool | SyncTool]) -> str:
 
 
 # 工具类型别名
-ToolType = BaseTool | SyncTool
+ToolType = BaseTool
 
 
 class ToolBox:

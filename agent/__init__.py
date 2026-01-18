@@ -9,9 +9,6 @@ from core.brief_generator import build_generator, APIKeyNotConfiguredError
 logger = logging.getLogger(__name__)
 
 
-
-
-
 # 单例实例
 _agent_instance: Optional[SummarizeAgenticWorkflow] = None
 _boost_agent_instance: Optional[BoostAgent] = None
@@ -19,7 +16,7 @@ _boost_agent_instance: Optional[BoostAgent] = None
 
 def init_agent() -> SummarizeAgenticWorkflow:
     """应用启动时调用，初始化 Agent 单例。
-    
+
     Uses lazy initialization so the app can start without API keys configured.
     API key errors will only occur when actually using the agent.
     """
@@ -33,7 +30,7 @@ def init_agent() -> SummarizeAgenticWorkflow:
 
 def get_agent() -> SummarizeAgenticWorkflow:
     """获取 Agent 单例实例。
-    
+
     Raises:
         RuntimeError: If agent is not initialized.
         APIKeyNotConfiguredError: When summarize() is called without API key configured.
@@ -45,10 +42,10 @@ def get_agent() -> SummarizeAgenticWorkflow:
 
 def init_boost_agent() -> Optional[BoostAgent]:
     """初始化 Function Calling Agent 单例。
-    
+
     Uses lazy initialization so the app can start without API keys configured.
     API key errors will only occur when actually using the agent.
-    
+
     Returns:
         FlexibleFunctionCallAgent 实例，如果 API key 未配置则返回 None
     """
@@ -64,14 +61,16 @@ def init_boost_agent() -> Optional[BoostAgent]:
             logger.info("Flexible Function Calling Agent initialized (lazy mode)")
         except APIKeyNotConfiguredError:
             # 延迟初始化，允许应用启动时没有 API key
-            logger.info("Flexible Agent will be initialized on first use (API key not configured)")
+            logger.info(
+                "Flexible Agent will be initialized on first use (API key not configured)"
+            )
             return None
     return _boost_agent_instance
 
 
 def get_boost_agent() -> BoostAgent:
     """获取 Function Calling Agent 单例实例。
-    
+
     Raises:
         RuntimeError: If agent is not initialized and API key is not configured.
         APIKeyNotConfiguredError: When API key is not configured.

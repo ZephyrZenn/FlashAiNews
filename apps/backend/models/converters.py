@@ -2,7 +2,7 @@
 
 from core.config.loader import get_base_url_for_provider, is_api_key_configured, get_api_key_env_var
 from core.models.config import ModelConfig
-from core.models.generator import ModelProvider
+from core.models.llm import ModelProvider
 
 from .request import ModelConfigRequest
 from .view_model import ModelSettingVO

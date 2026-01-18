@@ -20,3 +20,31 @@ provider = "openai"
 # 
 # Only required when provider = "other":
 # base_url = "https://your-custom-api.com/v1"
+
+
+[rate_limit]
+# Rate limiting settings (all fields are optional, defaults shown below)
+
+# Maximum requests per minute to the LLM API
+requests_per_minute = 60.0
+
+# Maximum burst size for the token bucket rate limiter
+burst_size = 10
+
+# Enable/disable rate limiting (default: true)
+enable_rate_limit = true
+
+# Retry settings for handling transient API errors
+
+# Maximum number of retry attempts on failure
+max_retries = 3
+
+# Base delay in seconds for exponential backoff
+base_delay = 1.0
+
+# Maximum delay in seconds between retries
+max_delay = 60.0
+
+# Enable/disable automatic retry on errors (default: true)
+enable_retry = true
+

@@ -14,7 +14,7 @@ import toml
 
 from core.models.config import GlobalConfig
 
-from core.models.generator import enum_factory
+from core.models.llm import enum_factory
 
 logger = logging.getLogger(__name__)
 

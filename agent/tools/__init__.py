@@ -43,7 +43,6 @@
 import os
 from agent.tools.base import (
     BaseTool,
-    SyncTool,
     ToolResult,
     ToolParameter,
     ToolSchema,
@@ -137,7 +136,6 @@ default_toolbox = create_default_toolbox()
 __all__ = [
     # 基类和通用类型
     "BaseTool",
-    "SyncTool",
     "ToolResult",
     "ToolParameter",
     "ToolSchema",

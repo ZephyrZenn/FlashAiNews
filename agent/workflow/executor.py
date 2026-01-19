@@ -1,6 +1,12 @@
 import asyncio
-from agent.models import AgentState, FocalPoint, WritingMaterial, AgentCriticResult, log_step
-from agent.tools import search_tool
+from agent.models import (
+    AgentState,
+    FocalPoint,
+    WritingMaterial,
+    AgentCriticResult,
+    log_step,
+)
+from agent.tools import search_tool, get_article_content
 from agent.tools.writing_tool import WriteArticleTool, ReviewArticleTool
 from core.brief_generator import AIGenerator
 
@@ -15,6 +21,17 @@ class AgentExecutor:
 
     async def execute(self, state: AgentState) -> list[str]:
         plan = state["plan"]
+        article_ids = [
+            aid for point in plan["focal_points"] for aid in point["article_ids"]
+        ]
+        state["raw_articles"] = [
+            article for article in state["raw_articles"] if article["id"] in article_ids
+        ]
+
+        db_articles = await get_article_content(article_ids)
+        for article in state["raw_articles"]:
+            if article["id"] in db_articles:
+                article["content"] = db_articles[article["id"]]
         tasks = []
         log_step(state, f"🔄 开始并行执行 {len(plan['focal_points'])} 个任务...")
         for point in plan["focal_points"]:
@@ -38,8 +55,7 @@ class AgentExecutor:
         ]
         log_step(state, f"   ↳ 获取 {len(raw_articles)} 篇文章内容...")
         history_memory = [
-            state["history_memories"][hid]
-            for hid in point["history_memory_id"]
+            state["history_memories"][hid] for hid in point["history_memory_id"]
         ]
         if history_memory:
             log_step(state, "   ↳ 获取到历史记忆，将历史记忆融入到文章中")
@@ -82,8 +98,7 @@ class AgentExecutor:
             log_step(state, "   ↳ 搜索引擎不可用，跳过搜索扩展")
             search_results = []
         history_memory = [
-            state["history_memories"][hid]
-            for hid in point["history_memory_id"]
+            state["history_memories"][hid] for hid in point["history_memory_id"]
         ]
         if history_memory:
             log_step(state, "   ↳ 获取到历史记忆，将历史记忆融入到文章中")
@@ -158,7 +173,7 @@ class AgentExecutor:
         history_memory = writing_material.get("history_memory")
         if history_memory and not isinstance(history_memory, list):
             history_memory = [history_memory]
-        
+
         result = await self.write_tool.execute(
             topic=writing_material["topic"],
             style=writing_material["style"],
@@ -181,7 +196,7 @@ class AgentExecutor:
         history_memory = material.get("history_memory")
         if history_memory and not isinstance(history_memory, list):
             history_memory = [history_memory]
-        
+
         result = await self.review_tool.execute(
             draft_content=draft_content,
             topic=material["topic"],

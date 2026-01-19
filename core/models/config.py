@@ -21,11 +21,37 @@ class RateLimitConfig:
 
 
 @dataclass
+class ContextConfig:
+    """Context management configuration dataclass"""
+
+    # Context window settings
+    max_tokens: int = 128000
+    compress_threshold: float = 0.8
+    compress_strategy: str = "truncate"  # summary, truncate, priority
+
+    # Content optimization settings
+    article_max_length: int = 500
+    summary_max_length: int = 200
+    memory_max_length: int = 300
+
+    # Message compression settings
+    history_max_messages: int = 50
+    compression_strategy: str = "sliding_window"  # sliding_window, summary, selective
+    keep_system: bool = True
+    keep_recent_tool_calls: int = 5
+
+    # Tool result limits (to protect context window and logs)
+    tool_result_max_chars: int = 5000
+    tool_result_max_items: int = 20
+
+
+@dataclass
 class GlobalConfig:
     """Global configuration dataclass"""
 
     model: "ModelConfig"
     rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
+    context: ContextConfig = field(default_factory=ContextConfig)
 
 
 @dataclass

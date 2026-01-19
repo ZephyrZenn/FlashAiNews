@@ -352,3 +352,10 @@ async def get_recent_group_update(
     if result.success:
         return result.data
     raise RuntimeError(result.error)
+
+async def get_article_content(article_ids: list[str]) -> dict[str, str]:
+    """获取文章内容（兼容函数）"""
+    result = await get_article_content_tool.execute(article_ids)
+    if result.success:
+        return result.data
+    raise RuntimeError(result.error)

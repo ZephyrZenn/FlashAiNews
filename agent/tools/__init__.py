@@ -69,6 +69,10 @@ from agent.tools.search_tool import (
 )
 from agent.tools.filter_tool import KeywordExtractorTool
 from agent.tools.writing_tool import WriteArticleTool, ReviewArticleTool
+from agent.tools.boost_writing_tool import (
+    BoostWriteArticleTool,
+    BoostReviewArticleTool,
+)
 
 # 工具实例导出
 from agent.tools.db_tool import (
@@ -88,7 +92,7 @@ from agent.tools.search_tool import (
 )
 
 # 兼容函数导出（保持向后兼容）
-from agent.tools.db_tool import get_recent_group_update
+from agent.tools.db_tool import get_recent_group_update, get_article_content
 from agent.tools.memory_tool import (
     save_current_execution_records,
     search_memory,
@@ -111,15 +115,21 @@ def create_default_toolbox() -> ToolBox:
     toolbox = ToolBox()
 
     # 数据库相关工具
-    toolbox.register(recent_group_update_tool, tags=["database", "query", "feed", "group"])
+    toolbox.register(
+        recent_group_update_tool, tags=["database", "query", "feed", "group"]
+    )
     toolbox.register(get_all_feeds_tool, tags=["database", "query", "feed"])
     toolbox.register(get_recent_feed_update_tool, tags=["database", "query", "feed"])
-    toolbox.register(get_article_content_tool, tags=["database", "query", "feed", "content"])
+    toolbox.register(
+        get_article_content_tool, tags=["database", "query", "feed", "content"]
+    )
 
     # 记忆相关工具
     toolbox.register(save_execution_records_tool, tags=["database", "memory", "write"])
     toolbox.register(search_memory_tool, tags=["database", "memory", "query", "vector"])
-    toolbox.register(backfill_embeddings_tool, tags=["database", "memory", "migration", "vector"])
+    toolbox.register(
+        backfill_embeddings_tool, tags=["database", "memory", "migration", "vector"]
+    )
 
     # 搜索相关工具
     if os.getenv("TAVILY_API_KEY"):
@@ -156,6 +166,8 @@ __all__ = [
     "KeywordExtractorTool",
     "WriteArticleTool",
     "ReviewArticleTool",
+    "BoostWriteArticleTool",
+    "BoostReviewArticleTool",
     # 工具实例
     "recent_group_update_tool",
     "get_all_feeds_tool",
@@ -174,4 +186,5 @@ __all__ = [
     "search_web",
     "find_keywords_with_llm",
     "is_search_engine_available",
+    "get_article_content",
 ]

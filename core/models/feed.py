@@ -22,6 +22,39 @@ class Feed:
         self.limit = limit
         self.articles = []
 
+    def to_dict(self) -> dict:
+        """Serialize feed to a JSON-friendly dict."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "url": self.url,
+            "last_updated": self.last_updated,
+            "description": self.desc,
+            "limit": self.limit,
+        }
+
+    def to_dict(self) -> dict:
+        """Return a JSON-serializable representation."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "url": self.url,
+            "description": self.desc,
+            "limit": self.limit,
+            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
+        }
+
+    def to_dict(self) -> dict:
+        """Convert feed to a JSON-serializable dict."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "url": self.url,
+            "description": self.desc,
+            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
+            "limit": self.limit,
+        }
+
 
 class FeedArticle:
     def __init__(
@@ -42,6 +75,28 @@ class FeedArticle:
         self.pub_date = pub_date
         self.has_full_content = has_full_content
 
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "url": self.url,
+            "content": self.content,
+            "summary": self.summary,
+            "pub_date": self.pub_date,
+            "has_full_content": self.has_full_content,
+        }
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "url": self.url,
+            "content": self.content,
+            "summary": self.summary,
+            "pub_date": self.pub_date.isoformat() if self.pub_date else None,
+            "has_full_content": self.has_full_content,
+        }
+
 
 class FeedGroup:
     def __init__(self, id: int, title: str, desc: str, feeds: list[Feed] | None = None):
@@ -49,6 +104,22 @@ class FeedGroup:
         self.title = title
         self.desc = desc
         self.feeds = feeds if feeds is not None else []
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "desc": self.desc,
+            "feeds": [f.to_dict() for f in self.feeds] if self.feeds else [],
+        }
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.desc,
+            "feeds": [f.to_dict() for f in self.feeds],
+        }
 
 
 class FeedBrief:

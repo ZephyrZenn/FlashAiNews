@@ -5,7 +5,7 @@ from typing import Optional
 
 import toml
 
-from core.models.config import GlobalConfig, ModelConfig, RateLimitConfig
+from core.models.config import ContextConfig, GlobalConfig, ModelConfig, RateLimitConfig
 from core.models.llm import ModelProvider
 
 from .utils import (
@@ -179,6 +179,31 @@ def _to_rate_limit_config(config: dict) -> RateLimitConfig:
     )
 
 
+def _to_context_config(config: dict) -> ContextConfig:
+    """Convert dict configuration to ContextConfig dataclass.
+    
+    All fields are optional and will use defaults if not provided.
+    """
+    return ContextConfig(
+        # Context window settings
+        max_tokens=int(config.get("max_tokens", 128000)),
+        compress_threshold=float(config.get("compress_threshold", 0.8)),
+        compress_strategy=str(config.get("compress_strategy", "truncate")),
+        # Content optimization settings
+        article_max_length=int(config.get("article_max_length", 500)),
+        summary_max_length=int(config.get("summary_max_length", 200)),
+        memory_max_length=int(config.get("memory_max_length", 300)),
+        # Message compression settings
+        history_max_messages=int(config.get("history_max_messages", 50)),
+        compression_strategy=str(config.get("compression_strategy", "sliding_window")),
+        keep_system=config.get("keep_system", True),
+        keep_recent_tool_calls=int(config.get("keep_recent_tool_calls", 5)),
+        # Tool result limits
+        tool_result_max_chars=int(config.get("tool_result_max_chars", 5000)),
+        tool_result_max_items=int(config.get("tool_result_max_items", 20)),
+    )
+
+
 def load_config(reload: bool = False, use_env_overrides: bool = True, path: Optional[str] = None) -> GlobalConfig:
     """Load configuration with caching, validation, and environment overrides"""
     global _config
@@ -233,9 +258,14 @@ def load_config(reload: bool = False, use_env_overrides: bool = True, path: Opti
     rate_limit_config = file_config.get("rate_limit", {})
     rate_limit_cfg = _to_rate_limit_config(rate_limit_config)
     
+    # Parse context config (optional, uses defaults if not present)
+    context_config = file_config.get("context", {})
+    context_cfg = _to_context_config(context_config)
+    
     global_cfg = GlobalConfig(
         model=_to_model_config(model_config),
         rate_limit=rate_limit_cfg,
+        context=context_cfg,
     )
 
     _config = global_cfg

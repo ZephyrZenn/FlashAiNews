@@ -18,10 +18,11 @@ class TaskStatus(str, Enum):
     FAILED = "failed"
 
 class TaskInfo:
-    def __init__(self, task_id: str, group_ids: list[int], focus: str):
+    def __init__(self, task_id: str, group_ids: list[int], focus: str, boost_mode: bool = False):
         self.task_id = task_id
         self.group_ids = group_ids
         self.focus = focus
+        self.boost_mode = boost_mode
         self.status = TaskStatus.PENDING
         self.logs: List[dict] = []
         self.result: Optional[str] = None
@@ -52,12 +53,12 @@ class TaskInfo:
 # 全局任务存储（生产环境建议使用 Redis）
 _tasks: Dict[str, TaskInfo] = {}
 
-def create_task(group_ids: list[int], focus: str = "") -> str:
+def create_task(group_ids: list[int], focus: str = "", boost_mode: bool = False) -> str:
     """创建新任务并返回任务ID"""
     task_id = str(uuid.uuid4())
-    task = TaskInfo(task_id, group_ids, focus)
+    task = TaskInfo(task_id, group_ids, focus, boost_mode)
     _tasks[task_id] = task
-    logger.info(f"Created task {task_id} for groups {group_ids}")
+    logger.info(f"Created task {task_id} for groups {group_ids}, boost_mode={boost_mode}")
     return task_id
 
 def get_task(task_id: str) -> Optional[TaskInfo]:
@@ -89,7 +90,8 @@ async def execute_brief_generation_task(task_id: str):
         brief = await generate_brief_for_groups_async(
             group_ids=task.group_ids,
             focus=task.focus,
-            on_step=on_step
+            on_step=on_step,
+            boost_mode=task.boost_mode
         )
         
         # 再次检查任务是否存在（可能在执行过程中被清理）

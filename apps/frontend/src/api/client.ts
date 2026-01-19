@@ -54,11 +54,12 @@ export const api = {
   getDefaultBriefs: () => unwrap<FeedBrief[]>(
     client.get<FeedBriefListResponse>('/briefs/default'),
   ),
-  generateBrief: (groupIds: number[], focus: string = '') =>
+  generateBrief: (groupIds: number[], focus: string = '', boostMode: boolean = false) =>
     unwrap<{ task_id: string }>(
       client.post<ApiResponse<{ task_id: string }>>('/briefs/generate', {
         group_ids: groupIds,
         focus,
+        boost_mode: boostMode,
       })
     ),
   getBriefGenerationStatus: (taskId: string) =>

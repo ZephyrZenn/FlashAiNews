@@ -1,12 +1,14 @@
 import logging
 from datetime import datetime
 import json
+from agent.context import ContentOptimizer
 from agent.models import AgentPlanResult, AgentState, log_step
 from agent.prompts import (
     GLOBAL_PLANNER_PROMPT_TEMPLATE,
     GROUP_PLANNER_PROMPT_TEMPLATE,
 )
 from core.brief_generator import AIGenerator
+from core.config import get_config
 from agent.utils import extract_json
 from agent.tools import filter_tool, memory_tool
 
@@ -16,6 +18,15 @@ logger = logging.getLogger(__name__)
 class AgentPlanner:
     def __init__(self, client: AIGenerator):
         self.client = client
+        # 初始化内容优化器（传入client以支持LLM关键词提取）
+        config = get_config()
+        context_cfg = config.context
+        self.content_optimizer = ContentOptimizer(
+            article_max_length=context_cfg.article_max_length,
+            summary_max_length=context_cfg.summary_max_length,
+            memory_max_length=context_cfg.memory_max_length,
+            client=client,  # 传入client以支持LLM关键词提取
+        )
 
     async def plan(self, state: AgentState) -> AgentPlanResult:
         result = None
@@ -29,7 +40,7 @@ class AgentPlanner:
         state["history_memories"] = memories
 
         log_step(state, "🤖 正在调用LLM进行规划...")
-        prompt = self._build_prompt(state)
+        prompt = await self._build_prompt(state)
         logger.info("Sending planner prompt to LLM: %s", prompt)
         response = await self.client.completion(prompt)
         logger.info("Received planner response from LLM: %s", response)
@@ -53,15 +64,47 @@ class AgentPlanner:
             logger.error("Failed to parse planner response: %s", response)
             raise ValueError(f"Failed to parse planner response: {response}") from e
 
-    def _build_prompt(self, state: AgentState) -> str:
+    async def _build_prompt(self, state: AgentState) -> str:
+        # 优化文章内容：去重、优先级排序、截断（现在是异步）
+        optimized_articles = await self.content_optimizer.optimize_articles_for_prompt(
+            state["raw_articles"],
+            focus=state.get("focus", ""),
+            # 函数会自动检测文章是否有完整内容，无需手动指定
+        )
+        
+        # 格式化文章为JSON字符串（只包含关键信息）
+        articles_json = json.dumps(
+            [
+                {
+                    "id": str(a.get("id", "")),
+                    "title": a.get("title", ""),
+                    "url": a.get("url", ""),
+                    "summary": self.content_optimizer.truncate_text(
+                        a.get("summary", ""), self.content_optimizer.summary_max_length
+                    ),
+                    "pub_date": str(a.get("pub_date", "")),
+                }
+                for a in optimized_articles
+            ],
+            ensure_ascii=False,
+            indent=2,
+        )
+        
+        # 优化历史记忆
+        history_memories_list = list(state["history_memories"].values())
+        optimized_memories = self.content_optimizer.truncate_memories(history_memories_list)
+        
         history_memories = [
             {
                 "id": memory["id"],
                 "topic": memory["topic"],
-                "reasoning": memory["reasoning"],
+                "reasoning": self.content_optimizer.truncate_text(
+                    memory.get("reasoning", ""), 200
+                ),
             }
-            for memory in state["history_memories"].values()
+            for memory in optimized_memories
         ]
+        
         template = (
             GROUP_PLANNER_PROMPT_TEMPLATE
             if len(state["groups"]) == 1
@@ -70,6 +113,6 @@ class AgentPlanner:
         return template.format(
             current_date=datetime.now().strftime("%Y-%m-%d"),
             focus=state["focus"],
-            raw_articles=state["raw_articles"],
-            history_memories=history_memories,
+            raw_articles=articles_json,
+            history_memories=json.dumps(history_memories, ensure_ascii=False, indent=2),
         )

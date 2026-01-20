@@ -181,7 +181,7 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
                     type="int",
                     description="搜索时间范围，单位为天。只返回指定天数内的记忆",
                     required=False,
-                    default="30",
+                    default="7",
                 ),
                 ToolParameter(
                     name="limit",
@@ -203,7 +203,7 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
     async def _execute(
         self,
         queries: Sequence[str],
-        days_ago: int = 30,
+        days_ago: int = 7,
         limit: int = 10,
         similarity_threshold: float = 0.3,
     ) -> dict[int, SummaryMemory]:
@@ -463,7 +463,7 @@ async def save_current_execution_records(state: AgentState) -> None:
 
 async def search_memory(
     queries: Sequence[str],
-    days_ago: int = 30,
+    days_ago: int = 7,
     limit: int = 10,
 ) -> dict[int, SummaryMemory]:
     """搜索记忆（兼容函数）

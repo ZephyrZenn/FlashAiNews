@@ -17,3 +17,10 @@ def generate_scheduled_brief(schedule_id: str, group_ids: list[int], focus: str)
         logger.info(f"Finished generating scheduled brief {schedule_id}")
     except Exception as e:
         logger.exception(f"Error generating scheduled brief {schedule_id}: {e}")
+
+def check_feed_health():
+    """
+    Check the health of the feed.
+    """
+    from apps.backend.services.feed_service import check_feed_health as _check_feed_health
+    _check_feed_health()

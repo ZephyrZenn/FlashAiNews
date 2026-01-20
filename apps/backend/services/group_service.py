@@ -53,7 +53,7 @@ def get_group_detail(group_id: int):
                 raise BizException(f"Group {group_id} not found")
             group = FeedGroup(id=res[0], title=res[1], desc=res[2])
             cur.execute(
-                """SELECT id, title, url, last_updated, description, "limit" FROM feeds WHERE id IN (SELECT feed_id FROM feed_group_items WHERE feed_group_id = %s)""",
+                """SELECT id, title, url, last_updated, description, status FROM feeds WHERE id IN (SELECT feed_id FROM feed_group_items WHERE feed_group_id = %s)""",
                 (group_id,),
             )
             group.feeds = [
@@ -63,7 +63,7 @@ def get_group_detail(group_id: int):
                     url=row[2],
                     last_updated=row[3],
                     desc=row[4],
-                    limit=row[5],
+                    status=row[5],
                 )
                 for row in cur.fetchall()
             ]
@@ -160,7 +160,7 @@ def get_all_groups_with_feeds() -> list[FeedGroup]:
             # Get all feeds with their group associations
             cur.execute(
                 """
-                SELECT f.id, f.title, f.url, f.last_updated, f.description, f."limit", fgi.feed_group_id
+                SELECT f.id, f.title, f.url, f.last_updated, f.description, f.status, fgi.feed_group_id
                 FROM feeds f
                 JOIN feed_group_items fgi ON f.id = fgi.feed_id
                 WHERE fgi.feed_group_id = ANY(%s)
@@ -176,7 +176,7 @@ def get_all_groups_with_feeds() -> list[FeedGroup]:
                     url=row[2],
                     last_updated=row[3],
                     desc=row[4],
-                    limit=row[5],
+                    status=row[5],
                 )
                 group_id = row[6]
                 if group_id in groups:
@@ -198,7 +198,7 @@ def get_group_with_feeds(group_ids: list[int]) -> list[FeedGroup]:
             }
             cur.execute(
                 """
-                SELECT f.id, f.title, f.url, f.last_updated, f.description, f."limit", fgi.feed_group_id 
+                SELECT f.id, f.title, f.url, f.last_updated, f.description, f.status, fgi.feed_group_id 
                 FROM feeds f
                 JOIN feed_group_items fgi ON f.id = fgi.feed_id
                 WHERE fgi.feed_group_id = ANY(%s)
@@ -212,7 +212,7 @@ def get_group_with_feeds(group_ids: list[int]) -> list[FeedGroup]:
                     url=row[2],
                     last_updated=row[3],
                     desc=row[4],
-                    limit=row[5],
+                    status=row[5],
                 )
                 group_id = row[6]
                 if group_id in groups:

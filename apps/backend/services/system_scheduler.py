@@ -4,6 +4,7 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
+from apps.backend.crons import check_feed_health
 from apps.backend.services import task_service
 from apps.backend.services.feed_service import retrieve_new_feeds
 
@@ -20,18 +21,8 @@ def init_system_scheduler():
         _system_scheduler.start()
         logger.info("System scheduler started")
 
-    # 添加清理已完成任务的任务（每小时执行一次）
-    _system_scheduler.add_job(
-        cleanup_completed_tasks_job,
-        trigger=IntervalTrigger(hours=1),
-        id="cleanup_completed_tasks",
-        name="Cleanup completed tasks",
-        replace_existing=True,
-    )
-    _system_scheduler.add_job(
-        retrieve_new_feeds, trigger=IntervalTrigger(hours=6), id="retrieve_new_feeds", name="Retrieve new feeds", replace_existing=True,
-    )
-    logger.info("Added cleanup_completed_tasks job to system scheduler")
+    _load_default_jobs()
+    logger.info("Loaded default jobs to system scheduler")
 
 
 def cleanup_completed_tasks_job():
@@ -50,3 +41,28 @@ def shutdown_system_scheduler():
         _system_scheduler.shutdown()
         logger.info("System scheduler shut down")
     _system_scheduler = None
+
+
+def _load_default_jobs():
+    """加载默认定时任务"""
+    _system_scheduler.add_job(
+        cleanup_completed_tasks_job,
+        trigger=IntervalTrigger(hours=1),
+        id="cleanup_completed_tasks",
+        name="Cleanup completed tasks",
+        replace_existing=True,
+    )
+    _system_scheduler.add_job(
+        retrieve_new_feeds,
+        trigger=IntervalTrigger(hours=6),
+        id="retrieve_new_feeds",
+        name="Retrieve new feeds",
+        replace_existing=True,
+    )
+    _system_scheduler.add_job(
+        check_feed_health,
+        trigger=IntervalTrigger(hours=1),
+        id="check_feed_health",
+        name="Check feed health",
+        replace_existing=True,
+    )

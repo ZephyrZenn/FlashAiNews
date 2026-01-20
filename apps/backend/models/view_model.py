@@ -10,6 +10,7 @@ class FeedVO(CamelModel):
     title: str
     url: str
     desc: str
+    status: str
 
 
 class FeedGroupVO(CamelModel):

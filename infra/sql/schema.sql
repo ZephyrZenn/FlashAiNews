@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS feeds
     title        VARCHAR(64)         NOT NULL,
     description  VARCHAR(512)        NOT NULL,
     last_updated TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "limit"      INTEGER             NOT NULL DEFAULT 3,
+    status       VARCHAR(16)         NOT NULL DEFAULT 'active',
     created_at   TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at   TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

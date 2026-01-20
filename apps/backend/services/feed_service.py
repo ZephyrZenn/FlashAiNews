@@ -38,10 +38,12 @@ def retrieve_new_feeds(group_ids: list[int] = None):
     with get_connection() as conn:
         with conn.cursor() as cur:
             if not group_ids:
-                cur.execute("""
-                            SELECT id, title, url, last_updated, description, "limit"
+                cur.execute(
+                    """
+                            SELECT id, title, url, last_updated, description, status
                             from feeds
-                            """)
+                            """
+                )
                 feeds = [
                     Feed(row[0], row[1], row[2], row[3], row[4], row[5])
                     for row in cur.fetchall()
@@ -50,7 +52,7 @@ def retrieve_new_feeds(group_ids: list[int] = None):
             else:
                 cur.execute(
                     """
-                            SELECT id, title, url, last_updated, description, "limit"
+                            SELECT id, title, url, last_updated, description, status
                             from feeds
                             where id in (SELECT feed_id
                                          FROM feed_group_items
@@ -149,7 +151,7 @@ def get_all_feeds():
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT id, title, url, last_updated, description, "limit" FROM feeds"""
+                """SELECT id, title, url, last_updated, description, status FROM feeds"""
             )
             return [
                 Feed(
@@ -158,7 +160,7 @@ def get_all_feeds():
                     url=row[2],
                     last_updated=row[3],
                     desc=row[4],
-                    limit=row[5],
+                    status=row[5],
                 )
                 for row in cur.fetchall()
             ]
@@ -190,7 +192,7 @@ def _insert_feeds(cur, feeds):
     if not feeds:
         return
     insert_sql = """
-                  INSERT INTO feeds (title, url, "limit", description, last_updated)
+                  INSERT INTO feeds (title, url, status, description, last_updated)
                   VALUES (%s, %s, %s, %s, %s)
                   ON CONFLICT(url) DO NOTHING
                   RETURNING id \
@@ -199,13 +201,14 @@ def _insert_feeds(cur, feeds):
         (
             feed.title,
             feed.url,
-            feed.limit,
+            feed.status,
             feed.desc,
             feed.last_updated,
         )
         for feed in feeds
     ]
     cur.executemany(insert_sql, data_to_insert)
+
 
 def get_feed_items(hour_gap: int, group_ids: Optional[list[int]]) -> list[dict]:
     """
@@ -250,3 +253,39 @@ def get_feed_items(hour_gap: int, group_ids: Optional[list[int]]) -> list[dict]:
             ]
 
 
+def check_feed_health():
+    """
+    Check the health of the feed.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT id, url, status FROM feeds""")
+            feeds = [
+                {"id": row[0], "url": row[1], "status": row[2]}
+                for row in cur.fetchall()
+            ]
+    import requests
+
+    update_feeds = []
+    for feed in feeds:
+        try:
+            response = requests.get(feed["url"], timeout=5)
+            if response.status_code != 200:
+                logger.warning(
+                    f"Feed {feed['id']} url {feed['url']} returned status {response.status_code}"
+                )
+                new_status = "unreachable"
+            else:
+                new_status = "active"
+        except Exception as e:
+            logger.warning(f"Feed {feed['id']} url {feed['url']} request exception: {e}")
+            new_status = "unreachable"
+        if new_status != feed["status"]:
+            update_feeds.append((new_status, feed["id"]))
+    if update_feeds:
+        update_sql = """
+                      UPDATE feeds SET status = %s WHERE id = %s
+                      """
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.executemany(update_sql, update_feeds)

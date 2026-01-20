@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from core.constants import DEFAULT_FEED_LAST_USED_DATE
 
@@ -12,14 +12,14 @@ class Feed:
         url: str,
         last_updated: datetime = DEFAULT_FEED_LAST_USED_DATE,
         desc: str = "",
-        limit: int = 10,
+        status: Literal['active', 'unreachable'] = 'active',
     ):
         self.id = id
         self.title = title
         self.url = url
         self.last_updated = last_updated
         self.desc = desc
-        self.limit = limit
+        self.status = status
         self.articles = []
 
     def to_dict(self) -> dict:
@@ -30,29 +30,7 @@ class Feed:
             "url": self.url,
             "last_updated": self.last_updated,
             "description": self.desc,
-            "limit": self.limit,
-        }
-
-    def to_dict(self) -> dict:
-        """Return a JSON-serializable representation."""
-        return {
-            "id": self.id,
-            "title": self.title,
-            "url": self.url,
-            "description": self.desc,
-            "limit": self.limit,
-            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
-        }
-
-    def to_dict(self) -> dict:
-        """Convert feed to a JSON-serializable dict."""
-        return {
-            "id": self.id,
-            "title": self.title,
-            "url": self.url,
-            "description": self.desc,
-            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
-            "limit": self.limit,
+            "status": self.status,
         }
 
 
@@ -82,17 +60,6 @@ class FeedArticle:
             "url": self.url,
             "content": self.content,
             "summary": self.summary,
-            "pub_date": self.pub_date,
-            "has_full_content": self.has_full_content,
-        }
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "title": self.title,
-            "url": self.url,
-            "content": self.content,
-            "summary": self.summary,
             "pub_date": self.pub_date.isoformat() if self.pub_date else None,
             "has_full_content": self.has_full_content,
         }
@@ -111,14 +78,6 @@ class FeedGroup:
             "title": self.title,
             "desc": self.desc,
             "feeds": [f.to_dict() for f in self.feeds] if self.feeds else [],
-        }
-
-    def to_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "title": self.title,
-            "description": self.desc,
-            "feeds": [f.to_dict() for f in self.feeds],
         }
 
 

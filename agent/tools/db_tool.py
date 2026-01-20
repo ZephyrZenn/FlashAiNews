@@ -140,7 +140,7 @@ class GetAllFeedsTool(BaseTool[List[Feed]]):
         async with get_async_connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    """SELECT id, title, url, last_updated, description, "limit" FROM feeds ORDER BY id ASC"""
+                    """SELECT id, title, url, last_updated, description, status FROM feeds ORDER BY id ASC"""
                 )
                 rows = await cur.fetchall()
                 feeds = [
@@ -150,7 +150,7 @@ class GetAllFeedsTool(BaseTool[List[Feed]]):
                         url=row[2],
                         last_updated=row[3],
                         desc=row[4] or "",
-                        limit=row[5] or 10,
+                        status=row[5] or "active",
                     )
                     for row in rows
                 ]
@@ -213,7 +213,7 @@ class GetRecentFeedUpdateTool(BaseTool[Tuple[List[Feed], List[RawArticle]]]):
             async with conn.cursor() as cur:
                 # 查询 1: 获取 feeds
                 await cur.execute(
-                    """SELECT id, title, url, last_updated, description, "limit" FROM feeds WHERE id = ANY(%s)""",
+                    """SELECT id, title, url, last_updated, description, status FROM feeds WHERE id = ANY(%s)""",
                     (feed_ids,),
                 )
                 feed_rows = await cur.fetchall()
@@ -224,7 +224,7 @@ class GetRecentFeedUpdateTool(BaseTool[Tuple[List[Feed], List[RawArticle]]]):
                         url=row[2],
                         last_updated=row[3],
                         desc=row[4] or "",
-                        limit=row[5] or 10,
+                        status=row[5] or "active",
                     )
                     for row in feed_rows
                 ]

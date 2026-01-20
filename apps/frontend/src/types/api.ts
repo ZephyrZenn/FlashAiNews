@@ -9,6 +9,7 @@ export interface Feed {
   title: string;
   url: string;
   desc: string;
+  status: string;
 }
 
 export interface FeedGroup {

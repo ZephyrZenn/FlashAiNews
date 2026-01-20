@@ -138,6 +138,35 @@ const SourcesPage = () => {
             key={source.id}
             className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-sm hover:shadow-md transition-all relative group flex flex-col justify-between min-h-[120px] md:h-[130px]"
           >
+            {/* Status indicator - top right corner with breathing effect */}
+            {source.status && (
+              <div
+                className="absolute top-3 right-3 z-10"
+                title={source.status === 'active' ? '正常' : '不可访问'}
+              >
+                <div className="relative w-3 h-3">
+                  {/* Breathing outer ring */}
+                  <div
+                    className={`absolute inset-0 rounded-full ${
+                      source.status === 'active'
+                        ? 'bg-green-400/40'
+                        : 'bg-rose-400/40'
+                    }`}
+                    style={{
+                      animation: 'breathing 2s ease-in-out infinite',
+                    }}
+                  />
+                  {/* Inner dot */}
+                  <div
+                    className={`relative w-3 h-3 rounded-full ${
+                      source.status === 'active'
+                        ? 'bg-green-500'
+                        : 'bg-rose-500'
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
             <div>
               <div className="flex justify-between items-start mb-3">
                 <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-400">
@@ -166,7 +195,15 @@ const SourcesPage = () => {
               <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-1.5 py-0.5 rounded truncate max-w-[80px]">
                 {source.groupName}
               </span>
-              <ExternalLink size={12} className="text-slate-200 flex-shrink-0" />
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-200 hover:text-indigo-600 transition-colors flex-shrink-0"
+                title="打开订阅源链接"
+              >
+                <ExternalLink size={12} />
+              </a>
             </div>
           </div>
         ))}

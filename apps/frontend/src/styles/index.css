@@ -39,3 +39,14 @@ textarea::placeholder {
   font-size: 0.875rem;
   opacity: 0.6;
 }
+
+@keyframes breathing {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}

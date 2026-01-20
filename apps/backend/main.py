@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
     # Shutdown: Clean up thread pool
     shutdown_thread_pool()
     close_pool()
-    close_async_pool()
+    await close_async_pool()
 
 
 # Router

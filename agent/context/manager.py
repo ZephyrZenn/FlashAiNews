@@ -6,6 +6,8 @@ Provides token counting, context size detection, and compression triggers.
 import logging
 from typing import Literal
 
+from core.models.llm import Message
+
 logger = logging.getLogger(__name__)
 
 
@@ -74,11 +76,11 @@ class ContextManager:
         
         return max(estimated_tokens, 1)  # At least 1 token
 
-    def estimate_messages_tokens(self, messages: list[dict]) -> int:
+    def estimate_messages_tokens(self, messages: list[Message]) -> int:
         """Estimate total token count for a list of messages.
         
         Args:
-            messages: List of message dictionaries (OpenAI format)
+            messages: List of Message objects
             
         Returns:
             Total estimated token count
@@ -87,37 +89,33 @@ class ContextManager:
         
         for msg in messages:
             # System message overhead
-            if msg.get("role") == "system":
+            if msg.role == "system":
                 total_tokens += 10  # System message overhead
             
             # Content tokens
-            content = msg.get("content", "")
-            if content:
-                total_tokens += self.estimate_tokens(str(content))
+            if msg.content:
+                total_tokens += self.estimate_tokens(str(msg.content))
             
             # Tool calls overhead
-            if msg.get("tool_calls"):
+            if msg.tool_calls:
                 total_tokens += 50  # Tool call overhead
-                for tool_call in msg["tool_calls"]:
-                    func_name = tool_call.get("function", {}).get("name", "")
-                    func_args = tool_call.get("function", {}).get("arguments", "")
-                    total_tokens += self.estimate_tokens(func_name)
-                    total_tokens += self.estimate_tokens(func_args)
+                for tool_call in msg.tool_calls:
+                    total_tokens += self.estimate_tokens(tool_call.name)
+                    total_tokens += self.estimate_tokens(tool_call.arguments)
             
             # Tool response overhead
-            if msg.get("role") == "tool":
+            if msg.role == "tool":
                 total_tokens += 20  # Tool response overhead
-                tool_content = msg.get("content", "")
-                if tool_content:
-                    total_tokens += self.estimate_tokens(str(tool_content))
+                if msg.content:
+                    total_tokens += self.estimate_tokens(str(msg.content))
         
         return total_tokens
 
-    def update_tokens(self, messages: list[dict]) -> int:
+    def update_tokens(self, messages: list[Message]) -> int:
         """Update current token count based on messages.
         
         Args:
-            messages: List of message dictionaries
+            messages: List of Message objects
             
         Returns:
             Current token count
@@ -125,7 +123,7 @@ class ContextManager:
         self.current_tokens = self.estimate_messages_tokens(messages)
         return self.current_tokens
 
-    def should_compress(self, messages: list[dict] | None = None) -> bool:
+    def should_compress(self, messages: list[Message] | None = None) -> bool:
         """Check if compression should be triggered.
         
         Args:
@@ -150,7 +148,7 @@ class ContextManager:
         
         return should_compress
 
-    def get_usage_ratio(self, messages: list[dict] | None = None) -> float:
+    def get_usage_ratio(self, messages: list[Message] | None = None) -> float:
         """Get current context usage ratio.
         
         Args:

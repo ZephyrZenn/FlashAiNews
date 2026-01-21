@@ -14,6 +14,11 @@ from agent.boost_agent.prompt_builder import PromptBuilder
 from agent.boost_agent.prompts import EXECUTION_SYSTEM_PROMPT, PLANNING_SYSTEM_PROMPT
 from agent.boost_agent.state_updater import StateUpdater
 from agent.boost_agent.tool_handler import ToolHandler
+from agent.boost_agent.tool_logger import (
+    format_tool_args_summary,
+    format_tool_result_summary,
+    get_tool_description,
+)
 from agent.artifact_store import ArtifactStore
 from agent.context import ContextManager, ContentOptimizer, MessageCompressor
 from agent.models import (
@@ -33,6 +38,7 @@ from agent.tools.boost_writing_tool import (
 from agent.utils import extract_json
 from core.brief_generator import AIGenerator
 from core.config import get_config
+from core.models.llm import Message, ToolCall
 
 logger = logging.getLogger(__name__)
 
@@ -213,11 +219,8 @@ class BoostAgent:
 
         # 构建初始消息
         messages = [
-            {"role": "system", "content": PLANNING_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": self._prompt_builder.build_planning_prompt(focus, hour_gap),
-            },
+            Message.system(PLANNING_SYSTEM_PROMPT),
+            Message.user(self._prompt_builder.build_planning_prompt(focus, hour_gap)),
         ]
 
         # ReAct 循环：LLM 可以调用工具，然后基于结果继续规划
@@ -234,8 +237,10 @@ class BoostAgent:
             )
 
             try:
+                # 转换为dict格式用于API调用
+                messages_dict = [msg.to_dict() for msg in messages]
                 response = await self.client.completion_with_tools(
-                    messages=messages,
+                    messages=messages_dict,
                     tools=tools_schema,
                 )
 
@@ -261,12 +266,11 @@ class BoostAgent:
                 # 将响应添加到消息历史，并提示输出 JSON
                 content = response.get("content", "")
                 if content:
-                    messages.append({"role": "assistant", "content": content})
+                    messages.append(Message.assistant(content))
                     messages.append(
-                        {
-                            "role": "user",
-                            "content": "请直接输出 JSON 格式的执行计划，不要有任何解释或说明文字。格式必须严格按照要求。",
-                        }
+                        Message.user(
+                            "请直接输出 JSON 格式的执行计划，不要有任何解释或说明文字。格式必须严格按照要求。"
+                        )
                     )
                     log_step(
                         self.state, "⚠️ 规划阶段：LLM 返回了文本而非 JSON，提示重新输出..."
@@ -287,18 +291,30 @@ class BoostAgent:
         return self._create_default_plan()
 
     async def _handle_tool_calls_response(
-        self, response: dict, messages: list, phase: str = "执行"
-    ) -> list:
+        self, response: dict, messages: list[Message], phase: str = "执行"
+    ) -> list[Message]:
         """处理工具调用响应（通用方法）"""
-        tool_messages = await self._handle_tool_calls(response["tool_calls"])
+        tool_calls = response["tool_calls"]
+        tool_descriptions = [
+            get_tool_description(tc["function"]["name"]) for tc in tool_calls
+        ]
+        
+        # 记录工具调用开始
+        if phase == "规划":
+            log_step(
+                self.state,
+                f"🔧 规划阶段：{'、'.join(tool_descriptions)}",
+            )
+        else:
+            log_step(
+                self.state,
+                f"   ↳ {'、'.join(tool_descriptions)}",
+            )
+        
+        tool_messages = await self._handle_tool_calls(tool_calls)
         messages.append(self._build_assistant_message_with_tool_calls(response))
         messages.extend(tool_messages)
-
-        tool_names = [tc["function"]["name"] for tc in response["tool_calls"]]
-        if phase == "规划":
-            log_step(self.state, f"🔧 规划阶段：调用工具：{tool_names}")
-        else:
-            log_step(self.state, f"   ↳ 调用了工具：{tool_names}")
+        
         return messages
 
     def _try_parse_plan(self, response: dict) -> AgentPlanResult | None:
@@ -316,23 +332,21 @@ class BoostAgent:
             log_step(self.state, "❌ 规划失败：无法解析LLM响应，尝试继续...")
             return None
 
-    def _build_assistant_message_with_tool_calls(self, response: dict) -> dict:
+    def _build_assistant_message_with_tool_calls(self, response: dict) -> Message:
         """构建包含工具调用的 assistant 消息"""
-        return {
-            "role": "assistant",
-            "content": response.get("content"),
-            "tool_calls": [
-                {
-                    "id": tc["id"],
-                    "type": "function",
-                    "function": {
-                        "name": tc["function"]["name"],
-                        "arguments": tc["function"]["arguments"],
-                    },
-                }
-                for tc in response["tool_calls"]
-            ],
-        }
+        tool_calls = []
+        for tc in response["tool_calls"]:
+            tool_calls.append(
+                ToolCall(
+                    id=tc["id"],
+                    name=tc["function"]["name"],
+                    arguments=tc["function"]["arguments"],
+                )
+            )
+        return Message.assistant(
+            content=response.get("content", ""),
+            tool_calls=tool_calls,
+        )
 
     async def _execution_phase(
         self,
@@ -361,8 +375,8 @@ class BoostAgent:
                 focal_point, self.state
             )
             messages = [
-                {"role": "system", "content": EXECUTION_SYSTEM_PROMPT},
-                {"role": "user", "content": execution_prompt},
+                Message.system(EXECUTION_SYSTEM_PROMPT),
+                Message.user(execution_prompt),
             ]
 
             # ReAct 循环
@@ -382,7 +396,7 @@ class BoostAgent:
         return results
 
     async def _execute_focal_point(
-        self, focal_point: FocalPoint, messages: list, execution_tools: list
+        self, focal_point: FocalPoint, messages: list[Message], execution_tools: list
     ) -> str | None:
         """执行单个 focal point 的 ReAct 循环"""
         iteration = 0
@@ -401,8 +415,10 @@ class BoostAgent:
             )
 
             try:
+                # 转换为dict格式用于API调用
+                messages_dict = [msg.to_dict() for msg in messages]
                 response = await self.client.completion_with_tools(
-                    messages=messages,
+                    messages=messages_dict,
                     tools=tools_schema,
                 )
 
@@ -441,24 +457,34 @@ class BoostAgent:
 
         return None
 
-    async def _handle_tool_calls(self, tool_calls: list[dict]) -> list[dict]:
+    async def _handle_tool_calls(self, tool_calls: list[dict]) -> list[Message]:
         """处理工具调用并返回结果到消息历史"""
         tool_messages = []
 
         for tool_call in tool_calls:
             tool_name = tool_call["function"]["name"]
             tool_id = tool_call.get("id", f"call_{len(tool_messages)}")
+            tool_description = get_tool_description(tool_name)
 
             # 解析参数
             tool_args = self._tool_handler.parse_tool_arguments(
                 tool_call, tool_id, tool_name, tool_messages
             )
             if tool_args is None:
+                log_step(self.state, f"      ❌ {tool_description}: 参数解析失败")
                 continue
+
+            # 记录工具调用参数摘要
+            args_summary = format_tool_args_summary(tool_name, tool_args)
+            if args_summary:
+                log_step(self.state, f"      📋 {tool_description} ({args_summary})")
+            else:
+                log_step(self.state, f"      📋 {tool_description}")
 
             # 获取工具
             tool = self.toolbox.get(tool_name)
             if not tool:
+                log_step(self.state, f"      ❌ {tool_description}: 工具不存在")
                 tool_messages.append(
                     self._tool_handler.create_error_message(
                         tool_id, tool_name, f"工具 {tool_name} 不存在"
@@ -469,12 +495,18 @@ class BoostAgent:
             # 执行工具
             result = await self._tool_handler.execute_tool(tool_name, tool, tool_args)
             if result is None:
+                log_step(self.state, f"      ❌ {tool_description}: 执行失败")
                 tool_messages.append(
                     self._tool_handler.create_error_message(
                         tool_id, tool_name, "工具执行失败"
                     )
                 )
                 continue
+
+            # 记录工具执行结果摘要
+            result_summary = format_tool_result_summary(tool_name, result)
+            if result_summary:
+                log_step(self.state, f"      {result_summary}")
 
             # 更新 state（如果需要）
             if result.success:
@@ -483,12 +515,7 @@ class BoostAgent:
             # 构建响应消息
             content = self._tool_handler.serialize_tool_result(result)
             tool_messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_id,
-                    "name": tool_name,
-                    "content": content,
-                }
+                Message.tool(content, tool_name, tool_id)
             )
 
         return tool_messages

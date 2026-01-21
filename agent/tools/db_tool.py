@@ -301,12 +301,6 @@ class GetArticleContentTool(BaseTool[dict[str, str]]):
         if not article_ids:
             return {}
 
-        # 将 ID 转换为整数（数据库中的 ID 是整数）
-        try:
-            int_ids = [int(aid) for aid in article_ids]
-        except (ValueError, TypeError):
-            return {}
-
         async with get_async_connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
@@ -317,18 +311,18 @@ class GetArticleContentTool(BaseTool[dict[str, str]]):
                     JOIN feed_item_contents fic ON fic.feed_item_id = fi.id
                     WHERE fi.id = ANY(%s);
                     """,
-                    (int_ids,),
+                    (article_ids,),
                 )
 
                 rows = await cur.fetchall()
                 # 构建字典，key 是字符串ID，value 是内容
                 result = {str(row[0]): (row[1] or "") for row in rows}
-                
+
                 # 确保所有请求的 ID 都在结果中（不存在的设为空字符串）
                 for aid in article_ids:
                     if aid not in result:
                         result[aid] = ""
-                
+
                 return result
 
 
@@ -352,6 +346,7 @@ async def get_recent_group_update(
     if result.success:
         return result.data
     raise RuntimeError(result.error)
+
 
 async def get_article_content(article_ids: list[str]) -> dict[str, str]:
     """获取文章内容（兼容函数）"""

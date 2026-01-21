@@ -8,6 +8,7 @@ import logging
 from typing import Literal
 
 from agent.context.manager import ContextManager
+from core.models.llm import Message
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +43,12 @@ class MessageCompressor:
         self.keep_recent_tool_calls = keep_recent_tool_calls
 
     def compress_messages(
-        self, messages: list[dict], target_tokens: int | None = None
-    ) -> list[dict]:
+        self, messages: list[Message], target_tokens: int | None = None
+    ) -> list[Message]:
         """Compress messages using the configured strategy.
         
         Args:
-            messages: List of message dictionaries to compress
+            messages: List of Message objects to compress
             target_tokens: Target token count (None to use threshold)
             
         Returns:
@@ -55,6 +56,9 @@ class MessageCompressor:
         """
         if not messages:
             return messages
+        
+        # 标记受保护的消息（system和第一条user消息）
+        self._mark_protected_messages(messages)
         
         current_tokens = self.context_manager.estimate_messages_tokens(messages)
         
@@ -97,9 +101,25 @@ class MessageCompressor:
         
         return compressed
 
+    def _mark_protected_messages(self, messages: list[Message]) -> None:
+        """标记受保护的消息：system消息和第一条user消息（priority=0）
+        
+        Args:
+            messages: 消息列表（会被修改）
+        """
+        first_user_found = False
+        for msg in messages:
+            # 所有system消息设置为最高优先级
+            if msg.role == "system":
+                msg.set_priority(0)
+            # 第一条user消息（在system之后）设置为最高优先级
+            elif msg.role == "user" and not first_user_found:
+                msg.set_priority(0)
+                first_user_found = True
+
     def _compress_sliding_window(
-        self, messages: list[dict], target_tokens: int
-    ) -> list[dict]:
+        self, messages: list[Message], target_tokens: int
+    ) -> list[Message]:
         """Compress using sliding window: keep most recent messages.
         
         Args:
@@ -109,16 +129,16 @@ class MessageCompressor:
         Returns:
             Compressed messages
         """
-        # Always keep system messages
-        system_messages = [msg for msg in messages if msg.get("role") == "system"]
-        non_system = [msg for msg in messages if msg.get("role") != "system"]
+        # 分离受保护消息和普通消息
+        protected_messages = [msg for msg in messages if msg.is_protected()]
+        non_protected = [msg for msg in messages if not msg.is_protected()]
 
         # Build "atomic" units so tool-call chain stays consistent:
         # never keep tool result without its initiating assistant/tool_calls message.
-        units = self._build_atomic_units(non_system)
+        units = self._build_atomic_units(non_protected)
 
-        kept_units: list[list[dict]] = []
-        base_tokens = self.context_manager.estimate_messages_tokens(system_messages)
+        kept_units: list[list[Message]] = []
+        base_tokens = self.context_manager.estimate_messages_tokens(protected_messages)
         current_tokens = base_tokens
 
         # Start from the end and work backwards by unit.
@@ -140,7 +160,7 @@ class MessageCompressor:
 
             break
 
-        compressed = system_messages + [m for unit in kept_units for m in unit]
+        compressed = protected_messages + [m for unit in kept_units for m in unit]
 
         logger.debug(
             "Sliding window compression: kept %s/%s messages, %s tokens",
@@ -151,7 +171,7 @@ class MessageCompressor:
 
         return compressed
 
-    def _compress_summary(self, messages: list[dict], target_tokens: int) -> list[dict]:
+    def _compress_summary(self, messages: list[Message], target_tokens: int) -> list[Message]:
         """Compress using summarization (placeholder - would use LLM in production).
         
         For now, falls back to sliding window. In production, this would:
@@ -172,8 +192,8 @@ class MessageCompressor:
         return self._compress_sliding_window(messages, target_tokens)
 
     def _compress_selective(
-        self, messages: list[dict], target_tokens: int
-    ) -> list[dict]:
+        self, messages: list[Message], target_tokens: int
+    ) -> list[Message]:
         """Compress using selective retention: keep important messages.
         
         Args:
@@ -183,15 +203,16 @@ class MessageCompressor:
         Returns:
             Compressed messages
         """
-        compressed: list[dict] = []
+        compressed: list[Message] = []
 
-        system_messages = [msg for msg in messages if msg.get("role") == "system"]
-        non_system = [msg for msg in messages if msg.get("role") != "system"]
+        # 分离受保护消息和普通消息
+        protected_messages = [msg for msg in messages if msg.is_protected()]
+        non_protected = [msg for msg in messages if not msg.is_protected()]
 
-        if self.keep_system:
-            compressed.extend(system_messages)
+        # 始终保留受保护消息
+        compressed.extend(protected_messages)
 
-        units = self._build_atomic_units(non_system)
+        units = self._build_atomic_units(non_protected)
 
         # Keep most recent N tool-call units (assistant tool_calls + their tool results).
         tool_units = [u for u in units if self._unit_has_tool_chain(u)]
@@ -243,14 +264,14 @@ class MessageCompressor:
 
         return compressed
 
-    def _build_atomic_units(self, messages: list[dict]) -> list[list[dict]]:
+    def _build_atomic_units(self, messages: list[Message]) -> list[list[Message]]:
         """Group messages into atomic units.
 
         The key guarantee: tool messages are only kept together with the assistant
         message that initiated them (tool_calls). This prevents "tool result exists
         but initiating assistant message disappeared" after compression.
         """
-        units: list[list[dict]] = []
+        units: list[list[Message]] = []
         i = 0
         n = len(messages)
 
@@ -258,22 +279,20 @@ class MessageCompressor:
             msg = messages[i]
 
             # Tool results should be attached to the nearest preceding assistant tool_calls.
-            if msg.get("role") == "tool":
+            if msg.role == "tool":
                 # Orphan tool message; keep as its own unit (we will avoid selecting it).
                 units.append([msg])
                 i += 1
                 continue
 
-            if msg.get("role") == "assistant" and msg.get("tool_calls"):
-                tool_call_ids = {
-                    tc.get("id") for tc in (msg.get("tool_calls") or []) if tc.get("id")
-                }
+            if msg.role == "assistant" and msg.tool_calls:
+                tool_call_ids = {tc.id for tc in msg.tool_calls if tc.id}
                 unit = [msg]
                 j = i + 1
 
                 # Collect subsequent tool results matching this assistant's tool_call ids.
-                while j < n and messages[j].get("role") == "tool":
-                    tool_call_id = messages[j].get("tool_call_id")
+                while j < n and messages[j].role == "tool":
+                    tool_call_id = messages[j].tool_call_id
                     if not tool_call_ids or tool_call_id in tool_call_ids:
                         unit.append(messages[j])
                     j += 1
@@ -287,17 +306,17 @@ class MessageCompressor:
 
         return units
 
-    def _unit_has_tool_chain(self, unit: list[dict]) -> bool:
+    def _unit_has_tool_chain(self, unit: list[Message]) -> bool:
         if not unit:
             return False
         first = unit[0]
-        if first.get("role") != "assistant" or not first.get("tool_calls"):
+        if first.role != "assistant" or not first.tool_calls:
             return False
-        return any(m.get("role") == "tool" for m in unit[1:])
+        return any(m.role == "tool" for m in unit[1:])
 
     def _truncate_tool_unit_to_fit(
-        self, unit: list[dict], max_tokens: int
-    ) -> list[dict] | None:
+        self, unit: list[Message], max_tokens: int
+    ) -> list[Message] | None:
         """Try to truncate tool results within a unit to fit max_tokens.
 
         Returns a new unit if it can be made to fit, otherwise None.
@@ -306,7 +325,11 @@ class MessageCompressor:
             return None
 
         # Only truncate units that include an initiating assistant message.
-        if unit[0].get("role") != "assistant":
+        if unit[0].role != "assistant":
+            return None
+
+        # 如果assistant消息是受保护的，不能截断整个unit
+        if unit[0].is_protected():
             return None
 
         # If even the assistant message doesn't fit, give up.
@@ -319,7 +342,19 @@ class MessageCompressor:
 
         # Truncate tool results one by one to fit; keep order.
         for msg in unit[1:]:
-            if msg.get("role") != "tool":
+            # 受保护的消息不能截断
+            if msg.is_protected():
+                msg_tokens = self.context_manager.estimate_messages_tokens([msg])
+                if msg_tokens <= remaining:
+                    new_unit.append(msg)
+                    remaining -= msg_tokens
+                else:
+                    # 受保护消息必须保留，即使超过限制
+                    new_unit.append(msg)
+                    remaining = 0
+                continue
+            
+            if msg.role != "tool":
                 # Non-tool follow-ups are rare here; include only if fits.
                 msg_tokens = self.context_manager.estimate_messages_tokens([msg])
                 if msg_tokens <= remaining:
@@ -347,7 +382,7 @@ class MessageCompressor:
             return new_unit
         return None
 
-    def _truncate_tool_result(self, msg: dict, max_tokens: int) -> dict | None:
+    def _truncate_tool_result(self, msg: Message, max_tokens: int) -> Message | None:
         """Truncate a tool result message to fit within token limit.
         
         Args:
@@ -357,10 +392,14 @@ class MessageCompressor:
         Returns:
             Truncated message or None if too large
         """
-        if msg.get("role") != "tool":
+        # 受保护的消息不能截断
+        if msg.is_protected():
             return msg
         
-        content = msg.get("content", "")
+        if msg.role != "tool":
+            return msg
+        
+        content = msg.content
         if not content:
             return msg
         
@@ -381,9 +420,16 @@ class MessageCompressor:
                 
                 if len(data) > max_items:
                     truncated_data = data[:max_items]
-                    truncated_msg = msg.copy()
-                    truncated_msg["content"] = json.dumps(
+                    truncated_content = json.dumps(
                         truncated_data, ensure_ascii=False, default=str
+                    )
+                    truncated_msg = Message(
+                        role=msg.role,
+                        content=truncated_content,
+                        name=msg.name,
+                        tool_call_id=msg.tool_call_id,
+                        tool_calls=msg.tool_calls,
+                        priority=msg.priority,
                     )
                     return truncated_msg
             
@@ -395,9 +441,16 @@ class MessageCompressor:
                     k: v for k, v in data.items() if k in essential_fields
                 }
                 
-                truncated_msg = msg.copy()
-                truncated_msg["content"] = json.dumps(
+                truncated_content = json.dumps(
                     truncated_data, ensure_ascii=False, default=str
+                )
+                truncated_msg = Message(
+                    role=msg.role,
+                    content=truncated_content,
+                    name=msg.name,
+                    tool_call_id=msg.tool_call_id,
+                    tool_calls=msg.tool_calls,
+                    priority=msg.priority,
                 )
                 
                 # Check if it fits
@@ -414,8 +467,15 @@ class MessageCompressor:
         # Fall back to text truncation
         estimated_chars = max_tokens * 4  # Rough estimate
         if len(content) > estimated_chars:
-            truncated_msg = msg.copy()
-            truncated_msg["content"] = content[:estimated_chars] + "..."
+            truncated_content = content[:estimated_chars] + "..."
+            truncated_msg = Message(
+                role=msg.role,
+                content=truncated_content,
+                name=msg.name,
+                tool_call_id=msg.tool_call_id,
+                tool_calls=msg.tool_calls,
+                priority=msg.priority,
+            )
             return truncated_msg
         
         return msg

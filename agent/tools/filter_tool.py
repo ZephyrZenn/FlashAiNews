@@ -29,8 +29,9 @@ class KeywordExtractorTool(BaseTool[list[str]]):
                     name="articles",
                     type="list[RawArticle]",
                     description=(
-                        "待分析的文章列表。每篇文章需包含 title（标题）和 summary（摘要）字段。"
+                        "待分析的文章id列表，系统会自动从上下文中获取完整的文章信息。"
                         "工具会将所有文章的标题和摘要合并后一起分析"
+                        "示例：['abc', 'ade', 'bvv']"
                     ),
                     required=True,
                 ),
@@ -47,6 +48,7 @@ class KeywordExtractorTool(BaseTool[list[str]]):
         Returns:
             关键词列表
         """
+        # TODO: LLM喜欢用这个Tool提取搜索结果的关键词，需要做兼容处理
         if not articles:
             return []
 

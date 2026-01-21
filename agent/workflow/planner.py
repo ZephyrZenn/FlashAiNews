@@ -7,10 +7,10 @@ from agent.prompts import (
     GLOBAL_PLANNER_PROMPT_TEMPLATE,
     GROUP_PLANNER_PROMPT_TEMPLATE,
 )
-from core.brief_generator import AIGenerator
-from core.config import get_config
 from agent.utils import extract_json
 from agent.tools import filter_tool, memory_tool
+from core.brief_generator import AIGenerator
+from core.config import get_config
 
 logger = logging.getLogger(__name__)
 

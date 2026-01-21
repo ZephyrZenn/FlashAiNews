@@ -17,7 +17,7 @@ class ArgumentConverter:
 
     def __init__(self, state: dict, artifact_store: ArtifactStore | None = None):
         """初始化参数转换器
-        
+
         Args:
             state: AgentState 字典，用于查找文章和记忆
         """
@@ -26,15 +26,15 @@ class ArgumentConverter:
 
     def convert_articles_arg(self, articles_arg: Any) -> list[RawArticle]:
         """转换 articles 参数
-        
+
         支持多种输入格式：
         1. 完整的文章对象列表（dict with title, summary, etc.）
         2. 文章 ID 列表（数字或字符串）
         3. 文章标题列表（字符串）- 通过标题匹配查找文章
-        
+
         Args:
             articles_arg: 文章参数（可能是ID列表、标题列表或文章对象列表）
-            
+
         Returns:
             文章对象列表
         """
@@ -42,33 +42,26 @@ class ArgumentConverter:
             return []
 
         # 如果已经是完整的文章对象，直接返回
-        if articles_arg and isinstance(articles_arg[0], dict) and "title" in articles_arg[0]:
+        if (
+            articles_arg
+            and isinstance(articles_arg[0], dict)
+            and "title" in articles_arg[0]
+        ):
             return articles_arg
-
+        raw_articles = self.state.get("raw_articles", [])
         # 如果第一个元素是字符串，可能是标题或 ID
         if isinstance(articles_arg[0], str):
-            # 尝试作为 ID 处理
-            try:
-                # 如果所有元素都可以转换为数字，则视为 ID 列表
-                article_ids = [str(int(aid)) for aid in articles_arg]
-                articles = [
-                    article
-                    for article in self.state.get("raw_articles", [])
-                    if str(article["id"]) in article_ids
-                ]
-                if articles:
-                    return articles
-            except (ValueError, TypeError):
-                pass
+            keys = {k.strip() for k in articles_arg if str(k).strip()}
 
-            # 如果无法作为 ID 处理，则视为标题列表，通过标题匹配
-            titles = articles_arg
-            articles = [
-                article
-                for article in self.state.get("raw_articles", [])
-                if article.get("title") in titles
-            ]
-            return articles
+            # 先按 id 匹配
+            by_ids = [a for a in raw_articles if str(a.get("id", "")).strip() in keys]
+            if by_ids:
+                return by_ids
+
+            # 再按 title 匹配
+            by_titles = [a for a in raw_articles if str(a.get("title", "")).strip() in keys]
+            if by_titles:
+                return by_titles
 
         # 尝试提取 article IDs（处理数字或包含 id 字段的字典）
         article_ids = self._extract_article_ids(articles_arg)
@@ -94,7 +87,9 @@ class ArgumentConverter:
 
         return []
 
-    def convert_history_memory_list_arg(self, memory_arg: Any) -> list[SummaryMemory] | None:
+    def convert_history_memory_list_arg(
+        self, memory_arg: Any
+    ) -> list[SummaryMemory] | None:
         """转换 history_memory 参数（现在是列表）"""
         if not memory_arg:
             return None
@@ -139,16 +134,18 @@ class ArgumentConverter:
 
     def convert_writing_tool_args(self, tool_name: str, tool_args: dict) -> dict:
         """转换写作工具的参数，将简化的参数转换为完整的对象
-        
+
         Args:
             tool_name: 工具名称
             tool_args: 原始参数（可能包含 ID 或简化数据）
-        
+
         Returns:
             转换后的参数（包含完整的对象）
         """
         converted_args = tool_args.copy()
-        converted_args["articles"] = self.convert_articles_arg(tool_args.get("articles"))
+        converted_args["articles"] = self.convert_articles_arg(
+            tool_args.get("articles")
+        )
         converted_args["history_memory"] = self.convert_history_memory_list_arg(
             tool_args.get("history_memory")
         )

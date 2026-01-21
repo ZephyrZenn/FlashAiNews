@@ -10,6 +10,7 @@ from typing import Any
 from agent.models import log_step
 from agent.tools.base import BaseTool
 from core.config import get_config
+from core.models.llm import Message
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,7 @@ class ToolHandler:
         except (TypeError, ValueError):
             return json.dumps({"data": str(result.data)}, ensure_ascii=False)
 
-    def create_error_message(self, tool_id: str, tool_name: str, error: str) -> dict:
+    def create_error_message(self, tool_id: str, tool_name: str, error: str) -> Message:
         """创建错误消息
         
         Args:
@@ -137,14 +138,13 @@ class ToolHandler:
             error: 错误信息
             
         Returns:
-            错误消息字典
+            错误消息Message对象
         """
-        return {
-            "role": "tool",
-            "tool_call_id": tool_id,
-            "name": tool_name,
-            "content": json.dumps({"error": error}),
-        }
+        return Message.tool(
+            content=json.dumps({"error": error}, ensure_ascii=False),
+            name=tool_name,
+            tool_call_id=tool_id,
+        )
 
     def parse_tool_arguments(
         self, tool_call: dict, tool_id: str, tool_name: str, tool_messages: list

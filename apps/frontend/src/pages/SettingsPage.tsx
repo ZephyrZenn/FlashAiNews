@@ -133,7 +133,7 @@ const SettingsPage = () => {
               <Select
                 value={systemConfig.provider}
                 onChange={(value) =>
-                  setSystemConfig({ ...systemConfig, provider: value })
+                  setSystemConfig({ ...systemConfig, provider: typeof value === 'string' ? value : value[0] || '' })
                 }
                 options={[
                   { value: 'openai', label: 'OpenAI' },

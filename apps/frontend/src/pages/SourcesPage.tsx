@@ -4,7 +4,6 @@ import {
   Plus,
   Trash2,
   Edit3,
-  Rss,
   ExternalLink,
   Link as LinkIcon,
 } from 'lucide-react';
@@ -30,6 +29,7 @@ const SourcesPage = () => {
     id?: number;
     name: string;
     url: string;
+    desc: string;
   } | null>(null);
 
   const allFeeds = feeds ?? [];
@@ -50,7 +50,7 @@ const SourcesPage = () => {
     await api.createFeed({
       title: editingSource.name,
       url: editingSource.url,
-      desc: '',
+      desc: editingSource.desc,
     });
   }, {
     onSuccess: () => {
@@ -68,7 +68,7 @@ const SourcesPage = () => {
     await api.updateFeed(editingSource.id, {
       title: editingSource.name,
       url: editingSource.url,
-      desc: '',
+      desc: editingSource.desc,
     });
   }, {
     onSuccess: () => {
@@ -99,9 +99,10 @@ const SourcesPage = () => {
         id: source.id,
         name: source.title,
         url: source.url,
+        desc: source.desc ?? '',
       });
     } else {
-      setEditingSource({ name: '', url: '' });
+      setEditingSource({ name: '', url: '', desc: '' });
     }
     setIsModalOpen(true);
   };
@@ -136,9 +137,10 @@ const SourcesPage = () => {
         {allSourcesWithGroupInfo.map((source) => (
           <div
             key={source.id}
-            className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-sm hover:shadow-md transition-all relative group flex flex-col justify-between min-h-[120px] md:h-[130px]"
+            className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-sm hover:shadow-md transition-all relative group flex flex-col justify-between min-h-[120px] md:h-[130px] cursor-pointer"
+            onClick={() => handleOpenModal(source)}
           >
-            {/* Status indicator - top right corner with breathing effect */}
+            {/* Status indicator - top right corner */}
             {source.status && (
               <div
                 className="absolute top-3 right-3 z-10"
@@ -167,43 +169,40 @@ const SourcesPage = () => {
                 </div>
               </div>
             )}
-            <div>
-              <div className="flex justify-between items-start mb-3">
-                <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-400">
-                  <Rss size={14} />
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => handleOpenModal(source)}
-                    className="p-1 hover:text-indigo-600 transition-colors"
-                  >
-                    <Edit3 size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteSource(source.id)}
-                    className="p-1 hover:text-rose-500 transition-colors"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
+            <div className="flex-1 min-w-0">
               <h4 className="font-bold text-slate-800 text-xs md:text-sm truncate mb-1">
                 {source.title}
               </h4>
+              <p className="text-[10px] md:text-xs text-slate-500 line-clamp-2 leading-snug">
+                {source.desc || '暂无描述信息'}
+              </p>
             </div>
             <div className="mt-2 flex items-center justify-between shrink-0">
               <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-1.5 py-0.5 rounded truncate max-w-[80px]">
                 {source.groupName}
               </span>
-              <a
-                href={source.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-200 hover:text-indigo-600 transition-colors flex-shrink-0"
-                title="打开订阅源链接"
-              >
-                <ExternalLink size={12} />
-              </a>
+              <div className="flex items-center gap-2">
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-200 hover:text-indigo-600 transition-colors flex-shrink-0"
+                  title="打开订阅源链接"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink size={12} />
+                </a>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteSource(source.id);
+                  }}
+                  className="text-rose-500 hover:text-rose-600 transition-colors flex-shrink-0"
+                  title="删除订阅源"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
             </div>
           </div>
         ))}
@@ -239,6 +238,21 @@ const SourcesPage = () => {
                 )
               }
               className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+              描述
+            </label>
+            <textarea
+              value={editingSource?.desc || ''}
+              onChange={(e) =>
+                setEditingSource((prev) =>
+                  prev ? { ...prev, desc: e.target.value } : null
+                )
+              }
+              rows={3}
+              className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none"
             />
           </div>
           <div>

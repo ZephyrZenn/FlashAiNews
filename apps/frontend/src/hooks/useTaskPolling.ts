@@ -14,7 +14,7 @@ interface UseTaskPollingOptions {
   onLogUpdate?: (logs: TaskStatus['logs']) => void;
   onComplete?: (result: string) => void;
   onError?: (error: string) => void;
-  interval?: number; // 轮询间隔（毫秒），默认1000ms
+  interval?: number; // 轮询间隔（毫秒），默认3000ms
   enabled?: boolean; // 是否启用轮询
 }
 
@@ -23,7 +23,7 @@ export const useTaskPolling = ({
   onLogUpdate,
   onComplete,
   onError,
-  interval = 10000,
+  interval = 3000,
   enabled = true,
 }: UseTaskPollingOptions) => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);

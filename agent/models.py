@@ -19,13 +19,20 @@ class RawArticle(TypedDict):
 
 
 class FocalPoint(TypedDict):
+    """规划阶段产出的单个焦点主题结构，需与 PLANNER_PROMPT_TEMPLATE 中的 JSON 格式严格对齐。"""
+
     priority: int
     topic: str
-    strategy: str
+    # FOCUS_MATCH | GLOBAL_STRATEGIC | HISTORICAL_CONTINUITY
+    match_type: Literal["FOCUS_MATCH", "GLOBAL_STRATEGIC", "HISTORICAL_CONTINUITY"]
+    # 解释该专题如何匹配用户关注点（若无 focus 则可为 N/A）
+    relevance_to_focus: str
+    strategy: Literal["SUMMARIZE", "SEARCH_ENHANCE", "FLASH_NEWS"]
     article_ids: list[str]
     reasoning: str
     search_query: str
     writing_guide: str
+    # 历史记忆的 id 列表（如果延续自历史记忆，则给出历史记忆的 id，否则为空列表）
     history_memory_id: list[int]
 
 
@@ -48,6 +55,8 @@ class SummaryMemory(TypedDict):
 class WritingMaterial(TypedDict):
     topic: str
     style: Literal["DEEP", "FLASH"]
+    match_type: Literal["FOCUS_MATCH", "GLOBAL_STRATEGIC", "HISTORICAL_CONTINUITY"]
+    relevance_to_focus: str
     writing_guide: str
     reasoning: str
     articles: list[RawArticle]

@@ -143,12 +143,14 @@ class ArgumentConverter:
             转换后的参数（包含完整的对象）
         """
         converted_args = tool_args.copy()
-        converted_args["articles"] = self.convert_articles_arg(
-            tool_args.get("articles")
-        )
-        converted_args["history_memory"] = self.convert_history_memory_list_arg(
-            tool_args.get("history_memory")
-        )
+        # 新接口：writing_material 内包含 articles/history_memory
+        if "writing_material" in tool_args and isinstance(tool_args["writing_material"], dict):
+            wm = tool_args["writing_material"].copy()
+            wm["articles"] = self.convert_articles_arg(wm.get("articles"))
+            wm["history_memory"] = self.convert_history_memory_list_arg(
+                wm.get("history_memory")
+            )
+            converted_args["writing_material"] = wm
 
         # Boost 路径：如果 draft_content/review 传的是 artifact_id，则自动解引用
         if self.artifact_store:

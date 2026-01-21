@@ -202,6 +202,7 @@ def get_group_with_feeds(group_ids: list[int]) -> list[FeedGroup]:
                 FROM feeds f
                 JOIN feed_group_items fgi ON f.id = fgi.feed_id
                 WHERE fgi.feed_group_id = ANY(%s)
+                ORDER BY f.id ASC
                 """,
                 (group_ids,),
             )

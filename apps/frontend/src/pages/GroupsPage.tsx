@@ -31,7 +31,7 @@ const GroupsPage = () => {
     description: string;
     sources: number[];
   } | null>(null);
-  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
+  const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
 
   const allFeeds = feeds ?? [];
   const allGroups = groups ?? [];
@@ -95,7 +95,7 @@ const GroupsPage = () => {
     } else {
       setEditingGroup({ name: '', description: '', sources: [] });
     }
-    setSelectedSourceId('');
+    setSelectedSourceIds([]);
     setIsModalOpen(true);
   };
 
@@ -131,14 +131,18 @@ const GroupsPage = () => {
   };
 
   const handleAddSourceToGroup = () => {
-    if (!selectedSourceId || !editingGroup) return;
-    const sourceId = parseInt(selectedSourceId);
-    if (editingGroup.sources.includes(sourceId)) return;
+    if (!editingGroup || selectedSourceIds.length === 0) return;
+    const sourceIds = selectedSourceIds
+      .map((id) => parseInt(id))
+      .filter((id) => !Number.isNaN(id));
+    const merged = Array.from(
+      new Set([...editingGroup.sources, ...sourceIds])
+    );
     setEditingGroup({
       ...editingGroup,
-      sources: [...editingGroup.sources, sourceId],
+      sources: merged,
     });
-    setSelectedSourceId('');
+    setSelectedSourceIds([]);
   };
 
   return (
@@ -235,16 +239,18 @@ const GroupsPage = () => {
             <label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-4 block">
               下属源管理
             </label>
-            <div className="space-y-2 mb-4 max-h-40 overflow-y-auto custom-scrollbar">
+            <div className="space-y-1.5 mb-4 max-h-64 overflow-y-auto custom-scrollbar">
               {(editingGroup?.sources || []).map((sourceId) => {
                 const source = allFeeds.find((f) => f.id === sourceId);
                 return (
                   source && (
                     <div
                       key={sourceId}
-                      className="flex items-center justify-between p-3 bg-slate-50 rounded-xl"
+                      className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg"
                     >
-                      <span className="text-sm font-bold">{source.title}</span>
+                      <span className="text-xs font-medium truncate">
+                        {source.title}
+                      </span>
                       <button
                         onClick={() => handleRemoveSourceFromGroup(sourceId)}
                         className="text-rose-400"
@@ -259,11 +265,16 @@ const GroupsPage = () => {
             <div className="flex gap-2">
               <div className="flex-1">
                 <Select
-                  value={selectedSourceId}
-                  onChange={(value) => setSelectedSourceId(value)}
+                  value={selectedSourceIds}
+                  onChange={(value) =>
+                    setSelectedSourceIds(
+                      Array.isArray(value) ? value : value ? [value] : []
+                    )
+                  }
+                  multiple
                   placeholder="关联已有源..."
+                  direction="up"
                   options={[
-                    { value: '', label: '关联已有源...' },
                     ...allFeeds
                       .filter((f) => !(editingGroup?.sources || []).includes(f.id))
                       .map((f) => ({

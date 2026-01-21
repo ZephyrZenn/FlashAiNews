@@ -4,6 +4,8 @@
 """
 
 import logging
+import json
+from json import JSONDecodeError
 from typing import Literal
 
 from agent.tools.base import BaseTool, ToolSchema, ToolParameter
@@ -47,46 +49,13 @@ class WriteArticleTool(BaseTool[str]):
             ),
             parameters=[
                 ToolParameter(
-                    name="topic",
-                    type="str",
-                    description="文章主题/标题",
+                    name="writing_material",
+                    type="WritingMaterial",
+                    description=(
+                        "写作素材对象（推荐用法）。包含：topic、style、match_type、"
+                        "relevance_to_focus、writing_guide、reasoning、articles，以及可选的 ext_info/history_memory。"
+                    ),
                     required=True,
-                ),
-                ToolParameter(
-                    name="style",
-                    type="Literal['DEEP', 'FLASH']",
-                    description="文章风格：DEEP（深度文章）或 FLASH（快讯）",
-                    required=True,
-                ),
-                ToolParameter(
-                    name="writing_guide",
-                    type="str",
-                    description="写作指南，告诉撰稿人写作侧重点（如：对比不同来源的立场差异）",
-                    required=True,
-                ),
-                ToolParameter(
-                    name="reasoning",
-                    type="str",
-                    description="核心逻辑，解释文章间的潜在联系或重要性",
-                    required=True,
-                ),
-                ToolParameter(
-                    name="articles",
-                    type="list[str]",
-                    description="文章ID列表，系统会自动从上下文中获取完整的文章信息。也可以传递完整的文章对象数组（包含 id、title、url、summary、content 等字段）",
-                    required=True,
-                ),
-                ToolParameter(
-                    name="ext_info",
-                    type="list[dict]",
-                    description="背景补全信息（可选），从网络搜索获取的补充内容，每个对象包含 title、url、content 等字段",
-                    required=False,
-                ),
-                ToolParameter(
-                    name="history_memory",
-                    type="list[dict]",
-                    description="历史记忆列表（可选），每个对象包含 id、topic、reasoning、content 等字段。也可以传递 id 列表（数字或字符串），系统会自动获取完整信息",
-                    required=False,
                 ),
                 ToolParameter(
                     name="review",
@@ -99,13 +68,7 @@ class WriteArticleTool(BaseTool[str]):
 
     async def _execute(
         self,
-        topic: str,
-        style: Literal["DEEP", "FLASH"],
-        writing_guide: str,
-        reasoning: str,
-        articles: list[RawArticle],
-        ext_info: list[SearchResult] | None = None,
-        history_memory: list[SummaryMemory] | None = None,
+        writing_material: WritingMaterial,
         review: AgentCriticResult | None = None,
     ) -> str:
         """
@@ -124,20 +87,6 @@ class WriteArticleTool(BaseTool[str]):
         Returns:
             Markdown 格式的文章内容
         """
-        writing_material = WritingMaterial(
-            topic=topic,
-            style=style,
-            writing_guide=writing_guide,
-            reasoning=reasoning,
-            articles=articles,
-        )
-
-        if ext_info:
-            writing_material["ext_info"] = ext_info
-
-        if history_memory:
-            writing_material["history_memory"] = history_memory  # 现在已经是列表
-
         # 直接构建 prompt 并调用 client
         prompt = self._build_prompt(writing_material, review)
         result = await self.client.completion(prompt)
@@ -163,6 +112,8 @@ class WriteArticleTool(BaseTool[str]):
 
         return WRITER_DEEP_DIVE_PROMPT_TEMPLATE.format(
             topic=writing_material["topic"],
+            match_type=writing_material["match_type"],
+            relevance_to_focus=writing_material["relevance_to_focus"],
             writing_guide=writing_material["writing_guide"],
             reasoning=writing_material["reasoning"],
             articles=writing_material["articles"],
@@ -199,34 +150,13 @@ class ReviewArticleTool(BaseTool[AgentCriticResult]):
                     required=True,
                 ),
                 ToolParameter(
-                    name="topic",
-                    type="str",
-                    description="文章主题",
+                    name="writing_material",
+                    type="WritingMaterial",
+                    description=(
+                        "写作素材对象（推荐用法）。critic 会基于其中的 match_type/relevance_to_focus 做一致性审查。"
+                        "注意：审查时 material.style 通常为 DEEP。"
+                    ),
                     required=True,
-                ),
-                ToolParameter(
-                    name="writing_guide",
-                    type="str",
-                    description="原始写作指南，用于对比检查",
-                    required=True,
-                ),
-                ToolParameter(
-                    name="articles",
-                    type="list[str]",
-                    description="文章ID列表，系统会自动从上下文中获取完整的文章信息用于事实核查。也可以传递完整的文章对象数组",
-                    required=True,
-                ),
-                ToolParameter(
-                    name="ext_info",
-                    type="list[dict]",
-                    description="背景补全信息（可选），用于核查补充内容，每个对象包含 title、url、content 等字段",
-                    required=False,
-                ),
-                ToolParameter(
-                    name="history_memory",
-                    type="list[dict]",
-                    description="历史记忆列表（可选），用于检查历史连贯性，每个对象包含 id、topic、reasoning、content 等字段。也可以传递 id 列表",
-                    required=False,
                 ),
             ],
         )
@@ -234,11 +164,7 @@ class ReviewArticleTool(BaseTool[AgentCriticResult]):
     async def _execute(
         self,
         draft_content: str,
-        topic: str,
-        writing_guide: str,
-        articles: list[RawArticle],
-        ext_info: list[SearchResult] | None = None,
-        history_memory: list[SummaryMemory] | None = None,
+        writing_material: WritingMaterial,
     ) -> AgentCriticResult:
         """
         审查文章
@@ -254,20 +180,6 @@ class ReviewArticleTool(BaseTool[AgentCriticResult]):
         Returns:
             审查结果
         """
-        writing_material = WritingMaterial(
-            topic=topic,
-            style="DEEP",  # 审查主要针对深度文章
-            writing_guide=writing_guide,
-            reasoning="",
-            articles=articles,
-        )
-
-        if ext_info:
-            writing_material["ext_info"] = ext_info
-
-        if history_memory:
-            writing_material["history_memory"] = history_memory  # 现在已经是列表
-
         # 直接构建 prompt 并调用 client
         source_material = {
             "articles": writing_material["articles"],
@@ -281,6 +193,8 @@ class ReviewArticleTool(BaseTool[AgentCriticResult]):
             source_material=source_material,
             original_guide=writing_material["writing_guide"],
             history_memories=history_memories,
+            match_type=writing_material["match_type"],
+            relevance_to_focus=writing_material["relevance_to_focus"],
         )
         
         response = await self.client.completion(prompt)
@@ -290,15 +204,30 @@ class ReviewArticleTool(BaseTool[AgentCriticResult]):
                 "Parsed critic response successfully, status: %s", result.get("status")
             )
             return result
-        except Exception as e:
-            # Log a truncated version to avoid huge log entries
-            response_preview = (
-                response[:500] + "..." if len(response) > 500 else response
+        except Exception:
+            # 二次尝试：将花引号等替换为标准 JSON 引号再解析
+            sanitized = (
+                response.replace("“", '"')
+                .replace("”", '"')
+                .replace("‘", "'")
+                .replace("’", "'")
             )
-            logger.error(
-                "Failed to parse critic response. Error: %s\nResponse preview: %s",
-                str(e),
-                response_preview,
-                exc_info=True,
-            )
-            raise ValueError(f"Failed to parse critic response: {str(e)}") from e
+            try:
+                result: AgentCriticResult = extract_json(sanitized)
+                logger.info(
+                    "Parsed critic response successfully after sanitizing quotes, status: %s",
+                    result.get("status"),
+                )
+                return result
+            except Exception as e:
+                # Log a truncated version to avoid huge log entries
+                response_preview = (
+                    response[:500] + "..." if len(response) > 500 else response
+                )
+                logger.error(
+                    "Failed to parse critic response. Error: %s\nResponse preview: %s",
+                    str(e),
+                    response_preview,
+                    exc_info=True,
+                )
+                raise ValueError(f"Failed to parse critic response: {str(e)}") from e

@@ -112,7 +112,7 @@ const InstantLabPage = () => {
   useTaskPolling({
     taskId,
     enabled: !!taskId && isGenerating && !isRecovering,
-    interval: 10000, // 每10秒轮询一次
+    interval: 3000, // 每3秒轮询一次
     onLogUpdate: handleLogUpdate,
     onComplete: handleTaskComplete,
     onError: handleTaskError,

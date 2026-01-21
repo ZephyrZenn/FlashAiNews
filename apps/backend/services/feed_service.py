@@ -151,7 +151,7 @@ def get_all_feeds():
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT id, title, url, last_updated, description, status FROM feeds"""
+                """SELECT id, title, url, last_updated, description, status FROM feeds ORDER BY id"""
             )
             return [
                 Feed(
@@ -278,7 +278,9 @@ def check_feed_health():
             else:
                 new_status = "active"
         except Exception as e:
-            logger.warning(f"Feed {feed['id']} url {feed['url']} request exception: {e}")
+            logger.warning(
+                f"Feed {feed['id']} url {feed['url']} request exception: {e}"
+            )
             new_status = "unreachable"
         if new_status != feed["status"]:
             update_feeds.append((new_status, feed["id"]))

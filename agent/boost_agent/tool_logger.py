@@ -88,21 +88,19 @@ def format_tool_args_summary(tool_name: str, tool_args: dict) -> str:
             summary_parts.append(f"文章数: {count}")
 
     elif tool_name in ("write_article", "boost_write_article"):
-        if "topic" in tool_args:
-            summary_parts.append(f"主题: {tool_args['topic'][:30]}...")
-        if "style" in tool_args:
-            summary_parts.append(f"风格: {tool_args['style']}")
-        if "articles" in tool_args:
-            count = (
-                len(tool_args["articles"])
-                if isinstance(tool_args["articles"], list)
-                else 1
-            )
+        wm = tool_args.get("writing_material") if isinstance(tool_args.get("writing_material"), dict) else {}
+        if "topic" in wm:
+            summary_parts.append(f"主题: {str(wm['topic'])[:30]}...")
+        if "style" in wm:
+            summary_parts.append(f"风格: {wm['style']}")
+        if "articles" in wm:
+            count = len(wm["articles"]) if isinstance(wm["articles"], list) else 1
             summary_parts.append(f"素材数: {count}")
 
     elif tool_name in ("review_article", "boost_review_article"):
-        if "topic" in tool_args:
-            summary_parts.append(f"主题: {tool_args['topic'][:30]}...")
+        wm = tool_args.get("writing_material") if isinstance(tool_args.get("writing_material"), dict) else {}
+        if "topic" in wm:
+            summary_parts.append(f"主题: {str(wm['topic'])[:30]}...")
 
     if summary_parts:
         return " | ".join(summary_parts)

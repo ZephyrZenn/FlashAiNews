@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS summary_memories
 
 CREATE TABLE IF NOT EXISTS excluded_feed_item_ids
 (
-    id VARCHAR(256) PRIMARY KEY,
+    id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    item_id VARCHAR(256) NOT NULL,
     group_ids INTEGER[] NOT NULL,
     pub_date TIMESTAMP NOT NULL
 );
@@ -95,6 +96,7 @@ CREATE UNIQUE INDEX idx_group_items_group_feed_id ON feed_group_items (feed_grou
 CREATE INDEX idx_feed_brief_group_ids ON feed_brief USING GIN (group_ids);
 CREATE UNIQUE INDEX idx_is_default_unique ON feed_groups (is_default) WHERE is_default = TRUE;
 CREATE INDEX idx_summary_memories_topic ON summary_memories USING GIN (topic gin_trgm_ops);
+CREATE INDEX idx_excluded_feed_item_ids_item_id ON excluded_feed_item_ids (item_id);
 CREATE INDEX idx_excluded_feed_item_ids_group_ids ON excluded_feed_item_ids USING GIN (group_ids);
 CREATE INDEX idx_excluded_feed_item_ids_pub_date ON excluded_feed_item_ids (pub_date);
 CREATE INDEX IF NOT EXISTS feed_item_contents_feed_item_id_idx ON feed_item_contents (feed_item_id);

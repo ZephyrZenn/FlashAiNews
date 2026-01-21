@@ -25,34 +25,10 @@ class BoostWriteArticleTool(BaseTool[dict]):
                 "撰写文章（DEEP/FLASH），返回 artifact 句柄+摘要，不直接返回全文。"
             ),
             parameters=[
-                ToolParameter(name="topic", type="str", description="文章主题/标题"),
                 ToolParameter(
-                    name="style",
-                    type="Literal['DEEP', 'FLASH']",
-                    description="文章风格：DEEP 或 FLASH",
-                ),
-                ToolParameter(
-                    name="writing_guide",
-                    type="str",
-                    description="写作指南，说明侧重点",
-                ),
-                ToolParameter(name="reasoning", type="str", description="核心逻辑"),
-                ToolParameter(
-                    name="articles",
-                    type="list[str]",
-                    description="文章 ID 或完整文章对象列表",
-                ),
-                ToolParameter(
-                    name="ext_info",
-                    type="list[dict]",
-                    description="可选，补充信息列表",
-                    required=False,
-                ),
-                ToolParameter(
-                    name="history_memory",
-                    type="list[dict]",
-                    description="可选，历史记忆列表",
-                    required=False,
+                    name="writing_material",
+                    type="WritingMaterial",
+                    description="写作素材对象（topic/style/match_type/relevance_to_focus/writing_guide/reasoning/articles...）",
                 ),
                 ToolParameter(
                     name="review",
@@ -65,29 +41,17 @@ class BoostWriteArticleTool(BaseTool[dict]):
 
     async def _execute(  # pylint: disable=arguments-differ
         self,
-        topic: str,
-        style: Literal["DEEP", "FLASH"],
-        writing_guide: str,
-        reasoning: str,
-        articles,
-        ext_info=None,
-        history_memory=None,
+        writing_material,
         review=None,
     ) -> dict:
         result: ToolResult = await self._write_tool.execute(
-            topic=topic,
-            style=style,
-            writing_guide=writing_guide,
-            reasoning=reasoning,
-            articles=articles,
-            ext_info=ext_info,
-            history_memory=history_memory,
+            writing_material=writing_material,
             review=review,
         )
         if not result.success:
             raise RuntimeError(f"写作失败: {result.error}")
 
-        meta = {"topic": topic, "style": style}
+        meta = {"topic": writing_material.get("topic"), "style": writing_material.get("style")}
         return self.artifact_store.put(
             artifact_type=self.name, content=result.data, meta=meta
         )
@@ -116,28 +80,10 @@ class BoostReviewArticleTool(BaseTool[dict]):
                     type="str",
                     description="待审查的文章内容（可传 artifact_id）",
                 ),
-                ToolParameter(name="topic", type="str", description="文章主题"),
                 ToolParameter(
-                    name="writing_guide",
-                    type="str",
-                    description="原始写作指南",
-                ),
-                ToolParameter(
-                    name="articles",
-                    type="list[str]",
-                    description="文章 ID 或完整文章对象列表",
-                ),
-                ToolParameter(
-                    name="ext_info",
-                    type="list[dict]",
-                    description="可选，补充信息列表",
-                    required=False,
-                ),
-                ToolParameter(
-                    name="history_memory",
-                    type="list[dict]",
-                    description="可选，历史记忆列表",
-                    required=False,
+                    name="writing_material",
+                    type="WritingMaterial",
+                    description="写作素材对象（topic/match_type/relevance_to_focus/writing_guide/articles...）",
                 ),
             ],
         )
@@ -145,24 +91,16 @@ class BoostReviewArticleTool(BaseTool[dict]):
     async def _execute(  # pylint: disable=arguments-differ
         self,
         draft_content: str,
-        topic: str,
-        writing_guide: str,
-        articles,
-        ext_info=None,
-        history_memory=None,
+        writing_material,
     ) -> dict:
         result: ToolResult = await self._review_tool.execute(
             draft_content=draft_content,
-            topic=topic,
-            writing_guide=writing_guide,
-            articles=articles,
-            ext_info=ext_info,
-            history_memory=history_memory,
+            writing_material=writing_material,
         )
         if not result.success:
             raise RuntimeError(f"审查失败: {result.error}")
 
-        meta = {"topic": topic}
+        meta = {"topic": writing_material.get("topic")}
         return self.artifact_store.put(
             artifact_type=self.name, content=result.data, meta=meta
         )

@@ -72,7 +72,8 @@ class SummarizeAgenticWorkflow:
         results = await self.executor.execute(self.state)
         logger.info("Results: %s", results)
         log_step(self.state, f"✅ Agent执行完成，共生成 {len(results)} 篇内容")
-
+        if not results:
+            return ""
         # 使用工具保存执行记录
         await memory_tool.save_current_execution_records(self.state)
         

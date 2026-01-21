@@ -10,7 +10,12 @@ from urllib.parse import urlparse, urlunparse
 
 from agent.models import RawArticle, SummaryMemory
 from core.brief_generator import AIGenerator
-from core.embedding import embed_text, is_embedding_configured, EmbeddingError
+from core.embedding import (
+    embed_text,
+    embed_texts,
+    is_embedding_configured,
+    EmbeddingError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -332,43 +337,57 @@ class ContentOptimizer:
         try:
             # Generate embedding for focus
             focus_embedding = await embed_text(focus)
-            
+
+            # Prepare article texts (title + summary, limited length)
+            article_texts: list[str] = []
+            has_non_empty = False
+            for article in articles:
+                title = article.get("title", "") or ""
+                summary = article.get("summary", "") or ""
+                article_text = f"{title} {summary}".strip()
+                if article_text:
+                    has_non_empty = True
+                    article_texts.append(article_text[:500])
+                else:
+                    # 保留空字符串，占位，后面按 0 相似度处理
+                    article_texts.append("")
+
+            # 如果所有文章都没有可用文本，直接按原顺序返回
+            if not has_non_empty:
+                logger.debug(
+                    "All articles are empty for embedding prioritization, returning original order"
+                )
+                return articles
+
+            # 批量生成 embeddings（与 articles 一一对应）
+            article_embeddings = await embed_texts(article_texts)
+
             # Score each article
             scored_articles = []
-            for article in articles:
-                # Use title + summary as article representation
-                title = article.get("title", "")
-                summary = article.get("summary", "")
-                article_text = f"{title} {summary}".strip()
-                
-                if not article_text:
+            for article, text, article_embedding in zip(
+                articles, article_texts, article_embeddings
+            ):
+                if not text:
+                    # 没有文本，直接给 0 分
                     scored_articles.append((article, 0.0))
                     continue
-                
-                try:
-                    # Limit text length for embedding (most models have limits)
-                    article_text_limited = article_text[:500]
-                    article_embedding = await embed_text(article_text_limited)
-                    
-                    # Calculate cosine similarity
-                    similarity = cosine_similarity(focus_embedding, article_embedding)
-                    scored_articles.append((article, similarity))
-                except Exception as e:
-                    logger.debug("Failed to embed article %s: %s", article.get("id"), e)
-                    scored_articles.append((article, 0.0))
-            
+
+                # 计算与 focus 的相似度
+                similarity = cosine_similarity(focus_embedding, article_embedding)
+                scored_articles.append((article, similarity))
+
             # Sort by similarity (descending)
             scored_articles.sort(key=lambda x: x[1], reverse=True)
             prioritized = [article for article, _ in scored_articles]
-            
+
             logger.debug(
                 "Prioritized %d articles using vector similarity (focus: %s)",
                 len(prioritized),
                 focus[:50],
             )
-            
+
             return prioritized
-            
+
         except EmbeddingError as e:
             logger.warning("Embedding error: %s", e)
             raise

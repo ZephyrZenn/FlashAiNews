@@ -38,6 +38,9 @@ def generate_brief_for_groups(group_ids: list[int], focus: str = ""):
 
     logger.info(f"Generating brief for groups {group_ids} with focus: {focus}")
     brief = asyncio.run(get_agent().summarize(24, group_ids, focus))
+    if not brief:
+        logger.warning("No brief generated for groups %s", group_ids)
+        return
     _insert_brief(group_ids, brief)
     logger.info("Brief generation completed for groups %s", group_ids)
 
@@ -80,7 +83,9 @@ async def generate_brief_for_groups_async(
         from agent import get_agent
         brief = await get_agent().summarize(24, group_ids, focus, on_step=on_step)
         save_group_ids = group_ids
-    
+    if not brief:
+        logger.warning("No brief generated for groups %s", group_ids)
+        return ""
     _insert_brief(save_group_ids, brief)
     logger.info("Brief generation completed for groups %s", save_group_ids)
     return brief

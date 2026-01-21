@@ -3,10 +3,7 @@ from datetime import datetime
 import json
 from agent.context import ContentOptimizer
 from agent.models import AgentPlanResult, AgentState, log_step
-from agent.prompts import (
-    GLOBAL_PLANNER_PROMPT_TEMPLATE,
-    GROUP_PLANNER_PROMPT_TEMPLATE,
-)
+from agent.prompts import PLANNER_PROMPT_TEMPLATE
 from agent.utils import extract_json
 from agent.tools import filter_tool, memory_tool
 from core.brief_generator import AIGenerator
@@ -71,7 +68,7 @@ class AgentPlanner:
             focus=state.get("focus", ""),
             # 函数会自动检测文章是否有完整内容，无需手动指定
         )
-        
+
         # 格式化文章为JSON字符串（只包含关键信息）
         articles_json = json.dumps(
             [
@@ -89,11 +86,13 @@ class AgentPlanner:
             ensure_ascii=False,
             indent=2,
         )
-        
+
         # 优化历史记忆
         history_memories_list = list(state["history_memories"].values())
-        optimized_memories = self.content_optimizer.truncate_memories(history_memories_list)
-        
+        optimized_memories = self.content_optimizer.truncate_memories(
+            history_memories_list
+        )
+
         history_memories = [
             {
                 "id": memory["id"],
@@ -104,13 +103,8 @@ class AgentPlanner:
             }
             for memory in optimized_memories
         ]
-        
-        template = (
-            GROUP_PLANNER_PROMPT_TEMPLATE
-            if len(state["groups"]) == 1
-            else GLOBAL_PLANNER_PROMPT_TEMPLATE
-        )
-        return template.format(
+
+        return PLANNER_PROMPT_TEMPLATE.format(
             current_date=datetime.now().strftime("%Y-%m-%d"),
             focus=state["focus"],
             raw_articles=articles_json,

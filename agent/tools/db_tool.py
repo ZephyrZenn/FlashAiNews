@@ -87,7 +87,7 @@ class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
                       AND NOT EXISTS (
                           SELECT 1
                           FROM excluded_feed_item_ids efi
-                          WHERE efi.id = fi.id
+                          WHERE efi.item_id = fi.id
                             AND efi.group_ids @> %s::integer[] AND efi.group_ids <@ %s::integer[]
                             AND efi.pub_date >= NOW() - INTERVAL '1 hour' * %s
                       );

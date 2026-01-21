@@ -117,7 +117,7 @@ class SaveExecutionRecordsTool(BaseTool[None]):
             if excluded_articles:
                 await cur.executemany(
                     """
-                    INSERT INTO excluded_feed_item_ids (id, group_ids, pub_date)
+                    INSERT INTO excluded_feed_item_ids (item_id, group_ids, pub_date)
                     VALUES (%s, %s::integer[], %s)
                     """,
                     excluded_articles,

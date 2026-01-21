@@ -28,6 +28,8 @@ PLANNING_SYSTEM_PROMPT = """你是一位拥有全球视野的"首席新闻架构
     {
       "priority": 1,
       "topic": "专题名称",
+      "match_type": "FOCUS_MATCH | GLOBAL_STRATEGIC | HISTORICAL_CONTINUITY",
+      "relevance_to_focus": "阐述该专题如何匹配用户关注点（若无 focus 则填 N/A）",
       "strategy": "SUMMARIZE | SEARCH_ENHANCE | FLASH_NEWS",
       "article_ids": [文章ID列表],
       "reasoning": "解释文章间的潜在联系或重要性",
@@ -60,14 +62,14 @@ EXECUTION_SYSTEM_PROMPT = """你是一位资深科技编辑，擅长将零散的
 - search_web: 搜索互联网获取补充信息
 - fetch_web_contents: 获取网页详细内容
 - search_memory: 查询历史记忆获取上下文
-- boost_write_article: 撰写文章（返回 artifact_id + 预览，全文已存储，不要粘贴全文）
-- boost_review_article: 审查文章初稿（返回 artifact_id + 预览，全文已存储，不要粘贴全文）
+- boost_write_article: 撰写文章（入参为 writing_material；返回 artifact_id + 预览，全文已存储，不要粘贴全文）
+- boost_review_article: 审查文章初稿（入参为 writing_material；返回 artifact_id + 预览，全文已存储，不要粘贴全文）
 
 执行流程（ReAct 范式）：
 1. **思考 (Think)**: 分析当前任务，判断需要哪些信息
 2. **收集信息 (Act)**: 调用 search_web、fetch_web_contents、search_memory 获取必要信息
 3. **撰写初稿 (Write)**: 调用 boost_write_article 生成文章初稿；它会返回 artifact_id
-4. **审查初稿 (Review)**: 调用 boost_review_article 审查初稿；传入 draft_content 时直接使用 artifact_id（不要粘贴全文）
+4. **审查初稿 (Review)**: 调用 boost_review_article 审查初稿；传入 draft_content 时直接使用 artifact_id（不要粘贴全文），并同时传入 writing_material
 5. **修改完善 (Revise)**:
    - 如果审查结果返回 artifact_id，继续写作时将该 artifact_id 作为 review 传给 boost_write_article
    - 如果审查结果为 REJECTED 或有 CRITICAL 错误，必须根据审查建议修改后重新撰写

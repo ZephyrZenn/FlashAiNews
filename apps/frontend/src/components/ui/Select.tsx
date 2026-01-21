@@ -8,11 +8,13 @@ export interface SelectOption {
 }
 
 interface SelectProps {
-  value: string;
-  onChange: (value: string) => void;
+  value: string | string[];
+  onChange: (value: string | string[]) => void;
   options: SelectOption[];
   placeholder?: string;
   className?: string;
+  direction?: 'up' | 'down';
+  multiple?: boolean;
 }
 
 export const Select = ({
@@ -21,16 +23,46 @@ export const Select = ({
   options,
   placeholder = '请选择',
   className = '',
+  direction = 'down',
+  multiple = false,
 }: SelectProps) => {
-  const selectedOption = options.find(opt => opt.value === value);
-  
+  const isMulti = multiple;
+  const listboxValue = isMulti
+    ? (Array.isArray(value) ? value : []).filter(Boolean)
+    : typeof value === 'string'
+      ? value
+      : '';
+  const selectedOptions = isMulti
+    ? options.filter((opt) => Array.isArray(value) && value.includes(opt.value))
+    : [];
+  const selectedOption = !isMulti && typeof value === 'string'
+    ? options.find((opt) => opt.value === value)
+    : undefined;
+  const displayLabel = isMulti
+    ? selectedOptions.length
+      ? selectedOptions
+          .map((opt) => opt.label)
+          .slice(0, 2)
+          .join('、') + (selectedOptions.length > 2 ? ` 等${selectedOptions.length}个` : '')
+      : placeholder
+    : selectedOption?.label || placeholder;
+  const isFilled = isMulti ? selectedOptions.length > 0 : !!(selectedOption && value);
+
+  const handleChange = (val: string | string[]) => {
+    if (isMulti) {
+      onChange(Array.isArray(val) ? val : []);
+    } else {
+      onChange(typeof val === 'string' ? val : '');
+    }
+  };
+
   return (
-    <Listbox value={value} onChange={onChange}>
+    <Listbox value={listboxValue} onChange={handleChange} multiple={isMulti}>
       {({ open }) => (
         <div className={`relative ${className}`}>
           <Listbox.Button className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none hover:border-indigo-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 transition-all shadow-sm hover:shadow-md cursor-pointer text-left flex items-center justify-between">
-            <span className={selectedOption && value ? 'text-slate-700 font-bold' : 'text-slate-400'}>
-              {selectedOption?.label || placeholder}
+            <span className={isFilled ? 'text-slate-700 font-bold' : 'text-slate-400'}>
+              {displayLabel}
             </span>
             <ChevronDown 
               size={16} 
@@ -47,7 +79,11 @@ export const Select = ({
             leaveFrom="transform opacity-100 scale-100"
             leaveTo="transform opacity-0 scale-95"
           >
-            <Listbox.Options className="absolute mt-2 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl py-2 z-50 max-h-60 overflow-auto focus:outline-none custom-scrollbar">
+            <Listbox.Options
+              className={`absolute w-full bg-white border border-slate-100 rounded-2xl shadow-2xl py-2 z-50 max-h-60 overflow-auto focus:outline-none custom-scrollbar ${
+                direction === 'up' ? 'bottom-full mb-2' : 'mt-2'
+              }`}
+            >
               {options.map((option) => (
                 <Listbox.Option
                   key={option.value}

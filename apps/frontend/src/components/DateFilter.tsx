@@ -1,7 +1,7 @@
 import { Calendar, X } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { DayPicker, DateRange } from 'react-day-picker';
-import { format, isAfter, isBefore, startOfDay } from 'date-fns';
+import { format, isAfter, isBefore, startOfDay, subDays } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import 'react-day-picker/style.css';
 
@@ -97,6 +97,33 @@ export const DateFilter = ({
     ? `${startDate} → ${endDate}`
     : '选择日期范围';
 
+  // 快捷选项处理函数
+  const handleToday = () => {
+    const today = getTodayString();
+    onStartDateChange?.(today);
+    onEndDateChange?.(today);
+    setIsOpen(false);
+  };
+
+  const handleLastWeek = () => {
+    const today = new Date();
+    const weekAgo = subDays(today, 6); // 最近一周（包含今天，共7天）
+    onStartDateChange?.(formatDateString(weekAgo));
+    onEndDateChange?.(getTodayString());
+    setIsOpen(false);
+  };
+
+  // 判断当前是否选中了"当日"
+  const isTodaySelected = startDate === getTodayString() && endDate === getTodayString();
+  
+  // 判断当前是否选中了"最近一周"
+  const isLastWeekSelected = (() => {
+    if (!startDate || !endDate) return false;
+    const today = getTodayString();
+    const weekAgo = formatDateString(subDays(new Date(), 6));
+    return startDate === weekAgo && endDate === today;
+  })();
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-6 flex-wrap">
@@ -105,6 +132,30 @@ export const DateFilter = ({
           <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest">
             时间筛选
           </span>
+        </div>
+        
+        {/* 快捷选项按钮 */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleToday}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              isTodaySelected
+                ? 'bg-indigo-500 text-white shadow-md'
+                : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-200 hover:text-indigo-600'
+            }`}
+          >
+            当日
+          </button>
+          <button
+            onClick={handleLastWeek}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              isLastWeekSelected
+                ? 'bg-indigo-500 text-white shadow-md'
+                : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-200 hover:text-indigo-600'
+            }`}
+          >
+            最近一周
+          </button>
         </div>
         
         <div className="relative" ref={popoverRef}>

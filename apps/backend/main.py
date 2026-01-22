@@ -18,7 +18,7 @@ from apps.backend.exception import (
 from apps.backend.middleware import LogMiddleware
 from apps.backend.models.common import success_with_data
 from apps.backend.models.view_model import FeedBriefResponse
-from apps.backend.router import brief, feed, group, setting, schedule
+from apps.backend.router import brief, feed, group, setting, schedule, memory
 from apps.backend.services.scheduler_service import (
     init_scheduler,
     shutdown_scheduler,
@@ -75,6 +75,7 @@ app.include_router(group.router)
 app.include_router(brief.router)
 app.include_router(setting.router)
 app.include_router(schedule.router)
+app.include_router(memory.router)
 
 # CORS
 app.add_middleware(

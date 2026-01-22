@@ -87,6 +87,10 @@ class AgentExecutor:
                 result["content"] = contents.get(result["url"], "")
             # 过滤掉抓取失败的结果
             search_results = [r for r in search_results if r.get("content")]
+            # 收集外部搜索结果到 state
+            if "ext_info" not in state:
+                state["ext_info"] = []
+            state["ext_info"].extend(search_results)
         else:
             log_step(state, "   ↳ 搜索引擎不可用，跳过搜索扩展")
             search_results = []

@@ -8,6 +8,7 @@ import GroupsPage from '@/pages/GroupsPage';
 import SettingsPage from '@/pages/SettingsPage';
 import InstantLabPage from '@/pages/InstantLabPage';
 import SchedulesPage from '@/pages/SchedulesPage';
+import MemoryPage from '@/pages/MemoryPage';
 import './styles/app.css';
 
 const App = () => {
@@ -16,6 +17,8 @@ const App = () => {
       <ConfirmDialogProvider>
         <Routes>
           <Route path="/" element={<SummaryPage />} />
+          <Route path="/brief/:id" element={<SummaryPage />} />
+          <Route path="/memory/:id" element={<MemoryPage />} />
           <Route path="/sources" element={<SourcesPage />} />
           <Route path="/groups" element={<GroupsPage />} />
           <Route path="/instant" element={<InstantLabPage />} />

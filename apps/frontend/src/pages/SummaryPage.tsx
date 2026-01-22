@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, X, FileText, List } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,6 +9,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { formatDate } from '@/utils/date';
 import { Layout } from '@/components/Layout';
 import { DateFilter } from '@/components/DateFilter';
+import { useToast } from '@/context/ToastContext';
 import type { FeedBrief } from '@/types/api';
 
 // Card colors for visual variety - matching t.tsx exactly
@@ -43,11 +45,14 @@ const extractHeadings = (content: string): Heading[] => {
   const headings: Heading[] = [];
   const lines = content.split('\n');
   lines.forEach((line) => {
-    const match = line.match(/^(#{1,6})\s+(.+)$/);
+    // 更宽松的匹配：允许标题前有空格，标题后可以有空格
+    const trimmedLine = line.trim();
+    const match = trimmedLine.match(/^(#{1,6})\s+(.+)$/);
     if (match) {
       const level = match[1].length;
       const text = match[2].trim();
-      const id = `${match[1].length}-${slugify(text) || Math.random().toString(36).slice(2)}`;
+      // 使用与 ReactMarkdown 组件一致的 id 格式
+      const id = `h${level}-${slugify(text) || Math.random().toString(36).slice(2)}`;
       headings.push({ level, text, id });
     }
   });
@@ -108,7 +113,11 @@ const getTodayString = () => {
 };
 
 const SummaryPage = () => {
+  const { id: briefIdParam } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   const [selectedBrief, setSelectedBrief] = useState<FeedBrief | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   // 移动端默认隐藏大纲，桌面端默认显示
   const [showOutline, setShowOutline] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -124,6 +133,11 @@ const SummaryPage = () => {
   useEffect(() => {
     if (selectedBrief) {
       const isMobile = window.innerWidth < 768; // md breakpoint
+      // 桌面端默认显示，移动端默认隐藏（但可以通过按钮显示）
+      setShowOutline(!isMobile);
+    } else {
+      // 返回列表时重置状态
+      const isMobile = window.innerWidth < 768;
       setShowOutline(!isMobile);
     }
   }, [selectedBrief]);
@@ -134,15 +148,100 @@ const SummaryPage = () => {
     () => api.getBriefs(startDate, endDate)
   );
 
+  // 从路由参数加载简报详情
+  useEffect(() => {
+    if (briefIdParam) {
+      const briefId = parseInt(briefIdParam, 10);
+      if (!isNaN(briefId)) {
+        setIsLoadingDetail(true);
+        api.getBriefDetail(briefId)
+          .then((brief) => {
+            setSelectedBrief(brief);
+            setIsLoadingDetail(false);
+          })
+          .catch((error: any) => {
+            console.error('Failed to load brief detail:', error);
+            setIsLoadingDetail(false);
+            
+            // 提取错误信息
+            const errorMessage = error?.response?.data?.detail || 
+                                error?.response?.data?.message || 
+                                error?.message || 
+                                '加载简报详情失败';
+            
+            // 显示错误提示
+            showToast(errorMessage, { type: 'error' });
+            
+            // 延迟导航，让用户看到错误提示
+            setTimeout(() => {
+              navigate('/', { replace: true });
+            }, 1500);
+          });
+      } else {
+        // 无效的 ID
+        showToast('无效的简报ID', { type: 'error' });
+        navigate('/', { replace: true });
+      }
+    } else {
+      // 没有路由参数时，清空选中的简报（如果是从详情页返回）
+      setSelectedBrief(null);
+    }
+  }, [briefIdParam, navigate, showToast]);
+
+  // 处理简报点击，如果简报没有完整内容则加载详情
+  const handleBriefClick = async (brief: FeedBrief) => {
+    try {
+      // 如果简报已经有完整内容，直接导航
+      if (brief.content) {
+        navigate(`/brief/${brief.id}`);
+        return;
+      }
+      
+      // 否则先加载完整内容，再导航
+      const fullBrief = await api.getBriefDetail(brief.id);
+      setSelectedBrief(fullBrief);
+      navigate(`/brief/${brief.id}`);
+    } catch (error: any) {
+      console.error('Failed to load brief detail:', error);
+      const errorMessage = error?.response?.data?.detail || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          '加载简报详情失败';
+      showToast(errorMessage, { type: 'error' });
+    }
+  };
+
+  // 处理返回按钮点击
+  const handleBackClick = () => {
+    navigate('/');
+  };
+
   // 计算要显示的简报列表
   const displayBriefs = useMemo(() => briefs || [], [briefs]);
+
+  // 如果正在从路由加载详情，显示加载状态
+  if (briefIdParam && isLoadingDetail) {
+    return (
+      <Layout>
+        <div className="h-full flex items-center justify-center">
+          <div className="text-slate-400 text-sm">加载中...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   // Detail view - exactly matching t.tsx selectedSummary view
   if (selectedBrief) {
     const cardStyle = getCardStyle(selectedBrief.id);
-    const headings = extractHeadings(selectedBrief.content);
+    const headings = extractHeadings(selectedBrief.content || '');
+    
+    // 调试：检查标题提取
+    if (headings.length === 0 && selectedBrief.content) {
+      console.log('未提取到标题，内容预览:', selectedBrief.content.substring(0, 200));
+    }
+    
     return (
-      <Layout showBackButton onBackClick={() => setSelectedBrief(null)}>
+      <Layout showBackButton onBackClick={handleBackClick}>
         <div className="h-full p-2 md:p-4 flex items-center justify-center bg-slate-100/30">
           <div className={`w-full max-w-7xl h-full flex flex-col bg-white shadow-2xl rounded-sm overflow-hidden relative ${cardStyle.color}`}>
             <div className="p-4 md:p-12 pb-4 md:pb-6 border-b border-black/5 mx-2 md:mx-12 shrink-0">
@@ -167,7 +266,7 @@ const SummaryPage = () => {
                 {/* Close button */}
                 <X
                   className="cursor-pointer text-slate-300 hover:text-slate-800 transition-colors shrink-0 ml-4"
-                  onClick={() => setSelectedBrief(null)}
+                  onClick={handleBackClick}
                 />
               </div>
             </div>
@@ -194,7 +293,7 @@ const SummaryPage = () => {
                     },
                   }}
                 >
-                  {selectedBrief.content}
+                  {selectedBrief.content || ''}
                 </ReactMarkdown>
               </div>
 
@@ -229,9 +328,7 @@ const SummaryPage = () => {
                           style={{ marginLeft: `${(heading.level - 1) * 0.75}rem` }}
                           onClick={(e) => {
                             e.preventDefault();
-                            const el = document.getElementById(
-                              `${heading.level === 1 ? 'h1' : heading.level === 2 ? 'h2' : 'h3'}-${slugify(heading.text)}`
-                            );
+                            const el = document.getElementById(heading.id);
                             if (el) {
                               el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                             }
@@ -244,19 +341,20 @@ const SummaryPage = () => {
                   </div>
                 </div>
               )}
-              
-              {/* 显示按钮 - 浮动在右侧边缘，不占据布局空间 */}
-              {headings.length > 0 && !showOutline && (
-                <button
-                  onClick={() => setShowOutline(true)}
-                  className="absolute right-0 bottom-4 md:bottom-auto md:top-1/2 md:-translate-y-1/2 -translate-x-4 w-12 h-12 md:w-10 md:h-20 bg-white/90 backdrop-blur-sm border border-black/10 rounded-l-lg md:rounded-l-lg shadow-lg flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-700 hover:bg-white transition-all z-10 min-w-[44px] min-h-[44px]"
-                  title="显示大纲"
-                >
-                  <List size={18} />
-                  <span className="text-[10px] font-medium hidden md:inline">显示</span>
-                </button>
-              )}
             </div>
+            
+            {/* 显示按钮 - 移到外层，避免被 overflow-hidden 裁剪 */}
+            {headings.length > 0 && !showOutline && (
+              <button
+                onClick={() => setShowOutline(true)}
+                className="fixed md:absolute right-4 md:right-2 bottom-20 md:bottom-auto md:top-1/2 md:-translate-y-1/2 w-12 h-12 md:w-10 md:h-20 bg-white/95 backdrop-blur-sm border border-black/10 rounded-lg md:rounded-l-lg shadow-xl flex flex-col items-center justify-center gap-1 text-slate-600 hover:text-slate-800 hover:bg-white transition-all z-50 min-w-[44px] min-h-[44px]"
+                title="显示大纲"
+                aria-label="显示大纲"
+              >
+                <List size={18} className="md:w-5 md:h-5" />
+                <span className="text-[10px] font-medium hidden md:inline">显示</span>
+              </button>
+            )}
           </div>
         </div>
       </Layout>
@@ -335,13 +433,16 @@ const SummaryPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 md:gap-x-12 gap-y-8 md:gap-y-16">
             {displayBriefs.map((brief, index) => {
               const cardStyle = getCardStyle(index);
-              const keyPoints = extractKeyPoints(brief.content);
+              // 优先使用 summary（二级标题列表，用 \n 分隔），如果没有则从 content 提取
+              const keyPoints = brief.summary
+                ? brief.summary.split('\n').filter(line => line.trim()).slice(0, 4)
+                : extractKeyPoints(brief.content || '');
               const groupTitle = brief.groups?.[0]?.title || '分组';
               
               return (
                 <div
                   key={brief.id}
-                  onClick={() => setSelectedBrief(brief)}
+                  onClick={() => handleBriefClick(brief)}
                   className={`group relative p-6 md:p-8 cursor-pointer transition-all duration-500 hover:scale-[1.03] ${cardStyle.color} ${cardStyle.rotation} rounded-sm shadow-sm hover:shadow-2xl min-h-[280px] md:h-[340px] flex flex-col border border-black/5`}
                 >
                   {/* Paper clip effect */}

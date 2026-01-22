@@ -4,25 +4,22 @@
 """
 
 import logging
-import json
-from json import JSONDecodeError
-from typing import Literal
 
 from agent.tools.base import BaseTool, ToolSchema, ToolParameter
 from agent.models import (
     WritingMaterial,
     AgentCriticResult,
-    RawArticle,
-    SummaryMemory,
 )
 from agent.prompts import (
     WRITER_FLASH_NEWS_PROMPT,
-    WRITER_DEEP_DIVE_PROMPT_TEMPLATE,
-    CRITIC_PROMPT_TEMPLATE,
+    WRITER_DEEP_DIVE_SYSTEM_PROMPT_TEMPLATE,
+    WRITER_DEEP_DIVE_USER_PROMPT_TEMPLATE,
+    CRITIC_SYSTEM_PROMPT_TEMPLATE,
+    CRITIC_USER_PROMPT_TEMPLATE,
 )
 from agent.utils import extract_json
 from core.brief_generator import AIGenerator
-from core.models.search import SearchResult
+from core.models.llm import Message
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +91,7 @@ class WriteArticleTool(BaseTool[str]):
 
     def _build_prompt(
         self, writing_material: WritingMaterial, review: AgentCriticResult | None = None
-    ) -> str:
+    ) -> str | list[Message]:
         """构建写作 prompt"""
         if writing_material["style"] == "FLASH":
             return WRITER_FLASH_NEWS_PROMPT.format(
@@ -109,18 +106,33 @@ class WriteArticleTool(BaseTool[str]):
         )
         # history_memory 现在统一为列表
         history_memories = writing_material.get("history_memory", [])
-
-        return WRITER_DEEP_DIVE_PROMPT_TEMPLATE.format(
-            topic=writing_material["topic"],
-            match_type=writing_material["match_type"],
-            relevance_to_focus=writing_material["relevance_to_focus"],
-            writing_guide=writing_material["writing_guide"],
-            reasoning=writing_material["reasoning"],
-            articles=writing_material["articles"],
-            ext_info=ext_info,
-            review=review if review else "",
-            history_memories=history_memories,
+        system_prompt = Message(
+            role="system",
+            content=WRITER_DEEP_DIVE_SYSTEM_PROMPT_TEMPLATE.format(
+                relevance_to_focus=writing_material["relevance_to_focus"],
+                topic=writing_material["topic"],
+            ),
         )
+        user_prompt = Message(
+            role="user",
+            content=WRITER_DEEP_DIVE_USER_PROMPT_TEMPLATE.format(
+                topic=writing_material["topic"],
+                match_type=writing_material["match_type"],
+                relevance_to_focus=writing_material["relevance_to_focus"],
+                writing_guide=writing_material["writing_guide"],
+                reasoning=writing_material["reasoning"],
+                articles=writing_material["articles"],
+                ext_info=ext_info,
+                history_memories=history_memories,
+                review=review if review else "",
+            ),
+        )
+        system_prompt.set_priority(0)
+        user_prompt.set_priority(0)
+        return [
+            system_prompt,
+            user_prompt,
+        ]
 
 
 class ReviewArticleTool(BaseTool[AgentCriticResult]):
@@ -180,23 +192,8 @@ class ReviewArticleTool(BaseTool[AgentCriticResult]):
         Returns:
             审查结果
         """
-        # 直接构建 prompt 并调用 client
-        source_material = {
-            "articles": writing_material["articles"],
-            "ext_info": writing_material.get("ext_info", []),
-        }
-        # history_memory 现在统一为列表
-        history_memories = writing_material.get("history_memory", [])
-        
-        prompt = CRITIC_PROMPT_TEMPLATE.format(
-            draft_content=draft_content,
-            source_material=source_material,
-            original_guide=writing_material["writing_guide"],
-            history_memories=history_memories,
-            match_type=writing_material["match_type"],
-            relevance_to_focus=writing_material["relevance_to_focus"],
-        )
-        
+        prompt = self._build_prompt(draft_content, writing_material)
+
         response = await self.client.completion(prompt)
         try:
             result: AgentCriticResult = extract_json(response)
@@ -204,30 +201,40 @@ class ReviewArticleTool(BaseTool[AgentCriticResult]):
                 "Parsed critic response successfully, status: %s", result.get("status")
             )
             return result
-        except Exception:
-            # 二次尝试：将花引号等替换为标准 JSON 引号再解析
-            sanitized = (
-                response.replace("“", '"')
-                .replace("”", '"')
-                .replace("‘", "'")
-                .replace("’", "'")
+        except Exception as e:
+            # Log a truncated version to avoid huge log entries
+            response_preview = (
+                response[:500] + "..." if len(response) > 500 else response
             )
-            try:
-                result: AgentCriticResult = extract_json(sanitized)
-                logger.info(
-                    "Parsed critic response successfully after sanitizing quotes, status: %s",
-                    result.get("status"),
-                )
-                return result
-            except Exception as e:
-                # Log a truncated version to avoid huge log entries
-                response_preview = (
-                    response[:500] + "..." if len(response) > 500 else response
-                )
-                logger.error(
-                    "Failed to parse critic response. Error: %s\nResponse preview: %s",
-                    str(e),
-                    response_preview,
-                    exc_info=True,
-                )
-                raise ValueError(f"Failed to parse critic response: {str(e)}") from e
+            logger.error(
+                "Failed to parse critic response. Error: %s\nResponse preview: %s",
+                str(e),
+                response_preview,
+                exc_info=True,
+            )
+            print(response)
+            raise ValueError(f"Failed to parse critic response: {str(e)}") from e
+
+    def _build_prompt(
+        self, draft_content: str, writing_material: WritingMaterial
+    ) -> list[Message]:
+        """构建审查 prompt"""
+        system_prompt = Message(role="system", content=CRITIC_SYSTEM_PROMPT_TEMPLATE)
+        system_prompt.set_priority(0)
+        user_prompt = Message(
+            role="user",
+            content=CRITIC_USER_PROMPT_TEMPLATE.format(
+                draft_content=draft_content,
+                articles=writing_material["articles"],
+                ext_info=writing_material.get("ext_info", []),
+                history_memories=writing_material.get("history_memory", []),
+                match_type=writing_material["match_type"],
+                relevance_to_focus=writing_material["relevance_to_focus"],
+                writing_guide=writing_material["writing_guide"],
+            ),
+        )
+        user_prompt.set_priority(0)
+        return [
+            system_prompt,
+            user_prompt,
+        ]

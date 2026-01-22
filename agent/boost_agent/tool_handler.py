@@ -65,7 +65,16 @@ class ToolHandler:
             )
 
         # 交给具体工具执行（工具内部有统一异常封装为 ToolResult）
-        return await tool.execute(**tool_args)
+        result = await tool.execute(**tool_args)
+        
+        # 收集 search_web 的外部搜索结果
+        if tool_name == "search_web" and result.success and result.data:
+            if "ext_info" not in self.state:
+                self.state["ext_info"] = []
+            # result.data 是 SearchResult 列表
+            self.state["ext_info"].extend(result.data)
+        
+        return result
 
     def serialize_tool_result(self, result: Any) -> str:
         """序列化工具结果，对大型结果进行优化

@@ -20,6 +20,8 @@ import type {
   ScheduleResponse,
   CreateSchedulePayload,
   UpdateSchedulePayload,
+  Memory,
+  MemoryResponse,
 } from '@/types/api';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -51,6 +53,10 @@ export const api = {
       client.get<FeedBriefListResponse>(`/briefs/${query ? `?${query}` : ''}`),
     );
   },
+  getBriefDetail: (briefId: number) =>
+    unwrap<FeedBrief>(
+      client.get<FeedBriefResponse>(`/briefs/${briefId}`),
+    ),
   getDefaultBriefs: () => unwrap<FeedBrief[]>(
     client.get<FeedBriefListResponse>('/briefs/default'),
   ),
@@ -113,7 +119,11 @@ export const api = {
     unwrap<Schedule>(client.put<ScheduleResponse>(`/schedules/${scheduleId}`, payload)),
   deleteSchedule: (scheduleId: string) =>
     unwrap<void>(client.delete<ApiResponse<void>>(`/schedules/${scheduleId}`)),
+
+  // Memory
+  getMemory: (memoryId: number) =>
+    unwrap<Memory>(client.get<MemoryResponse>(`/memory/${memoryId}`)),
 };
 
-export type { Feed, FeedGroup, FeedBrief, Setting, Schedule };
+export type { Feed, FeedGroup, FeedBrief, Setting, Schedule, Memory };
 export { baseURL };

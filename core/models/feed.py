@@ -83,18 +83,36 @@ class FeedGroup:
 
 class FeedBrief:
     def __init__(
-        self, id: int, content: str, pub_date: datetime, group_ids: list[int] = None
+        self, 
+        id: int, 
+        content: str, 
+        pub_date: datetime, 
+        group_ids: list[int] = None,
+        summary: str = "",
+        ext_info: list[dict] = None
     ):
         self.id = id
         self.content = content
         self.pub_date = pub_date
         self.group_ids = group_ids if group_ids is not None else []
+        self.summary = summary
+        self.ext_info = ext_info if ext_info is not None else []
 
-    def to_view_model(self, groups_dict: dict[int, FeedGroup]) -> dict:
+    def to_view_model(self, groups_dict: dict[int, FeedGroup], include_content: bool = True) -> dict:
+        """转换为视图模型
+        
+        Args:
+            groups_dict: 分组ID到分组对象的映射
+            include_content: 是否包含完整内容（content 和 ext_info），默认 True
+        """
         groups = [groups_dict[gid] for gid in self.group_ids if gid in groups_dict]
-        return {
+        result = {
             "id": self.id,
-            "content": self.content,
             "pub_date": self.pub_date,
             "groups": groups,
+            "summary": self.summary,
         }
+        if include_content:
+            result["content"] = self.content
+            result["ext_info"] = self.ext_info
+        return result

@@ -32,7 +32,7 @@
 
     # 使用兼容函数（向后兼容）
     from agent.tools import db_tool
-    groups, articles = await db_tool.get_recent_group_update(24, [1, 2])
+    groups, articles = await db_tool.get_recent_group_update(24, [1, 2], focus="")
 
     # 获取工具描述供 LLM 使用
     from agent.tools import get_all_tools_prompt, recent_group_update_tool

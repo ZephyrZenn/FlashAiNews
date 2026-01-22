@@ -197,7 +197,9 @@ class BoostAgent:
 
         await save_current_execution_records(self.state)
 
-        return "\n\n".join(results)
+        # 返回简报内容和外部搜索结果
+        ext_info = self.state.get("ext_info", [])
+        return "\n\n".join(results), ext_info
 
     async def _planning_phase(
         self,

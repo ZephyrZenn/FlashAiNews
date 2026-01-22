@@ -4,6 +4,12 @@ import {
   PlayCircle,
   RotateCcw,
   Info,
+  History,
+  X,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
@@ -19,7 +25,17 @@ interface LogEntry {
   time: string;
 }
 
+interface HistoryTask {
+  taskId: string;
+  createdAt: string;
+  status?: 'pending' | 'running' | 'completed' | 'failed' | 'deleted';
+  focus?: string;
+  boostMode?: boolean;
+}
+
 const TASK_STORAGE_KEY = 'instant_lab_active_task';
+const HISTORY_STORAGE_KEY = 'instant_lab_history_tasks';
+const MAX_HISTORY_COUNT = 50; // 最多保存50条历史记录
 
 const InstantLabPage = () => {
   const queryClient = useQueryClient();
@@ -33,9 +49,91 @@ const InstantLabPage = () => {
   const [selectedGroupsForGen, setSelectedGroupsForGen] = useState<number[]>([]);
   const [boostMode, setBoostMode] = useState(false);
   const [isRecovering, setIsRecovering] = useState(true); // 标记是否正在恢复状态
+  const [historyTasks, setHistoryTasks] = useState<HistoryTask[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [selectedHistoryTask, setSelectedHistoryTask] = useState<HistoryTask | null>(null);
+  const [loadingHistoryTask, setLoadingHistoryTask] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
 
   const allGroups = groups ?? [];
+
+  // 从 localStorage 加载历史记录
+  useEffect(() => {
+    const loadHistory = () => {
+      try {
+        const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as HistoryTask[];
+          setHistoryTasks(parsed);
+        }
+      } catch (error) {
+        console.error('Failed to load history:', error);
+      }
+    };
+    loadHistory();
+  }, []);
+
+  // 保存历史记录到 localStorage
+  const saveHistoryTask = useCallback((task: HistoryTask) => {
+    try {
+      const existing = [...historyTasks];
+      // 检查是否已存在，如果存在则更新，否则添加到开头
+      const index = existing.findIndex(t => t.taskId === task.taskId);
+      if (index >= 0) {
+        existing[index] = task;
+      } else {
+        existing.unshift(task);
+      }
+      // 限制数量
+      const limited = existing.slice(0, MAX_HISTORY_COUNT);
+      setHistoryTasks(limited);
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(limited));
+    } catch (error) {
+      console.error('Failed to save history:', error);
+    }
+  }, [historyTasks]);
+
+  // 加载历史任务详情
+  const loadHistoryTaskDetail = useCallback(async (task: HistoryTask) => {
+    setLoadingHistoryTask(true);
+    try {
+      const status = await api.getBriefGenerationStatus(task.taskId);
+      const updatedTask: HistoryTask = {
+        ...task,
+        status: status.status,
+      };
+      saveHistoryTask(updatedTask);
+      setSelectedHistoryTask(updatedTask);
+      // 显示日志
+      if (status.logs.length > 0) {
+        setAgentLogs(
+          status.logs.map(log => ({
+            text: log.text,
+            time: new Date(log.time).toLocaleTimeString(),
+          }))
+        );
+        // 关闭侧边栏，显示日志视图
+        setIsHistoryOpen(false);
+      } else {
+        showToast('该任务暂无日志');
+      }
+    } catch (error: any) {
+      // 如果是 404，标记为已删除
+      if (error?.response?.status === 404) {
+        const deletedTask: HistoryTask = {
+          ...task,
+          status: 'deleted',
+        };
+        saveHistoryTask(deletedTask);
+        setSelectedHistoryTask(deletedTask);
+        showToast('该记录已从服务器删除', { type: 'error' });
+      } else {
+        showToast('加载任务详情失败', { type: 'error' });
+      }
+    } finally {
+      setLoadingHistoryTask(false);
+    }
+  }, [saveHistoryTask, showToast]);
 
   // 组件挂载时检查是否有正在运行的任务
   useEffect(() => {
@@ -58,9 +156,27 @@ const InstantLabPage = () => {
                 }))
               );
             }
+            // 更新历史记录中的任务状态
+            const existingTask = historyTasks.find(t => t.taskId === savedTaskId);
+            if (existingTask) {
+              const updatedTask: HistoryTask = {
+                ...existingTask,
+                status: status.status,
+              };
+              saveHistoryTask(updatedTask);
+            }
           } else {
             // 任务已完成或失败，清除存储
             localStorage.removeItem(TASK_STORAGE_KEY);
+            // 更新历史记录中的任务状态
+            const existingTask = historyTasks.find(t => t.taskId === savedTaskId);
+            if (existingTask) {
+              const updatedTask: HistoryTask = {
+                ...existingTask,
+                status: status.status,
+              };
+              saveHistoryTask(updatedTask);
+            }
           }
         } catch {
           // 任务不存在或出错，清除存储
@@ -71,7 +187,7 @@ const InstantLabPage = () => {
     };
 
     recoverTask();
-  }, []);
+  }, [historyTasks, saveHistoryTask]);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -83,20 +199,36 @@ const InstantLabPage = () => {
   // 任务完成时的处理
   const handleTaskComplete = useCallback(() => {
     setIsGenerating(false);
+    const completedTask: HistoryTask = {
+      taskId: taskId!,
+      createdAt: new Date().toISOString(),
+      status: 'completed',
+      focus: generationFocus,
+      boostMode: boostMode,
+    };
+    saveHistoryTask(completedTask);
     setTaskId(null);
     localStorage.removeItem(TASK_STORAGE_KEY);
     showToast('简报生成成功！');
     queryClient.invalidateQueries({ queryKey: queryKeys.briefs() });
     queryClient.invalidateQueries({ queryKey: queryKeys.defaultBriefs });
-  }, [showToast, queryClient]);
+  }, [showToast, queryClient, taskId, generationFocus, boostMode, saveHistoryTask]);
 
   // 任务失败时的处理
   const handleTaskError = useCallback((error: string) => {
     setIsGenerating(false);
+    const failedTask: HistoryTask = {
+      taskId: taskId!,
+      createdAt: new Date().toISOString(),
+      status: 'failed',
+      focus: generationFocus,
+      boostMode: boostMode,
+    };
+    saveHistoryTask(failedTask);
     setTaskId(null);
     localStorage.removeItem(TASK_STORAGE_KEY);
     showToast(`生成失败: ${error}`, { type: 'error' });
-  }, [showToast]);
+  }, [showToast, taskId, generationFocus, boostMode, saveHistoryTask]);
 
   // 日志更新处理
   const handleLogUpdate = useCallback((logs: Array<{ text: string; time: string }>) => {
@@ -106,7 +238,18 @@ const InstantLabPage = () => {
         time: new Date(log.time).toLocaleTimeString(),
       }))
     );
-  }, []);
+    // 更新历史记录中的任务状态为 running
+    if (taskId) {
+      const existingTask = historyTasks.find(t => t.taskId === taskId);
+      if (existingTask && existingTask.status === 'pending') {
+        const updatedTask: HistoryTask = {
+          ...existingTask,
+          status: 'running',
+        };
+        saveHistoryTask(updatedTask);
+      }
+    }
+  }, [taskId, historyTasks, saveHistoryTask]);
 
   // 使用轮询 hook 获取任务状态
   useTaskPolling({
@@ -141,6 +284,16 @@ const InstantLabPage = () => {
       // 保存到 localStorage，以便页面切换后恢复
       localStorage.setItem(TASK_STORAGE_KEY, task_id);
       setTaskId(task_id);
+      
+      // 保存到历史记录
+      const newTask: HistoryTask = {
+        taskId: task_id,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+        focus: generationFocus.trim(),
+        boostMode: boostMode,
+      };
+      saveHistoryTask(newTask);
     } catch (error: any) {
       setIsGenerating(false);
       // FastAPI 返回的错误格式是 { detail: "error message" }
@@ -178,11 +331,129 @@ const InstantLabPage = () => {
     );
   }
 
+  // 历史记录侧边栏组件
+  const HistorySidebar = () => (
+    <div
+      className={`fixed right-0 top-0 h-full w-80 bg-white border-l border-slate-200 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
+        isHistoryOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}
+    >
+      <div className="h-full flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History size={20} className="text-indigo-600" />
+            <h3 className="font-bold text-slate-800">生成历史</h3>
+          </div>
+          <button
+            onClick={() => setIsHistoryOpen(false)}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* History List */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {historyTasks.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-sm">
+              暂无历史记录
+            </div>
+          ) : (
+            <div className="p-2">
+              {historyTasks.map((task) => {
+                const date = new Date(task.createdAt);
+                const StatusIcon = 
+                  task.status === 'completed' ? CheckCircle :
+                  task.status === 'failed' ? XCircle :
+                  task.status === 'deleted' ? X :
+                  task.status === 'running' ? Loader :
+                  Clock;
+                const statusColor =
+                  task.status === 'completed' ? 'text-emerald-500' :
+                  task.status === 'failed' ? 'text-rose-500' :
+                  task.status === 'deleted' ? 'text-slate-400' :
+                  task.status === 'running' ? 'text-amber-500' :
+                  'text-slate-400';
+
+                return (
+                    <button
+                      key={task.taskId}
+                      onClick={() => loadHistoryTaskDetail(task)}
+                      disabled={loadingHistoryTask}
+                      className={`w-full p-3 mb-2 rounded-lg border transition-all text-left ${
+                        selectedHistoryTask?.taskId === task.taskId
+                          ? 'bg-indigo-50 border-indigo-300'
+                          : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-slate-50'
+                      } ${loadingHistoryTask ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+                    >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <StatusIcon size={14} className={`${statusColor} shrink-0`} />
+                          <span className={`text-xs font-medium ${statusColor}`}>
+                            {task.status === 'completed' ? '已完成' :
+                             task.status === 'failed' ? '失败' :
+                             task.status === 'deleted' ? '已删除' :
+                             task.status === 'running' ? '运行中' :
+                             '等待中'}
+                          </span>
+                          {task.boostMode && (
+                            <span className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-bold">
+                              BOOST
+                            </span>
+                          )}
+                        </div>
+                        {task.focus && (
+                          <p className="text-xs text-slate-600 truncate mb-1">
+                            {task.focus}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-slate-400">
+                          {date.toLocaleString('zh-CN', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   // Console view - when generating or has logs
   if (isGenerating || agentLogs.length > 0) {
     return (
       <Layout>
-        <div className="h-full overflow-hidden p-4 md:p-12 flex flex-col items-center">
+        <div className="h-full overflow-hidden p-4 md:p-12 flex flex-col items-center relative">
+          {/* History button */}
+          <button
+            onClick={() => setIsHistoryOpen(true)}
+            className="fixed right-4 top-24 md:right-8 md:top-28 z-40 p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-all flex items-center gap-2"
+          >
+            <History size={18} className="text-indigo-600" />
+            <span className="text-xs font-bold text-slate-700 hidden sm:inline">历史</span>
+          </button>
+
+          {/* History Sidebar */}
+          <HistorySidebar />
+
+          {/* Overlay when sidebar is open */}
+          {isHistoryOpen && (
+            <div
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+              onClick={() => setIsHistoryOpen(false)}
+            />
+          )}
+
           <div className="w-full max-w-4xl flex flex-col h-full animate-in zoom-in-95 duration-300">
             {/* Console header */}
             <div className="bg-slate-900 rounded-t-2xl md:rounded-t-[3rem] p-4 md:p-8 text-white flex items-center justify-between shadow-2xl border-b border-white/5">
@@ -242,7 +513,27 @@ const InstantLabPage = () => {
   // Input form view - GPT chat-like layout
   return (
     <Layout>
-      <div className="h-full overflow-hidden flex flex-col">
+      <div className="h-full overflow-hidden flex flex-col relative">
+        {/* History button */}
+        <button
+          onClick={() => setIsHistoryOpen(true)}
+          className="fixed right-4 top-24 md:right-8 md:top-28 z-40 p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-all flex items-center gap-2"
+        >
+          <History size={18} className="text-indigo-600" />
+          <span className="text-xs font-bold text-slate-700 hidden sm:inline">历史</span>
+        </button>
+
+        {/* History Sidebar */}
+        <HistorySidebar />
+
+        {/* Overlay when sidebar is open */}
+        {isHistoryOpen && (
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+            onClick={() => setIsHistoryOpen(false)}
+          />
+        )}
+
         <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
           <div className="w-full max-w-3xl flex flex-col h-full max-h-[800px]">
             {/* Header */}

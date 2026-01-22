@@ -1,12 +1,13 @@
 import asyncio
 import os
+import re
 import unittest
 from dotenv import load_dotenv
 import psycopg
 
 from agent import SummarizeAgenticWorkflow
 from core.config.loader import load_config
-from core.db.pool import get_async_connection, get_async_pool
+from core.db.pool import get_async_connection, get_async_pool, get_connection
 
 
 class AgentTest(unittest.TestCase):
@@ -37,9 +38,11 @@ class AgentTest(unittest.TestCase):
         def on_step(message: str):
             print(f"[STEP] {message}")
 
-        result = asyncio.run(agent.summarize(24, [1], on_step=on_step))
+        result = asyncio.run(agent.summarize(24, [5], "AI竞争分析", on_step=on_step))
         print("\n=== 最终结果 ===")
         print(result)
+        with open("result4.md", "w") as f:
+            f.write(result)
 
     def test_embedding(self):
         from agent.tools.memory_tool import backfill_embeddings
@@ -54,3 +57,5 @@ class AgentTest(unittest.TestCase):
             print(f"[STEP] {message}")
         result = asyncio.run(agent.run(focus="分析当前世界局势对美股的影响，并阐述清楚这些因素是如何造成影响的", hour_gap=24, on_step=on_step))
         print(result)
+        with open("result.md", "w") as f:
+            f.write(result)

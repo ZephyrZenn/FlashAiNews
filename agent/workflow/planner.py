@@ -3,11 +3,12 @@ from datetime import datetime
 import json
 from agent.context import ContentOptimizer
 from agent.models import AgentPlanResult, AgentState, log_step
-from agent.prompts import PLANNER_PROMPT_TEMPLATE
+from agent.prompts import PLANNER_USER_PROMPT, PLANNER_SYSTEM_PROMPT
 from agent.utils import extract_json
 from agent.tools import filter_tool, memory_tool
 from core.brief_generator import AIGenerator
 from core.config import get_config
+from core.models.llm import Message
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class AgentPlanner:
             logger.error("Failed to parse planner response: %s", response)
             raise ValueError(f"Failed to parse planner response: {response}") from e
 
-    async def _build_prompt(self, state: AgentState) -> str:
+    async def _build_prompt(self, state: AgentState) -> list[Message]:
         # 优化文章内容：去重、优先级排序、截断（现在是异步）
         optimized_articles = await self.content_optimizer.optimize_articles_for_prompt(
             state["raw_articles"],
@@ -103,10 +104,16 @@ class AgentPlanner:
             }
             for memory in optimized_memories
         ]
-
-        return PLANNER_PROMPT_TEMPLATE.format(
+        system_prompt = Message(role="system", content=PLANNER_SYSTEM_PROMPT)
+        system_prompt.set_priority(0)
+        user_prompt = Message(role="user", content=PLANNER_USER_PROMPT.format(
             current_date=datetime.now().strftime("%Y-%m-%d"),
             focus=state["focus"],
             raw_articles=articles_json,
             history_memories=json.dumps(history_memories, ensure_ascii=False, indent=2),
-        )
+        ))
+        user_prompt.set_priority(0)
+        return [
+            system_prompt,
+            user_prompt,
+        ]

@@ -379,18 +379,35 @@ class OpenAIGenerator(AIGenerator):
         # 创建异步客户端实例，避免每次调用都创建
         self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
-    async def completion(self, prompt, **kwargs) -> str:
+    async def completion(self, prompt: Union[str, list[Message]], **kwargs) -> str:
+        """Completion 方法，支持字符串或消息列表
+        
+        Args:
+            prompt: 如果是字符串，将构造为 user message；如果是消息列表，直接使用
+            **kwargs: 其他参数
+            
+        Returns:
+            LLM 返回的文本内容
+        """
         try:
             # Apply rate limiting
             await self._apply_rate_limit()
             
+            # 处理输入参数：如果是字符串，转换为 Message 列表
+            if isinstance(prompt, str):
+                messages = [Message.user(prompt)]
+            else:
+                messages = prompt
+            
+            # 转换为字典格式
+            messages_dict = [msg.to_dict() for msg in messages]
+            
             async def _do_completion():
                 resp = await self.client.chat.completions.create(
                     model=self.model,
-                    messages=[
-                        {"role": "user", "content": prompt},
-                    ],
+                    messages=messages_dict,
                     stream=False,
+                    max_tokens=8192,
                 )
                 return resp.choices[0].message.content
             

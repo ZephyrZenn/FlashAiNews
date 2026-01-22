@@ -4,6 +4,18 @@ from agent.tools.base import BaseTool, ToolSchema, ToolParameter
 from core.db.pool import get_async_connection
 from core.models.feed import FeedGroup, Feed
 from agent.models import RawArticle
+from core.embedding import (
+    embed_text,
+    is_embedding_configured,
+    EmbeddingError,
+)
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Focus 相似度阈值：0.85 表示 85% 相似度以上才视为相同 focus
+# 例如 "AI安全" 和 "人工智能安全" 的相似度通常 > 0.85
+FOCUS_SIMILARITY_THRESHOLD = 0.85
 
 
 class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
@@ -20,7 +32,8 @@ class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
             description=(
                 "从数据库中获取指定分组在指定时间范围内的最新文章。"
                 "该工具会自动过滤掉已经被处理过的文章（通过 excluded_feed_item_ids 表），"
-                "确保返回的都是尚未使用过的新鲜内容。返回一个元组 (groups, articles)。"
+                "但排除是基于 focus（关注点）级别的，同一篇文章可以在不同的 focus 下重复使用。"
+                "确保返回的都是尚未在当前 focus 下使用过的新鲜内容。返回一个元组 (groups, articles)。"
             ),
             parameters=[
                 ToolParameter(
@@ -35,11 +48,18 @@ class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
                     description="要查询的分组ID列表。每个分组代表一个特定的信息源类别（如科技、财经等）",
                     required=True,
                 ),
+                ToolParameter(
+                    name="focus",
+                    type="str",
+                    description="用户关注点/主题。用于排除粒度控制，同一篇文章在不同 focus 下可以重复使用。如果为空字符串，表示没有特定关注点",
+                    required=False,
+                    default="",
+                ),
             ],
         )
 
     async def _execute(
-        self, hour_gap: int, group_ids: list[int]
+        self, hour_gap: int, group_ids: list[int], focus: str = ""
     ) -> Tuple[List[FeedGroup], List[RawArticle]]:
         """
         获取最近更新的分组及其文章
@@ -47,6 +67,7 @@ class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
         Args:
             hour_gap: 时间间隔（小时）
             group_ids: 分组ID列表
+            focus: 用户关注点/主题，用于排除粒度控制
 
         Returns:
             (分组列表, 文章列表)
@@ -56,6 +77,9 @@ class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
 
         if hour_gap <= 0:
             raise ValueError("hour_gap 必须大于 0")
+
+        # 确保 focus 不为 None
+        focus = focus or ""
 
         async with get_async_connection() as conn:
             async with conn.cursor() as cur:
@@ -74,26 +98,79 @@ class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
                     return [], []
 
                 # 查询 2: 获取文章数据
-                await cur.execute(
-                    """
-                    SELECT
-                        fi.id, fi.title, fi.link, fi.summary, fi.pub_date,
-                        fic.content
-                    FROM feed_items fi
-                    JOIN feed_group_items fgi ON fgi.feed_id = fi.feed_id
-                    JOIN feed_item_contents fic ON fic.feed_item_id = fi.id
-                    WHERE fgi.feed_group_id = ANY(%s)
-                      AND fi.pub_date >= NOW() - INTERVAL '1 hour' * %s
-                      AND NOT EXISTS (
-                          SELECT 1
-                          FROM excluded_feed_item_ids efi
-                          WHERE efi.item_id = fi.id
-                            AND efi.group_ids @> %s::integer[] AND efi.group_ids <@ %s::integer[]
-                            AND efi.pub_date >= NOW() - INTERVAL '1 hour' * %s
-                      );
-                    """,
-                    (group_ids, hour_gap, group_ids, group_ids, hour_gap),
-                )
+                # 排除逻辑：只排除在相同或相似 focus 下已使用的文章
+                # 支持向量相似度匹配（如果配置了 embedding）："AI安全" ≈ "人工智能安全"
+                # 否则回退到字符串精确匹配
+                
+                # 尝试使用向量相似度匹配
+                use_vector_match = False
+                focus_embedding = None
+                
+                if focus and is_embedding_configured():
+                    try:
+                        focus_embedding = await embed_text(focus)
+                        use_vector_match = True
+                        logger.debug(f"Using vector similarity matching for focus: {focus}")
+                    except EmbeddingError as e:
+                        logger.warning(f"Failed to generate focus embedding, falling back to string matching: {e}")
+                        use_vector_match = False
+                
+                if use_vector_match and focus_embedding:
+                    # 使用向量相似度匹配：排除相似度 >= 阈值的 focus
+                    await cur.execute(
+                        """
+                        SELECT
+                            fi.id, fi.title, fi.link, fi.summary, fi.pub_date,
+                            fic.content
+                        FROM feed_items fi
+                        JOIN feed_group_items fgi ON fgi.feed_id = fi.feed_id
+                        JOIN feed_item_contents fic ON fic.feed_item_id = fi.id
+                        WHERE fgi.feed_group_id = ANY(%s)
+                          AND fi.pub_date >= NOW() - INTERVAL '1 hour' * %s
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM excluded_feed_item_ids efi
+                              WHERE efi.item_id = fi.id
+                                AND efi.group_ids @> %s::integer[] AND efi.group_ids <@ %s::integer[]
+                                AND efi.pub_date >= NOW() - INTERVAL '1 hour' * %s
+                                AND (
+                                    -- 向量相似度匹配：相似度 >= 阈值
+                                    (efi.focus_embedding IS NOT NULL 
+                                     AND 1 - (efi.focus_embedding <=> %s::vector) >= %s)
+                                    OR
+                                    -- 字符串精确匹配（作为后备，处理没有 embedding 的历史记录）
+                                    (efi.focus_embedding IS NULL AND efi.focus = %s)
+                                )
+                          );
+                        """,
+                        (
+                            group_ids, hour_gap, group_ids, group_ids, hour_gap,
+                            focus_embedding, FOCUS_SIMILARITY_THRESHOLD, focus
+                        ),
+                    )
+                else:
+                    # 回退到字符串精确匹配
+                    await cur.execute(
+                        """
+                        SELECT
+                            fi.id, fi.title, fi.link, fi.summary, fi.pub_date,
+                            fic.content
+                        FROM feed_items fi
+                        JOIN feed_group_items fgi ON fgi.feed_id = fi.feed_id
+                        JOIN feed_item_contents fic ON fic.feed_item_id = fi.id
+                        WHERE fgi.feed_group_id = ANY(%s)
+                          AND fi.pub_date >= NOW() - INTERVAL '1 hour' * %s
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM excluded_feed_item_ids efi
+                              WHERE efi.item_id = fi.id
+                                AND efi.focus = %s
+                                AND efi.group_ids @> %s::integer[] AND efi.group_ids <@ %s::integer[]
+                                AND efi.pub_date >= NOW() - INTERVAL '1 hour' * %s
+                          );
+                        """,
+                        (group_ids, hour_gap, focus, group_ids, group_ids, hour_gap),
+                    )
 
                 item_rows = await cur.fetchall()
                 items = [
@@ -335,14 +412,19 @@ get_article_content_tool = GetArticleContentTool()
 
 # 保留原有函数接口以兼容现有代码
 async def get_recent_group_update(
-    hour_gap: int, group_ids: list[int]
+    hour_gap: int, group_ids: list[int], focus: str = ""
 ) -> Tuple[List[FeedGroup], List[RawArticle]]:
     """获取最近更新的分组及其文章（兼容函数）
 
     注意：此函数为兼容接口，直接返回数据而非 ToolResult。
     新代码建议使用 recent_group_update_tool.execute() 获取带错误处理的结果。
+    
+    Args:
+        hour_gap: 时间间隔（小时）
+        group_ids: 分组ID列表
+        focus: 用户关注点/主题，用于排除粒度控制
     """
-    result = await recent_group_update_tool.execute(hour_gap, group_ids)
+    result = await recent_group_update_tool.execute(hour_gap, group_ids, focus)
     if result.success:
         return result.data
     raise RuntimeError(result.error)

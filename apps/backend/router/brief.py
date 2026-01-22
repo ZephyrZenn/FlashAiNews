@@ -8,6 +8,7 @@ import asyncio
 from apps.backend.models.common import success_with_data
 from apps.backend.models.view_model import (
     FeedBriefListResponse,
+    FeedBriefResponse,
     GenerateBriefResponse,
     BriefGenerationStatusResponse,
 )
@@ -29,16 +30,32 @@ async def get_briefs(
 ):
     """
     Get briefs between two dates. If no dates provided, returns today's briefs.
+    列表接口不返回完整内容（content 和 ext_info），只返回基本信息。
     """
     # 如果未提供日期，默认使用今天
     today = date.today()
     start = date.fromisoformat(start_date) if start_date else today
     end = date.fromisoformat(end_date) if end_date else today
     
-    briefs = brief_service.get_briefs(start, end)
+    # 列表接口不包含完整内容
+    briefs = brief_service.get_briefs(start, end, include_content=False)
     group_ids = list({group_id for brief in briefs for group_id in brief.group_ids})
     groups = group_service.get_groups(group_ids)
-    return success_with_data([brief.to_view_model(groups) for brief in briefs])
+    return success_with_data([brief.to_view_model(groups, include_content=False) for brief in briefs])
+
+
+@router.get("/{brief_id}", response_model=FeedBriefResponse)
+async def get_brief_detail(brief_id: int):
+    """
+    获取单个简报的完整信息，包含 content 和 ext_info。
+    """
+    brief = brief_service.get_brief_by_id(brief_id)
+    if not brief:
+        raise HTTPException(status_code=404, detail="Brief not found")
+    
+    group_ids = brief.group_ids
+    groups = group_service.get_groups(group_ids)
+    return success_with_data(brief.to_view_model(groups, include_content=True))
 
 
 @router.post("/generate", response_model=GenerateBriefResponse)

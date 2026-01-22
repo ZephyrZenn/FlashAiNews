@@ -61,12 +61,25 @@ class SaveExecutionRecordsTool(BaseTool[None]):
         # 判断是否是新Agent（groups为空表示新Agent，不使用Group）
         is_new_agent = not state.get("groups", [])
         
+        # 获取 focus，用于排除粒度控制
+        focus = state.get("focus", "") or ""
+        
+        # 生成 focus 的 embedding（如果配置了 embedding 服务且 focus 不为空）
+        focus_embedding = None
+        if not is_new_agent and focus and is_embedding_configured():
+            try:
+                focus_embedding = await embed_text(focus)
+                logger.debug(f"Generated focus embedding for: {focus}")
+            except EmbeddingError as e:
+                logger.warning(f"Failed to generate focus embedding, will use string matching: {e}")
+                focus_embedding = None
+        
         # 只有旧workflow才保存到exclude表
         excluded_articles = []
         if not is_new_agent:
             group_ids = [group.id for group in state["groups"]]
             excluded_articles = [
-                (article["id"], group_ids, article["pub_date"])
+                (article["id"], group_ids, article["pub_date"], focus, focus_embedding)
                 for article in state["raw_articles"]
             ]
 
@@ -115,13 +128,28 @@ class SaveExecutionRecordsTool(BaseTool[None]):
         async def save_to_db(cur):
             # 只有旧workflow才保存到exclude表
             if excluded_articles:
-                await cur.executemany(
-                    """
-                    INSERT INTO excluded_feed_item_ids (item_id, group_ids, pub_date)
-                    VALUES (%s, %s::integer[], %s)
-                    """,
-                    excluded_articles,
-                )
+                # 根据是否有 embedding 使用不同的 SQL
+                if focus_embedding is not None:
+                    await cur.executemany(
+                        """
+                        INSERT INTO excluded_feed_item_ids (item_id, group_ids, pub_date, focus, focus_embedding)
+                        VALUES (%s, %s::integer[], %s, %s, %s::vector)
+                        """,
+                        excluded_articles,
+                    )
+                else:
+                    # 没有 embedding 时，只保存字符串 focus
+                    articles_without_embedding = [
+                        (item_id, group_ids, pub_date, focus)
+                        for item_id, group_ids, pub_date, focus, _ in excluded_articles
+                    ]
+                    await cur.executemany(
+                        """
+                        INSERT INTO excluded_feed_item_ids (item_id, group_ids, pub_date, focus)
+                        VALUES (%s, %s::integer[], %s, %s)
+                        """,
+                        articles_without_embedding,
+                    )
             if summary_memories:
                 # 根据是否有 embedding 使用不同的 SQL
                 if embeddings:

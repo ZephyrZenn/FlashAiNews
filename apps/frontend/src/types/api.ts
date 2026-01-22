@@ -22,9 +22,16 @@ export interface FeedGroup {
 export interface FeedBrief {
   id: number;
   groupIds: number[];
-  content: string;
+  content?: string; // 列表接口不返回，详情接口返回
   pubDate: string;
   groups: FeedGroup[];
+  summary?: string; // 概要（二级标题列表）
+  ext_info?: Array<{ // 外部搜索结果，列表接口不返回，详情接口返回
+    title: string;
+    url: string;
+    content: string;
+    score: number;
+  }>;
 }
 
 export interface ModelSetting {
@@ -94,3 +101,13 @@ export interface UpdateSchedulePayload {
 
 export type ScheduleListResponse = ApiResponse<Schedule[]>;
 export type ScheduleResponse = ApiResponse<Schedule>;
+
+export interface Memory {
+  id: number;
+  topic: string;
+  reasoning: string;
+  content: string;
+  created_at: string;
+}
+
+export type MemoryResponse = ApiResponse<Memory>;

@@ -57,7 +57,7 @@ class SummarizeAgenticWorkflow:
         # This will raise APIKeyNotConfiguredError if API key is not set
         self._init_client()
         
-        groups, articles = await db_tool.get_recent_group_update(hour_gap, group_ids)
+        groups, articles = await db_tool.get_recent_group_update(hour_gap, group_ids, focus)
 
         self.state = self._build_state(groups, articles, focus, on_step)
         log_step(
@@ -73,11 +73,13 @@ class SummarizeAgenticWorkflow:
         logger.info("Results: %s", results)
         log_step(self.state, f"✅ Agent执行完成，共生成 {len(results)} 篇内容")
         if not results:
-            return ""
+            return "", []
         # 使用工具保存执行记录
         await memory_tool.save_current_execution_records(self.state)
         
-        return "\n\n".join(results)
+        # 返回简报内容和外部搜索结果
+        ext_info = self.state.get("ext_info", [])
+        return "\n\n".join(results), ext_info
         
 
     def _build_state(

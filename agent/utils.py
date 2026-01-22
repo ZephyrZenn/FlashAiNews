@@ -80,9 +80,24 @@ def extract_json(text: str) -> dict:
             e.pos, e.msg
         )
     
+    # Second attempt: replace fancy quotes with standard JSON quotes
+    sanitized = (
+        json_str.replace(""", '"')
+        .replace(""", '"')
+        .replace("'", "'")
+        .replace("'", "'")
+    )
+    try:
+        return json.loads(sanitized, strict=False)
+    except json.JSONDecodeError as e:
+        logger.warning(
+            "Second JSON parse attempt (after sanitizing quotes) failed at position %d: %s",
+            e.pos, e.msg
+        )
+    
     # If that fails, try additional cleanup
     # Remove any remaining problematic characters more aggressively
-    cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', json_str)
+    cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', sanitized)
     
     try:
         return json.loads(cleaned, strict=False)

@@ -33,12 +33,12 @@ const client = axios.create({
   },
 });
 
-const unwrap = async <T>(promise: Promise<{ data: ApiResponse<T> }>) => {
+const unwrap = async <T>(promise: Promise<{ data: ApiResponse<T> }> | Promise<{ data: ApiResponse<T | null> }>) => {
   const { data } = await promise;
   if (!data.success) {
     throw new Error(data.message || 'Request failed');
   }
-  return data.data;
+  return data.data as T;
 };
 
 export const api = {

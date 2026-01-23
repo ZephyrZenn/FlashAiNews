@@ -28,23 +28,50 @@ export const useTaskPolling = ({
 }: UseTaskPollingOptions) => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastLogCountRef = useRef(0);
+  const currentTaskIdRef = useRef<string | null>(null);
+  
+  // 使用 ref 存储回调函数，避免因回调函数引用变化而重新设置轮询
+  const onLogUpdateRef = useRef(onLogUpdate);
+  const onCompleteRef = useRef(onComplete);
+  const onErrorRef = useRef(onError);
+
+  // 更新 ref 的值，确保始终使用最新的回调函数
+  useEffect(() => {
+    onLogUpdateRef.current = onLogUpdate;
+    onCompleteRef.current = onComplete;
+    onErrorRef.current = onError;
+  }, [onLogUpdate, onComplete, onError]);
 
   useEffect(() => {
+    // 清除旧的轮询
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    // 如果 taskId 变化，重置日志计数
+    if (currentTaskIdRef.current !== taskId) {
+      lastLogCountRef.current = 0;
+      currentTaskIdRef.current = taskId;
+    }
+
     if (!taskId || !enabled) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
       return;
     }
 
     const poll = async () => {
+      // 使用 ref 中的 taskId，确保使用最新的值
+      const currentTaskId = currentTaskIdRef.current;
+      if (!currentTaskId) {
+        return;
+      }
+
       try {
-        const status = await api.getBriefGenerationStatus(taskId);
+        const status = await api.getBriefGenerationStatus(currentTaskId);
         
         // 检查是否有新日志
         if (status.logs.length > lastLogCountRef.current) {
-          onLogUpdate?.(status.logs);
+          onLogUpdateRef.current?.(status.logs);
           lastLogCountRef.current = status.logs.length;
         }
 
@@ -54,13 +81,13 @@ export const useTaskPolling = ({
             clearInterval(intervalRef.current);
             intervalRef.current = null;
           }
-          onComplete?.(status.result || '');
+          onCompleteRef.current?.(status.result || '');
         } else if (status.status === 'failed') {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
           }
-          onError?.(status.error || '任务执行失败');
+          onErrorRef.current?.(status.error || '任务执行失败');
         }
         // 如果状态是 pending 或 running，继续轮询
       } catch (error: any) {
@@ -71,7 +98,7 @@ export const useTaskPolling = ({
             clearInterval(intervalRef.current);
             intervalRef.current = null;
           }
-          onError?.('任务不存在或已被清理');
+          onErrorRef.current?.('任务不存在或已被清理');
         }
         // 其他错误继续轮询，但记录日志
       }
@@ -89,5 +116,5 @@ export const useTaskPolling = ({
         intervalRef.current = null;
       }
     };
-  }, [taskId, enabled, interval, onLogUpdate, onComplete, onError]);
+  }, [taskId, enabled, interval]); // 移除了回调函数的依赖，避免频繁重新设置轮询
 };

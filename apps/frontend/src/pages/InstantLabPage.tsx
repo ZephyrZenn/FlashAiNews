@@ -76,22 +76,24 @@ const InstantLabPage = () => {
   // 保存历史记录到 localStorage
   const saveHistoryTask = useCallback((task: HistoryTask) => {
     try {
-      const existing = [...historyTasks];
-      // 检查是否已存在，如果存在则更新，否则添加到开头
-      const index = existing.findIndex(t => t.taskId === task.taskId);
-      if (index >= 0) {
-        existing[index] = task;
-      } else {
-        existing.unshift(task);
-      }
-      // 限制数量
-      const limited = existing.slice(0, MAX_HISTORY_COUNT);
-      setHistoryTasks(limited);
-      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(limited));
+      setHistoryTasks((existing) => {
+        const updated = [...existing];
+        // 检查是否已存在，如果存在则更新，否则添加到开头
+        const index = updated.findIndex(t => t.taskId === task.taskId);
+        if (index >= 0) {
+          updated[index] = task;
+        } else {
+          updated.unshift(task);
+        }
+        // 限制数量
+        const limited = updated.slice(0, MAX_HISTORY_COUNT);
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(limited));
+        return limited;
+      });
     } catch (error) {
       console.error('Failed to save history:', error);
     }
-  }, [historyTasks]);
+  }, []);
 
   // 加载历史任务详情
   const loadHistoryTaskDetail = useCallback(async (task: HistoryTask) => {
@@ -157,26 +159,36 @@ const InstantLabPage = () => {
               );
             }
             // 更新历史记录中的任务状态
-            const existingTask = historyTasks.find(t => t.taskId === savedTaskId);
-            if (existingTask) {
-              const updatedTask: HistoryTask = {
-                ...existingTask,
-                status: status.status,
-              };
-              saveHistoryTask(updatedTask);
-            }
+            setHistoryTasks((existing) => {
+              const existingTask = existing.find(t => t.taskId === savedTaskId);
+              if (existingTask) {
+                const updated = [...existing];
+                const index = updated.findIndex(t => t.taskId === savedTaskId);
+                updated[index] = {
+                  ...existingTask,
+                  status: status.status,
+                };
+                return updated;
+              }
+              return existing;
+            });
           } else {
             // 任务已完成或失败，清除存储
             localStorage.removeItem(TASK_STORAGE_KEY);
             // 更新历史记录中的任务状态
-            const existingTask = historyTasks.find(t => t.taskId === savedTaskId);
-            if (existingTask) {
-              const updatedTask: HistoryTask = {
-                ...existingTask,
-                status: status.status,
-              };
-              saveHistoryTask(updatedTask);
-            }
+            setHistoryTasks((existing) => {
+              const existingTask = existing.find(t => t.taskId === savedTaskId);
+              if (existingTask) {
+                const updated = [...existing];
+                const index = updated.findIndex(t => t.taskId === savedTaskId);
+                updated[index] = {
+                  ...existingTask,
+                  status: status.status,
+                };
+                return updated;
+              }
+              return existing;
+            });
           }
         } catch {
           // 任务不存在或出错，清除存储
@@ -187,7 +199,8 @@ const InstantLabPage = () => {
     };
 
     recoverTask();
-  }, [historyTasks, saveHistoryTask]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在组件挂载时执行一次
 
   // 自动滚动到底部
   useEffect(() => {
@@ -240,16 +253,22 @@ const InstantLabPage = () => {
     );
     // 更新历史记录中的任务状态为 running
     if (taskId) {
-      const existingTask = historyTasks.find(t => t.taskId === taskId);
-      if (existingTask && existingTask.status === 'pending') {
-        const updatedTask: HistoryTask = {
-          ...existingTask,
-          status: 'running',
-        };
-        saveHistoryTask(updatedTask);
-      }
+      setHistoryTasks((existing) => {
+        const existingTask = existing.find(t => t.taskId === taskId);
+        if (existingTask && existingTask.status === 'pending') {
+          const updated = [...existing];
+          const index = updated.findIndex(t => t.taskId === taskId);
+          updated[index] = {
+            ...existingTask,
+            status: 'running',
+          };
+          localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(updated.slice(0, MAX_HISTORY_COUNT)));
+          return updated.slice(0, MAX_HISTORY_COUNT);
+        }
+        return existing;
+      });
     }
-  }, [taskId, historyTasks, saveHistoryTask]);
+  }, [taskId]);
 
   // 使用轮询 hook 获取任务状态
   useTaskPolling({

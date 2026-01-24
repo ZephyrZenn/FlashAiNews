@@ -23,110 +23,149 @@ def _extract_h2_headings(content: str) -> str:
     return "\n".join(headings) if headings else ""
 
 
+def _extract_base_url(url: str) -> str:
+    """提取URL的基础部分（去掉查询参数和fragment）
+
+    例如：
+    'https://api3.cls.cn/share/article/2268497?os=web&sv=8.4.6'
+    -> 'https://api3.cls.cn/share/article/2268497'
+    """
+    # 去掉查询参数（?之后）和fragment（#之后）
+    base = url.split("?")[0].split("#")[0]
+    return base.rstrip("/")
+
+
+def _is_url_like(text: str) -> bool:
+    """判断文本是否看起来像URL"""
+    return text.startswith(("http://", "https://"))
+
+
 def _replace_reference(brief_id: int, content: str) -> str:
-    """替换内容中的引用标记为实际的 URL 链接
-
-    Args:
-        brief_id: 简报ID
-        content: 简报内容
-
-    Returns:
-        替换后的内容
+    """
+    将内容中的引用标记替换为 HTML 角标 <sup>[n]</sup>，并在文末生成参考资料列表。
+    支持：rss, ext, memory 三种类型。
     """
 
-    def _find_reference(prefix: str) -> list[str]:
-        """从内容中提取指定前缀的引用ID列表"""
-        pattern = rf"\[{prefix}:([^\]]+)\]"
-        return re.findall(pattern, content)
+    # --- 1. 提取所有引用并分类 ---
+    # 匹配格式: [type:id]
+    ref_pattern = r"\[(rss|ext|memory):([^\]]+)\]"
+    found_refs = re.findall(ref_pattern, content)
 
-    def _markdown_link_replacer(pattern: str, url_map: dict[str, tuple[str, str]]) -> callable:
-        """创建 Markdown 链接替换函数
+    if not found_refs:
+        return content
 
-        Args:
-            pattern: 正则表达式模式
-            url_map: 映射字典，key 为引用ID，value 为 (title, url) 元组
-        """
+    # 按类型分组以便批量查询数据库
+    rss_ids = {id.strip() for type, id in found_refs if type == "rss" and id.strip()}
+    ext_keys = {id.strip() for type, id in found_refs if type == "ext" and id.strip()}
+    # memory 通常是 ID 直接映射，不需要复杂查询，但为了统一逻辑也放入 map
 
-        def replacer(match: re.Match) -> str:
-            key = match.group(1)
-            value = url_map.get(key)
-            if value:
-                title, url = value
-                if url:
-                    return f"[{title}]({url})"
-            return match.group(0)
+    # 存储元数据: (type, original_id) -> (title, url)
+    metadata_map: dict[tuple[str, str], tuple[str, str]] = {}
 
-        return lambda text: re.sub(pattern, replacer, text)
-
-    # 提取所有引用ID
-    article_ids = _find_reference("rss")
-
-    # 初始化URL映射 (key: 引用ID, value: (title, url) 元组)
-    article_urls: dict[str, tuple[str, str]] = {}
-    ext_info_map: dict[str, tuple[str, str]] = {}
-
-    # SQL 查询外部信息
-    SQL_EXT_INFO_TITLE_URL = """
-        SELECT
-            elem->>'title' AS title,
-            elem->>'url'   AS url
-        FROM feed_brief fb
-        CROSS JOIN LATERAL jsonb_array_elements(
-            CASE
-                WHEN fb.ext_info IS NULL THEN '[]'::jsonb
-                WHEN jsonb_typeof(fb.ext_info) = 'array' THEN fb.ext_info
-                ELSE '[]'::jsonb
-            END
-        ) AS elem
-        WHERE fb.id = %s
-          AND elem ? 'title'
-          AND elem ? 'url'
-          AND elem->>'title' <> ''
-          AND elem->>'url' <> '';
-    """
-
+    # --- 2. 数据库批量查询 ---
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
-                # 查询文章URL（仅在有关联文章时查询）
-                if article_ids:
+                # A. 处理 RSS 引用
+                if rss_ids:
+                    # 正常匹配
                     cur.execute(
-                        """SELECT id, title, link FROM feed_items WHERE id = ANY(%s::text[])""",
-                        (article_ids,),
+                        "SELECT id, title, link FROM feed_items WHERE id = ANY(%s)",
+                        (list(rss_ids),),
                     )
-                    article_urls = {str(row[0]): (row[1], row[2]) for row in cur.fetchall()}
-                    logger.debug(
-                        "Found %d/%d article URLs for brief %d",
-                        len(article_urls),
-                        len(article_ids),
-                        brief_id,
-                    )
+                    for row in cur.fetchall():
+                        metadata_map[("rss", str(row[0]))] = (row[1], row[2])
 
-                # 查询外部搜索结果URL
-                cur.execute(SQL_EXT_INFO_TITLE_URL, (brief_id,))
-                ext_info_map = {row[0]: (row[0], row[1]) for row in cur.fetchall()}
-                if ext_info_map:
-                    logger.debug(
-                        f"Found {len(ext_info_map)} external info URLs for brief {brief_id}"
-                    )
+                    # 兜底：处理模糊 URL 匹配
+                    missing_rss = rss_ids - {
+                        id for type, id in metadata_map.keys() if type == "rss"
+                    }
+                    for m_id in missing_rss:
+                        if _is_url_like(m_id):
+                            base_url = _extract_base_url(m_id)
+                            cur.execute(
+                                "SELECT title, link FROM feed_items WHERE id LIKE %s || '%%' LIMIT 1",
+                                (base_url,),
+                            )
+                            row = cur.fetchone()
+                            if row:
+                                metadata_map[("rss", m_id)] = (row[0], row[1])
+
+                # B. 处理外部搜索结果 (Ext Info)
+                # 使用你原本的 JSONB 解析逻辑
+                SQL_EXT_INFO = """
+                    SELECT elem->>'title', elem->>'url'
+                    FROM feed_brief fb
+                    CROSS JOIN LATERAL jsonb_array_elements(
+                        CASE 
+                            WHEN jsonb_typeof(fb.ext_info) = 'array' THEN fb.ext_info 
+                            ELSE '[]'::jsonb 
+                        END
+                    ) AS elem
+                    WHERE fb.id = %s AND elem ? 'title' AND elem ? 'url'
+                """
+                cur.execute(SQL_EXT_INFO, (brief_id,))
+                for row in cur.fetchall():
+                    # 外部信息通常以标题为 Key
+                    metadata_map[("ext", row[0])] = (row[0], row[1])
+
     except Exception as e:
-        logger.error(f"Error querying URLs for brief {brief_id}: {e}", exc_info=True)
-        # 查询失败时继续执行，只是没有URL替换
+        logger.error(
+            f"Error querying metadata for brief {brief_id}: {e}", exc_info=True
+        )
 
-    # 替换 [rss:xxx] 为 Markdown 链接
-    content = _markdown_link_replacer(r"\[rss:([^\]]+)\]", article_urls)(content)
+    # --- 3. 正文替换与索引分配 ---
+    citation_list: list[dict] = []  # 用于存储文末列表的顺序
+    ref_to_index: dict[tuple[str, str], int] = {}  # 避免重复分配索引
 
-    # 替换 [ext:xxx] 为 Markdown 链接
-    content = _markdown_link_replacer(r"\[ext:([^\]]+)\]", ext_info_map)(content)
+    def replacer(match: re.Match) -> str:
+        ref_type = match.group(1)
+        ref_id = match.group(2).strip()
+        key = (ref_type, ref_id)
 
-    # 替换 [memory:xxx] 为历史总结链接
-    content = re.sub(
-        r"\[memory:([^\]]+)\]",
-        lambda match: f"[历史总结{match.group(1)}](/memory/{match.group(1)})",
-        content,
-    )
+        # 获取或分配索引
+        if key not in ref_to_index:
+            title, url = (None, None)
 
-    return content
+            if ref_type == "memory":
+                title, url = f"历史记录 {ref_id}", f"/memory/{ref_id}"
+            else:
+                title, url = metadata_map.get(key, (None, None))
+
+            # 如果没找到元数据，不转化为角标，保持原样（或按需处理）
+            if not title:
+                return match.group(0)
+
+            new_idx = len(citation_list) + 1
+            ref_to_index[key] = new_idx
+            citation_list.append({"index": new_idx, "title": title, "url": url})
+
+        idx = ref_to_index[key]
+        return f"[^{idx}]"
+
+    # 执行正文替换
+    final_content = re.sub(ref_pattern, replacer, content)
+
+    # --- 4. 生成文末参考资料列表和脚注定义 ---
+    if citation_list:
+        # 生成 markdown 脚注定义（用于前端渲染角标）
+        # remark-gfm 会将脚注链接转换为 #user-content-fn-{index} 格式
+        footnote_definitions = "\n"
+        for item in citation_list:
+            # 生成脚注定义：remark-gfm 会自动处理为 #user-content-fn-{index}
+            # 我们只需要提供标题，链接会在前端处理
+            footnote_definitions += f"[^{item['index']}]: {item['title']}\n"
+
+        # 使用水平分割线区分正文与参考文献
+        # 给参考资料列表中的每一项添加锚点 id，使用 user-content-fn-{index} 格式匹配 remark-gfm
+        ref_footer = "\n\n---\n\n## 参考资料\n\n"
+        for item in citation_list:
+            # 使用 HTML 锚点来标记参考资料项，id 格式匹配 remark-gfm 的 user-content-fn-{index}
+            # 将 span 和序号链接放在同一行，确保 Markdown 正确解析序号
+            ref_footer += f"<span id=\"user-content-fn-{item['index']}\"></span>{item['index']}. [{item['title']}]({item['url']})\n\n"
+        final_content += footnote_definitions + ref_footer
+
+    return final_content
 
 
 def get_briefs(

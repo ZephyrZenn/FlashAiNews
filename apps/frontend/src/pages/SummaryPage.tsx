@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, X, FileText, List } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { useApiQuery } from '@/hooks/useApiQuery';
@@ -142,6 +143,74 @@ const SummaryPage = () => {
     }
   }, [selectedBrief]);
 
+  // 处理脚注链接点击事件
+  useEffect(() => {
+    if (!selectedBrief) return;
+
+    let cleanup: (() => void) | null = null;
+
+    // 等待内容渲染完成
+    const timer = setTimeout(() => {
+      const handleFootnotClick = (e: Event) => {
+        const target = e.target as HTMLElement;
+        // 检查是否是脚注链接（在 sup 标签内的 a 标签，或者有 data-footnote-ref 属性）
+        const link = target.closest('sup a, [data-footnote-ref]') as HTMLAnchorElement;
+        if (link) {
+          const href = link.getAttribute('href') || link.href;
+          // remark-gfm 会将脚注链接转换为 #user-content-fn-{index} 格式
+          if (href && (href.startsWith('#user-content-fn-') || href.startsWith('#ref-') || href.startsWith('#fn'))) {
+            e.preventDefault();
+            e.stopPropagation();
+            let targetId = href.substring(1);
+            // 如果是 user-content-fn-{index} 格式，直接使用
+            // 如果是其他格式，尝试查找对应的参考资料锚点
+            let targetElement = document.getElementById(targetId);
+            if (!targetElement && targetId.startsWith('user-content-fn-')) {
+              // 已经是对应格式，直接查找
+              targetElement = document.getElementById(targetId);
+            } else if (targetId.startsWith('ref-')) {
+              // 如果是 ref- 格式，转换为 user-content-fn- 格式
+              const index = targetId.replace('ref-', '');
+              targetId = `user-content-fn-${index}`;
+              targetElement = document.getElementById(targetId);
+            } else if (targetId.startsWith('fn')) {
+              // 如果是 fn 格式，转换为 user-content-fn- 格式
+              const index = targetId.replace('fn', '');
+              targetId = `user-content-fn-${index}`;
+              targetElement = document.getElementById(targetId);
+            }
+            
+            if (targetElement) {
+              targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // 高亮目标元素
+              const originalBg = targetElement.style.backgroundColor;
+              targetElement.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
+              setTimeout(() => {
+                targetElement.style.backgroundColor = originalBg;
+              }, 2000);
+            } else {
+              console.warn('找不到目标元素:', targetId, '原始链接:', href);
+            }
+          }
+        }
+      };
+
+      // 使用事件委托，监听整个内容区域的点击
+      const contentArea = document.querySelector('#brief-content .prose') || document.querySelector('#brief-content');
+      if (contentArea) {
+        contentArea.addEventListener('click', handleFootnotClick);
+        cleanup = () => {
+          contentArea.removeEventListener('click', handleFootnotClick);
+        };
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (cleanup) cleanup();
+    };
+  }, [selectedBrief]);
+
   // 使用新的getBriefs API，默认获取当日
   const { data: briefs, isLoading } = useApiQuery<FeedBrief[]>(
     queryKeys.briefs(startDate, endDate),
@@ -272,9 +341,13 @@ const SummaryPage = () => {
             </div>
             <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
               {/* 主内容区域 */}
-              <div className="flex-1 overflow-y-auto px-4 md:px-12 py-6 md:py-10 text-sm md:text-md leading-[2.0] text-slate-700 font-medium custom-scrollbar prose prose-slate max-w-none">
+              <div 
+                className="flex-1 overflow-y-auto px-4 md:px-12 py-6 md:py-10 text-sm md:text-md leading-[2.0] text-slate-700 font-medium custom-scrollbar prose prose-slate max-w-none"
+                id="brief-content"
+              >
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
                   components={{
                     h1: ({ node, ...props }) => {
                       const text = String(props.children ?? '');
@@ -290,6 +363,66 @@ const SummaryPage = () => {
                       const text = String(props.children ?? '');
                       const id = `h3-${slugify(text)}`;
                       return <h3 id={id} {...props} />;
+                    },
+                    // 自定义脚注引用渲染
+                    sup: ({ node, ...props }: any) => {
+                      // 检查是否是脚注引用
+                      const children = props.children;
+                      if (Array.isArray(children) && children.length > 0) {
+                        const firstChild = children[0];
+                        // 检查是否是脚注链接（指向 #ref- 或 #fn）
+                        if (typeof firstChild === 'object' && firstChild?.props?.href && 
+                            (firstChild.props.href.startsWith('#ref-') || firstChild.props.href.startsWith('#fn'))) {
+                          // 这是脚注引用，渲染为角标样式，并处理点击事件
+                          return (
+                            <sup className="text-indigo-600 font-semibold text-xs ml-0.5">
+                              {React.cloneElement(firstChild, {
+                                onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+                                  e.preventDefault();
+                                  const href = firstChild.props.href;
+                                  const targetId = href.substring(1); // 去掉 #
+                                  const targetElement = document.getElementById(targetId);
+                                  if (targetElement) {
+                                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    // 高亮目标元素
+                                    targetElement.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
+                                    setTimeout(() => {
+                                      targetElement.style.backgroundColor = '';
+                                    }, 2000);
+                                  }
+                                }
+                              })}
+                            </sup>
+                          );
+                        }
+                      }
+                      return <sup {...props} />;
+                    },
+                    // 自定义链接处理，确保参考资料链接正常工作
+                    a: ({ node, ...props }: any) => {
+                      const href = props.href;
+                      // 如果是参考资料锚点链接，添加平滑滚动
+                      if (href && href.startsWith('#ref-')) {
+                        return (
+                          <a
+                            {...props}
+                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                              e.preventDefault();
+                              const targetId = href.substring(1);
+                              const targetElement = document.getElementById(targetId);
+                              if (targetElement) {
+                                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                // 高亮目标元素
+                                targetElement.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
+                                setTimeout(() => {
+                                  targetElement.style.backgroundColor = '';
+                                }, 2000);
+                              }
+                            }}
+                          />
+                        );
+                      }
+                      return <a {...props} />;
                     },
                   }}
                 >

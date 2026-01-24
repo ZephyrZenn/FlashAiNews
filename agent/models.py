@@ -71,6 +71,7 @@ class AgentState(TypedDict):
     plan: NotRequired[AgentPlanResult]
     writing_materials: NotRequired[list[WritingMaterial]]
     summary_results: NotRequired[list[str]]
+    execution_status: NotRequired[list[bool]]  # 每个任务的执行状态，与 summary_results 一一对应
     log_history: list[str]
     on_step: NotRequired[StepCallback]
     history_memories: dict[int, SummaryMemory]

@@ -24,7 +24,7 @@ class AgentExecutor:
         self.write_tool = WriteArticleTool(client)
         self.review_tool = ReviewArticleTool(client)
 
-    async def execute(self, state: AgentState) -> list[str]:
+    async def execute(self, state: AgentState) -> list[tuple[str, bool]]:
         plan = state["plan"]
         article_ids = [
             aid for point in plan["focal_points"] for aid in point["article_ids"]
@@ -40,28 +40,35 @@ class AgentExecutor:
         tasks = []
         log_step(state, f"🔄 开始并行执行 {len(plan['focal_points'])} 个任务...")
 
-        async def run_point(point: FocalPoint):
+        async def run_point(point: FocalPoint) -> tuple[str, bool]:
             try:
+                result = None
                 if point["strategy"] == "SUMMARIZE":
-                    return await self.handle_summarize(point, state)
-                if point["strategy"] == "SEARCH_ENHANCE":
-                    return await self.handle_search_enhance(point, state)
-                if point["strategy"] == "FLASH_NEWS":
-                    return await self.handle_flash_news(point, state)
-                raise ValueError(f"未知策略: {point['strategy']}")
+                    result = await self.handle_summarize(point, state)
+                elif point["strategy"] == "SEARCH_ENHANCE":
+                    result = await self.handle_search_enhance(point, state)
+                elif point["strategy"] == "FLASH_NEWS":
+                    result = await self.handle_flash_news(point, state)
+                else:
+                    raise ValueError(f"未知策略: {point['strategy']}")
+                return (result, True)
             except Exception as e:  # noqa: BLE001
                 msg = f"❌ 话题 '{point['topic']}' 执行失败: {e}"
                 log_step(state, msg)
                 logger.exception(msg)
                 # 返回占位字符串，保证 summary_results 与 focal_points 对齐
-                return f"[FAILED] {point['topic']}: {e}"
+                error_result = f"[FAILED] {point['topic']}: {e}"
+                return (error_result, False)
 
         for point in plan["focal_points"]:
             tasks.append(run_point(point))
 
         results = await asyncio.gather(*tasks, return_exceptions=False)
         log_step(state, "✨ 所有任务执行完成")
-        state["summary_results"] = results
+        # 保持向后兼容：summary_results 存储字符串列表
+        state["summary_results"] = [result for result, _ in results]
+        # 存储执行状态
+        state["execution_status"] = [success for _, success in results]
         return results
 
     async def handle_summarize(self, point: FocalPoint, state: AgentState) -> str:

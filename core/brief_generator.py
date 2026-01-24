@@ -36,7 +36,7 @@ This module provides an abstract base class for AI generators and concrete imple
 
 class APIKeyNotConfiguredError(Exception):
     """Raised when API key is not configured for the current provider."""
-    
+
     def __init__(self, provider: ModelProvider):
         self.provider = provider
         self.env_var = get_api_key_env_var(provider)
@@ -70,13 +70,17 @@ class AIGenerator(ABC):
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
-        
+
         # Rate limiting and retry configuration
-        self.rate_limiter = rate_limiter if rate_limiter else (
-            get_default_rate_limiter() if enable_rate_limit else None
+        self.rate_limiter = (
+            rate_limiter
+            if rate_limiter
+            else (get_default_rate_limiter() if enable_rate_limit else None)
         )
-        self.retry_config = retry_config if retry_config else (
-            get_default_retry_config() if enable_retry else None
+        self.retry_config = (
+            retry_config
+            if retry_config
+            else (get_default_retry_config() if enable_retry else None)
         )
 
     async def _apply_rate_limit(self) -> None:
@@ -86,16 +90,16 @@ class AIGenerator(ABC):
 
     async def _execute_with_retry(self, func, *args, **kwargs):
         """Execute a function with retry logic if configured.
-        
+
         This method ensures rate limiting is applied before each retry attempt,
         not just the first attempt.
         """
         if not self.retry_config:
             return await func(*args, **kwargs)
-        
+
         # 自定义重试逻辑，在每次重试前重新应用速率限制
         last_exception = None
-        
+
         for attempt in range(self.retry_config.max_retries + 1):
             try:
                 # 每次尝试前都应用速率限制（包括第一次）
@@ -103,45 +107,54 @@ class AIGenerator(ABC):
                 return await func(*args, **kwargs)
             except Exception as e:
                 last_exception = e
-                
+
                 # 检查是否是可重试的错误
                 if not is_retryable_error(e):
                     logger.warning("Non-retryable error in %s: %s", func.__name__, e)
                     raise
-                
+
                 # 如果配置了特定的异常类型，检查是否匹配
-                if (self.retry_config.retryable_exceptions and 
-                    self.retry_config.retryable_exceptions != (Exception,)):
+                if (
+                    self.retry_config.retryable_exceptions
+                    and self.retry_config.retryable_exceptions != (Exception,)
+                ):
                     if not isinstance(e, self.retry_config.retryable_exceptions):
                         logger.warning(
                             "Error type %s not in retryable_exceptions, not retrying",
-                            type(e).__name__
+                            type(e).__name__,
                         )
                         raise
-                
+
                 if attempt == self.retry_config.max_retries:
                     logger.error(
                         "Max retries (%d) exceeded in %s: %s",
-                        self.retry_config.max_retries, func.__name__, e
+                        self.retry_config.max_retries,
+                        func.__name__,
+                        e,
                     )
                     raise
-                
+
                 # 计算延迟
                 delay = min(
-                    self.retry_config.base_delay * (self.retry_config.exponential_base ** attempt),
+                    self.retry_config.base_delay
+                    * (self.retry_config.exponential_base**attempt),
                     self.retry_config.max_delay,
                 )
-                
+
                 # 添加抖动
                 if self.retry_config.jitter:
-                    delay *= (0.5 + random.random())
-                
+                    delay *= 0.5 + random.random()
+
                 logger.warning(
                     "Retry %d/%d after %.2fs in %s due to: %s",
-                    attempt + 1, self.retry_config.max_retries, delay, func.__name__, e
+                    attempt + 1,
+                    self.retry_config.max_retries,
+                    delay,
+                    func.__name__,
+                    e,
                 )
                 await asyncio.sleep(delay)
-        
+
         # 如果所有重试都失败，抛出最后一个异常
         if last_exception:
             raise last_exception
@@ -157,20 +170,20 @@ class AIGenerator(ABC):
         messages: Union[list[Message], list[dict]],
         tools: Union[list[Tool], list[dict]] | None = None,
         tool_choice: ToolChoice = "auto",
-        **kwargs
+        **kwargs,
     ) -> Union[CompletionResponse, dict]:
         """支持 function calling 的 completion 方法
-        
+
         支持两种调用方式：
         1. 使用类型安全的类对象（推荐）
         2. 使用字典格式（向后兼容）
-        
+
         Args:
             messages: 消息列表（Message 对象列表或字典列表）
             tools: 工具定义列表（Tool 对象列表或字典列表）
             tool_choice: 工具选择策略，"auto" | "none" | {"type": "function", "function": {"name": "..."}}
             **kwargs: 其他参数
-        
+
         Returns:
             CompletionResponse 对象（如果输入是类对象）或字典（如果输入是字典）
         """
@@ -206,13 +219,13 @@ class GeminiGenerator(AIGenerator):
         try:
             # Apply rate limiting
             await self._apply_rate_limit()
-            
+
             async def _do_completion():
                 resp = await self.client.aio.models.generate_content(
                     model=self.model, contents=prompt
                 )
                 return resp.text
-            
+
             # Apply retry
             return await self._execute_with_retry(_do_completion)
         except Exception as e:
@@ -224,12 +237,14 @@ class GeminiGenerator(AIGenerator):
         messages: Union[list[Message], list[dict]],
         tools: Union[list[Tool], list[dict]] | None = None,
         tool_choice: ToolChoice = "auto",
-        **kwargs
+        **kwargs,
     ) -> Union[CompletionResponse, dict]:
         """支持 function calling 的 completion 方法（Gemini 格式）"""
         # 检测输入类型并转换
-        use_dict = isinstance(messages, list) and messages and isinstance(messages[0], dict)
-        
+        use_dict = (
+            isinstance(messages, list) and messages and isinstance(messages[0], dict)
+        )
+
         if use_dict:
             # 字典格式：转换为类对象，调用后再转换回字典
             msg_objects = [Message.from_dict(msg) for msg in messages]  # type: ignore
@@ -238,15 +253,15 @@ class GeminiGenerator(AIGenerator):
             # 类对象格式
             msg_objects = messages  # type: ignore
             tool_objects = tools  # type: ignore
-        
+
         # Apply rate limiting first
         await self._apply_rate_limit()
-        
+
         async def _do_completion_with_tools():
             return await self._gemini_completion_with_tools_impl(
                 msg_objects, tool_objects, tool_choice, **kwargs
             )
-        
+
         try:
             response = await self._execute_with_retry(_do_completion_with_tools)
             # 如果输入是字典，返回字典格式
@@ -254,7 +269,9 @@ class GeminiGenerator(AIGenerator):
                 return response.to_dict()
             return response
         except Exception as e:
-            logger.error(f"Error in GeminiGenerator.completion_with_tools: {e}", exc_info=True)
+            logger.error(
+                f"Error in GeminiGenerator.completion_with_tools: {e}", exc_info=True
+            )
             raise e
 
     async def _gemini_completion_with_tools_impl(
@@ -262,7 +279,7 @@ class GeminiGenerator(AIGenerator):
         messages: list[Message],
         tools: list[Tool] | None = None,
         tool_choice: ToolChoice = "auto",  # noqa: ARG002
-        **kwargs
+        **kwargs,
     ) -> CompletionResponse:
         """Internal implementation for completion_with_tools."""
         try:
@@ -275,30 +292,47 @@ class GeminiGenerator(AIGenerator):
                     if gemini_contents:
                         existing_text = ""
                         if gemini_contents[0].get("parts"):
-                            existing_text = gemini_contents[0]["parts"][0].get("text", "")
+                            existing_text = gemini_contents[0]["parts"][0].get(
+                                "text", ""
+                            )
                         gemini_contents[0] = {
                             "role": "user",
-                            "parts": [{"text": f"System: {msg.content}\n\n{existing_text}"}]
+                            "parts": [
+                                {"text": f"System: {msg.content}\n\n{existing_text}"}
+                            ],
                         }
                     else:
-                        gemini_contents.append({"role": "user", "parts": [{"text": f"System: {msg.content}"}]})
+                        gemini_contents.append(
+                            {
+                                "role": "user",
+                                "parts": [{"text": f"System: {msg.content}"}],
+                            }
+                        )
                 elif msg.role == "user":
-                    gemini_contents.append({"role": "user", "parts": [{"text": msg.content}]})
+                    gemini_contents.append(
+                        {"role": "user", "parts": [{"text": msg.content}]}
+                    )
                 elif msg.role == "assistant":
-                    gemini_contents.append({"role": "model", "parts": [{"text": msg.content}]})
+                    gemini_contents.append(
+                        {"role": "model", "parts": [{"text": msg.content}]}
+                    )
                 elif msg.role == "tool":
                     # Gemini 使用 function_response 格式
                     tool_name = msg.name or ""
                     tool_content = msg.content
-                    gemini_contents.append({
-                        "role": "function",
-                        "parts": [{
-                            "function_response": {
-                                "name": tool_name,
-                                "response": tool_content
-                            }
-                        }]
-                    })
+                    gemini_contents.append(
+                        {
+                            "role": "function",
+                            "parts": [
+                                {
+                                    "function_response": {
+                                        "name": tool_name,
+                                        "response": tool_content,
+                                    }
+                                }
+                            ],
+                        }
+                    )
 
             # 转换 tools 格式为 Gemini 格式
             gemini_tools = None
@@ -306,13 +340,17 @@ class GeminiGenerator(AIGenerator):
                 gemini_tools = []
                 for tool in tools:
                     if tool.type == "function":
-                        gemini_tools.append({
-                            "function_declarations": [{
-                                "name": tool.function.name,
-                                "description": tool.function.description,
-                                "parameters": tool.function.parameters
-                            }]
-                        })
+                        gemini_tools.append(
+                            {
+                                "function_declarations": [
+                                    {
+                                        "name": tool.function.name,
+                                        "description": tool.function.description,
+                                        "parameters": tool.function.parameters,
+                                    }
+                                ]
+                            }
+                        )
 
             # 构建请求
             request_params = {
@@ -329,30 +367,42 @@ class GeminiGenerator(AIGenerator):
             resp = await self.client.aio.models.generate_content(**request_params)
 
             # 解析响应
-            content = resp.text if hasattr(resp, 'text') and resp.text else None
+            content = resp.text if hasattr(resp, "text") and resp.text else None
             tool_calls = []
 
             # 检查是否有 function_calls
-            if hasattr(resp, 'candidates') and resp.candidates:
+            if hasattr(resp, "candidates") and resp.candidates:
                 candidate = resp.candidates[0]
-                if hasattr(candidate, 'content') and candidate.content:
-                    if hasattr(candidate.content, 'parts'):
+                if hasattr(candidate, "content") and candidate.content:
+                    if hasattr(candidate.content, "parts"):
                         for part in candidate.content.parts:
-                            if hasattr(part, 'function_call'):
+                            if hasattr(part, "function_call"):
                                 fc = part.function_call
-                                tool_calls.append(ToolCall(
-                                    id=f"call_{len(tool_calls)}",  # Gemini 不提供 ID，我们生成一个
-                                    name=fc.name if hasattr(fc, 'name') else "",
-                                    arguments=json.dumps(fc.args) if hasattr(fc, 'args') else "{}"
-                                ))
+                                tool_calls.append(
+                                    ToolCall(
+                                        id=f"call_{len(tool_calls)}",  # Gemini 不提供 ID，我们生成一个
+                                        name=fc.name if hasattr(fc, "name") else "",
+                                        arguments=(
+                                            json.dumps(fc.args)
+                                            if hasattr(fc, "args")
+                                            else "{}"
+                                        ),
+                                    )
+                                )
 
             return CompletionResponse(
                 content=content,
                 tool_calls=tool_calls if tool_calls else None,
-                finish_reason=getattr(resp.candidates[0], 'finish_reason', None) if hasattr(resp, 'candidates') and resp.candidates else None,
+                finish_reason=(
+                    getattr(resp.candidates[0], "finish_reason", None)
+                    if hasattr(resp, "candidates") and resp.candidates
+                    else None
+                ),
             )
         except Exception as e:
-            logger.error(f"Error in GeminiGenerator.completion_with_tools: {e}", exc_info=True)
+            logger.error(
+                f"Error in GeminiGenerator.completion_with_tools: {e}", exc_info=True
+            )
             raise e
 
 
@@ -381,27 +431,27 @@ class OpenAIGenerator(AIGenerator):
 
     async def completion(self, prompt: Union[str, list[Message]], **kwargs) -> str:
         """Completion 方法，支持字符串或消息列表
-        
+
         Args:
             prompt: 如果是字符串，将构造为 user message；如果是消息列表，直接使用
             **kwargs: 其他参数
-            
+
         Returns:
             LLM 返回的文本内容
         """
         try:
             # Apply rate limiting
             await self._apply_rate_limit()
-            
+
             # 处理输入参数：如果是字符串，转换为 Message 列表
             if isinstance(prompt, str):
                 messages = [Message.user(prompt)]
             else:
                 messages = prompt
-            
+
             # 转换为字典格式
             messages_dict = [msg.to_dict() for msg in messages]
-            
+
             async def _do_completion():
                 resp = await self.client.chat.completions.create(
                     model=self.model,
@@ -409,8 +459,14 @@ class OpenAIGenerator(AIGenerator):
                     stream=False,
                     max_tokens=8192,
                 )
+                logger.info(
+                    "OpenAIGenerator Stop: %s, token usage: %s, response: %s",
+                    resp.choices[0].finish_reason,
+                    resp.usage,
+                    resp.choices[0].message.content,
+                )
                 return resp.choices[0].message.content
-            
+
             # Apply retry
             return await self._execute_with_retry(_do_completion)
         except Exception as e:
@@ -422,12 +478,14 @@ class OpenAIGenerator(AIGenerator):
         messages: Union[list[Message], list[dict]],
         tools: Union[list[Tool], list[dict]] | None = None,
         tool_choice: ToolChoice = "auto",
-        **kwargs
+        **kwargs,
     ) -> Union[CompletionResponse, dict]:
         """支持 function calling 的 completion 方法"""
         # 检测输入类型并转换
-        use_dict = isinstance(messages, list) and messages and isinstance(messages[0], dict)
-        
+        use_dict = (
+            isinstance(messages, list) and messages and isinstance(messages[0], dict)
+        )
+
         if use_dict:
             # 字典格式：转换为类对象，调用后再转换回字典
             msg_objects = [Message.from_dict(msg) for msg in messages]  # type: ignore
@@ -436,15 +494,15 @@ class OpenAIGenerator(AIGenerator):
             # 类对象格式
             msg_objects = messages  # type: ignore
             tool_objects = tools  # type: ignore
-        
+
         # Apply rate limiting first
         await self._apply_rate_limit()
-        
+
         async def _do_completion_with_tools():
             return await self._openai_completion_with_tools_impl(
                 msg_objects, tool_objects, tool_choice, **kwargs
             )
-        
+
         try:
             response = await self._execute_with_retry(_do_completion_with_tools)
             # 如果输入是字典，返回字典格式
@@ -452,7 +510,9 @@ class OpenAIGenerator(AIGenerator):
                 return response.to_dict()
             return response
         except Exception as e:
-            logger.error(f"Error in OpenAIGenerator.completion_with_tools: {e}", exc_info=True)
+            logger.error(
+                f"Error in OpenAIGenerator.completion_with_tools: {e}", exc_info=True
+            )
             raise e
 
     async def _openai_completion_with_tools_impl(
@@ -460,7 +520,7 @@ class OpenAIGenerator(AIGenerator):
         messages: list[Message],
         tools: list[Tool] | None = None,
         tool_choice: ToolChoice = "auto",
-        **kwargs
+        **kwargs,
     ) -> CompletionResponse:
         """Internal implementation for completion_with_tools."""
         # 转换 tool_choice 格式
@@ -499,11 +559,13 @@ class OpenAIGenerator(AIGenerator):
         tool_calls = []
         if message.tool_calls:
             for tc in message.tool_calls:
-                tool_calls.append(ToolCall(
-                    id=tc.id,
-                    name=tc.function.name,
-                    arguments=tc.function.arguments,
-                ))
+                tool_calls.append(
+                    ToolCall(
+                        id=tc.id,
+                        name=tc.function.name,
+                        arguments=tc.function.arguments,
+                    )
+                )
 
         return CompletionResponse(
             content=message.content,
@@ -514,37 +576,37 @@ class OpenAIGenerator(AIGenerator):
 
 def build_generator() -> AIGenerator:
     """Build an AI generator based on current configuration.
-    
+
     Raises:
         APIKeyNotConfiguredError: If the API key is not set for the current provider.
     """
     config = get_config()
     model_cfg = config.model
     rate_limit_cfg = config.rate_limit
-    
+
     # Get API key from environment variable based on provider
     api_key = get_api_key_for_provider(model_cfg.provider)
-    
+
     if not api_key:
         raise APIKeyNotConfiguredError(model_cfg.provider)
-    
+
     # Create rate limiter and retry config based on configuration
     rate_limiter = None
     retry_config = None
-    
+
     if rate_limit_cfg.enable_rate_limit:
         rate_limiter = RateLimiter(
             requests_per_minute=rate_limit_cfg.requests_per_minute,
             burst_size=rate_limit_cfg.burst_size,
         )
-    
+
     if rate_limit_cfg.enable_retry:
         retry_config = RetryConfig(
             max_retries=rate_limit_cfg.max_retries,
             base_delay=rate_limit_cfg.base_delay,
             max_delay=rate_limit_cfg.max_delay,
         )
-    
+
     return _build_generator(
         generator_type=model_cfg.provider,
         api_key=api_key,
@@ -590,7 +652,11 @@ def _build_generator(
             enable_rate_limit=enable_rate_limit,
             enable_retry=enable_retry,
         )
-    elif generator_type in (ModelProvider.OPENAI, ModelProvider.DEEPSEEK, ModelProvider.OTHER):
+    elif generator_type in (
+        ModelProvider.OPENAI,
+        ModelProvider.DEEPSEEK,
+        ModelProvider.OTHER,
+    ):
         # All OpenAI-compatible providers use OpenAIGenerator
         return OpenAIGenerator(
             base_url=base_url,

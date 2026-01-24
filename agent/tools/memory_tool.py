@@ -60,10 +60,10 @@ class SaveExecutionRecordsTool(BaseTool[None]):
         """
         # 判断是否是新Agent（groups为空表示新Agent，不使用Group）
         is_new_agent = not state.get("groups", [])
-        
+
         # 获取 focus，用于排除粒度控制
         focus = state.get("focus", "") or ""
-        
+
         # 生成 focus 的 embedding（如果配置了 embedding 服务且 focus 不为空）
         focus_embedding = None
         if not is_new_agent and focus and is_embedding_configured():
@@ -71,26 +71,57 @@ class SaveExecutionRecordsTool(BaseTool[None]):
                 focus_embedding = await embed_text(focus)
                 logger.debug(f"Generated focus embedding for: {focus}")
             except EmbeddingError as e:
-                logger.warning(f"Failed to generate focus embedding, will use string matching: {e}")
+                logger.warning(
+                    f"Failed to generate focus embedding, will use string matching: {e}"
+                )
                 focus_embedding = None
-        
-        # 只有旧workflow才保存到exclude表
-        excluded_articles = []
-        if not is_new_agent:
-            group_ids = [group.id for group in state["groups"]]
-            excluded_articles = [
-                (article["id"], group_ids, article["pub_date"], focus, focus_embedding)
-                for article in state["raw_articles"]
-            ]
 
         # 安全检查：确保 focal_points 和 summary_results 长度匹配
         focal_points = state.get("plan", {}).get("focal_points", [])
         summary_results = state.get("summary_results", [])
+        execution_status = state.get("execution_status", [])
+        related_article_ids = [
+            aid for point in focal_points for aid in point["article_ids"]
+        ]
 
         if len(focal_points) != len(summary_results):
             raise ValueError(
                 f"focal_points 数量 ({len(focal_points)}) 与 summary_results 数量 ({len(summary_results)}) 不匹配"
             )
+
+        # 过滤出成功的 point 和 result
+        successful_items = [
+            (point, result, status)
+            for point, result, status in zip(
+                focal_points, summary_results, execution_status
+            )
+            if status
+        ]
+        failed_count = len(focal_points) - len(successful_items)
+        if failed_count > 0:
+            logger.info(f"清理 {failed_count} 个失败的 point 及其相关数据")
+            focal_points = [item[0] for item in successful_items]
+            summary_results = [item[1] for item in successful_items]
+            # 重新计算 related_article_ids，只包含成功的 point 的 article_ids
+            related_article_ids = [
+                aid for point in focal_points for aid in point["article_ids"]
+            ]
+
+        raw_articles = [
+            article
+            for article in state["raw_articles"]
+            if article["id"] in related_article_ids
+        ]
+
+        # 只有旧workflow才保存到exclude表
+        excluded_articles = []
+        if not is_new_agent:
+            group_ids = [group.id for group in state["groups"]]
+            # 只排除成功的 point 涉及的 articles
+            excluded_articles = [
+                (article["id"], group_ids, article["pub_date"], focus, focus_embedding)
+                for article in raw_articles
+            ]
 
         # 准备摘要记忆数据
         summary_memories = []
@@ -116,7 +147,9 @@ class SaveExecutionRecordsTool(BaseTool[None]):
                     )
                     embeddings = None
             else:
-                logger.debug("Embedding service not configured, skipping vector generation")
+                logger.debug(
+                    "Embedding service not configured, skipping vector generation"
+                )
 
             # 构建记忆数据
             for i, (point, result) in enumerate(zip(focal_points, summary_results)):
@@ -265,9 +298,13 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
                     valid_queries, days_ago, limit, similarity_threshold
                 )
             except EmbeddingError as e:
-                logger.warning("Vector search failed, falling back to keyword search: %s", e)
+                logger.warning(
+                    "Vector search failed, falling back to keyword search: %s", e
+                )
             except Exception as e:
-                logger.warning("Vector search error, falling back to keyword search: %s", e)
+                logger.warning(
+                    "Vector search error, falling back to keyword search: %s", e
+                )
 
         # 回退到关键词搜索
         return await self._keyword_search(valid_queries, days_ago, limit)
@@ -310,7 +347,7 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
                     ),
                 )
                 rows = await cur.fetchall()
-                
+
                 if rows:
                     logger.info(
                         "Vector search found %d memories (similarity range: %.3f - %.3f)",
@@ -318,7 +355,7 @@ class SearchMemoryTool(BaseTool[dict[int, SummaryMemory]]):
                         rows[-1]["similarity"] if rows else 0,
                         rows[0]["similarity"] if rows else 0,
                     )
-                
+
                 return {
                     row["id"]: SummaryMemory(
                         id=row["id"],
@@ -417,7 +454,7 @@ class BackfillEmbeddingsTool(BaseTool[int]):
                     limit = batch_size
                     if max_records > 0:
                         limit = min(batch_size, max_records - total_processed)
-                    
+
                     if limit <= 0:
                         break
 
@@ -448,7 +485,7 @@ class BackfillEmbeddingsTool(BaseTool[int]):
 
             # 更新数据库
             updates = [(emb, row["id"]) for row, emb in zip(rows, embeddings)]
-            
+
             async def update_embeddings(cur):
                 await cur.executemany(
                     """
@@ -460,7 +497,7 @@ class BackfillEmbeddingsTool(BaseTool[int]):
                 )
 
             await execute_async_transaction(update_embeddings)
-            
+
             total_processed += len(rows)
             logger.info("Backfill progress: %d records processed", total_processed)
 

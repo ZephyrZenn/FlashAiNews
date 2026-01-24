@@ -71,7 +71,10 @@ class SummarizeAgenticWorkflow:
         log_step(self.state, "⚡ 开始执行阶段...")
         results = await self.executor.execute(self.state)
         logger.info("Results: %s", results)
-        log_step(self.state, f"✅ Agent执行完成，共生成 {len(results)} 篇内容")
+        # 提取结果字符串和成功状态
+        result_strings = [result for result, _ in results]
+        success_statuses = [success for _, success in results]
+        log_step(self.state, f"✅ Agent执行完成，共生成 {sum(success_statuses)} 篇")
         if not results:
             return "", []
         # 使用工具保存执行记录
@@ -79,7 +82,7 @@ class SummarizeAgenticWorkflow:
         
         # 返回简报内容和外部搜索结果
         ext_info = self.state.get("ext_info", [])
-        return "\n\n".join(results), ext_info
+        return "\n\n".join(result_strings), ext_info
         
 
     def _build_state(

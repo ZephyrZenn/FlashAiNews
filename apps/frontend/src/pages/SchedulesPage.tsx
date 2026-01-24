@@ -263,12 +263,14 @@ const SchedulesPage = () => {
                     <button
                       onClick={() => handleOpenModal(task)}
                       className="p-2 md:p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      aria-label="编辑定时任务"
                     >
                       <Edit3 size={18} />
                     </button>
                     <button
                       onClick={() => handleDeleteSchedule(task.id)}
                       className="p-2 md:p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      aria-label="删除定时任务"
                     >
                       <Trash2 size={18} />
                     </button>

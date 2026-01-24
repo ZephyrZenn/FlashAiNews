@@ -158,7 +158,7 @@ const GroupsPage = () => {
                 e.stopPropagation();
                 handleDeleteGroup(group.id);
               }}
-              className="absolute top-4 md:top-6 right-4 md:right-6 opacity-0 group-hover/card:opacity-100 p-2 md:p-2.5 text-rose-300 hover:text-rose-500 transition-all hover:bg-rose-50 rounded-2xl z-10 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="absolute top-4 md:top-6 right-4 md:right-6 opacity-100 md:opacity-0 md:group-hover/card:opacity-100 p-2 md:p-2.5 text-rose-300 hover:text-rose-500 transition-all hover:bg-rose-50 rounded-2xl z-10 min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <Trash2 size={18} />
             </button>

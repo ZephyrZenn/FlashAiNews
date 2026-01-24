@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, X, FileText, List } from 'lucide-react';
+import { ChevronRight, X, FileText, List, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -119,6 +119,7 @@ const SummaryPage = () => {
   const { showToast } = useToast();
   const [selectedBrief, setSelectedBrief] = useState<FeedBrief | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [copied, setCopied] = useState(false);
   // 移动端默认隐藏大纲，桌面端默认显示
   const [showOutline, setShowOutline] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -285,6 +286,21 @@ const SummaryPage = () => {
     navigate('/');
   };
 
+  // 处理复制内容
+  const handleCopyContent = async () => {
+    if (!selectedBrief?.content) return;
+    
+    try {
+      await navigator.clipboard.writeText(selectedBrief.content);
+      setCopied(true);
+      showToast('内容已复制到剪贴板', { type: 'success' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy content:', error);
+      showToast('复制失败，请重试', { type: 'error' });
+    }
+  };
+
   // 计算要显示的简报列表
   const displayBriefs = useMemo(() => briefs || [], [briefs]);
 
@@ -332,11 +348,27 @@ const SummaryPage = () => {
                     </span>
                   )}
                 </div>
-                {/* Close button */}
-                <X
-                  className="cursor-pointer text-slate-300 hover:text-slate-800 transition-colors shrink-0 ml-4"
-                  onClick={handleBackClick}
-                />
+                {/* Action buttons */}
+                <div className="flex items-center gap-2 shrink-0 ml-4">
+                  {/* Copy button */}
+                  <button
+                    onClick={handleCopyContent}
+                    className="p-2 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                    title="复制内容"
+                    aria-label="复制内容"
+                  >
+                    {copied ? (
+                      <Check size={18} className="text-green-600" />
+                    ) : (
+                      <Copy size={18} />
+                    )}
+                  </button>
+                  {/* Close button */}
+                  <X
+                    className="cursor-pointer text-slate-300 hover:text-slate-800 transition-colors"
+                    onClick={handleBackClick}
+                  />
+                </div>
               </div>
             </div>
             <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">

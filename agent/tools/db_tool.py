@@ -81,6 +81,19 @@ class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
         # 确保 focus 不为 None
         focus = focus or ""
 
+        use_vector_match = False
+        focus_embedding = None
+        if focus and is_embedding_configured():
+            try:
+                focus_embedding = await embed_text(focus)
+                use_vector_match = True
+                logger.debug(f"Using vector similarity matching for focus: {focus}")
+            except EmbeddingError as e:
+                logger.warning(
+                    f"Failed to generate focus embedding, falling back to string matching: {e}"
+                )
+                use_vector_match = False
+
         async with get_async_connection() as conn:
             async with conn.cursor() as cur:
                 # 查询 1: 获取 groups
@@ -101,20 +114,6 @@ class RecentGroupUpdateTool(BaseTool[Tuple[List[FeedGroup], List[RawArticle]]]):
                 # 排除逻辑：只排除在相同或相似 focus 下已使用的文章
                 # 支持向量相似度匹配（如果配置了 embedding）："AI安全" ≈ "人工智能安全"
                 # 否则回退到字符串精确匹配
-                
-                # 尝试使用向量相似度匹配
-                use_vector_match = False
-                focus_embedding = None
-                
-                if focus and is_embedding_configured():
-                    try:
-                        focus_embedding = await embed_text(focus)
-                        use_vector_match = True
-                        logger.debug(f"Using vector similarity matching for focus: {focus}")
-                    except EmbeddingError as e:
-                        logger.warning(f"Failed to generate focus embedding, falling back to string matching: {e}")
-                        use_vector_match = False
-                
                 if use_vector_match and focus_embedding:
                     # 使用向量相似度匹配：排除相似度 >= 阈值的 focus
                     await cur.execute(

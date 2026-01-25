@@ -15,6 +15,8 @@ _pool_logger.setLevel(logging.DEBUG)
 _sync_pool: ConnectionPool | None = None
 _async_pool: AsyncConnectionPool | None = None
 
+_pool_monitor_task: asyncio.Task | None = None
+
 
 def _get_conninfo() -> str:
     user = os.getenv("POSTGRES_USER")
@@ -161,6 +163,19 @@ def _log_pool_stats(pool: AsyncConnectionPool, context: str = ""):
         pass
 
 
+def _log_sync_pool_stats(pool: ConnectionPool, context: str = ""):
+    """记录同步连接池状态信息（用于诊断）"""
+    try:
+        stats = pool.get_stats()
+        logger.debug(
+            f"Sync pool stats {context}: size={stats.get('pool_size', 'N/A')}, "
+            f"available={stats.get('available', 'N/A')}, "
+            f"waiting={stats.get('waiting', 'N/A')}"
+        )
+    except Exception:
+        pass
+
+
 @asynccontextmanager
 async def get_async_connection(*, autocommit: bool = False):
     """
@@ -271,3 +286,38 @@ async def get_async_pool_stats() -> dict | None:
     except Exception as e:
         logger.warning(f"Failed to get pool stats: {e}")
         return None
+
+
+def log_pool_stats(context: str = "") -> None:
+    """记录当前连接池统计信息（sync + async）"""
+    if _sync_pool:
+        _log_sync_pool_stats(_sync_pool, context)
+    if _async_pool:
+        _log_pool_stats(_async_pool, context)
+
+
+def start_pool_monitoring(interval_seconds: int = 60) -> None:
+    """启动连接池监控任务，定期输出连接池统计信息"""
+    global _pool_monitor_task
+    if _pool_monitor_task is not None and not _pool_monitor_task.done():
+        return
+
+    async def _monitor():
+        while True:
+            log_pool_stats("periodic")
+            await asyncio.sleep(interval_seconds)
+
+    _pool_monitor_task = asyncio.create_task(_monitor())
+
+
+async def stop_pool_monitoring() -> None:
+    """停止连接池监控任务"""
+    global _pool_monitor_task
+    if _pool_monitor_task is None:
+        return
+    _pool_monitor_task.cancel()
+    try:
+        await _pool_monitor_task
+    except asyncio.CancelledError:
+        pass
+    _pool_monitor_task = None

@@ -50,7 +50,6 @@ def _replace_reference(brief_id: int, content: str) -> str:
     # 匹配格式: [type:id]
     ref_pattern = r"\[(rss|ext|memory):([^\]]+)\]"
     found_refs = re.findall(ref_pattern, content)
-
     if not found_refs:
         return content
 

@@ -33,7 +33,7 @@ def _clean_control_characters(text: str) -> str:
     return ''.join(result)
 
 
-def extract_json(text: str) -> dict:
+def  extract_json(text: str) -> dict:
     """
     Extract JSON from LLM response, handling:
     - Pure JSON text
@@ -50,7 +50,6 @@ def extract_json(text: str) -> dict:
     patterns = [
         r"```(?:json|JSON)?\s*\n([\s\S]*?)\n```",  # Standard code block
         r"```(?:json|JSON)?\s*([\s\S]*?)```",       # Code block without newlines
-        r"`([\s\S]*?)`",                             # Single backtick (rare)
     ]
     
     json_str = None

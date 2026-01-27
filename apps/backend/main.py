@@ -30,9 +30,10 @@ from apps.backend.services.system_scheduler import (
 )
 from core.db.pool import close_async_pool, close_pool, start_pool_monitoring, stop_pool_monitoring
 
-# 配置日志
+# 配置日志：默认 INFO，开发环境可通过 LOG_LEVEL=DEBUG 打开详细日志
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if os.getenv("ENV") == "dev" else "INFO")
 logging.basicConfig(
-    level=logging.INFO,
+    level=LOG_LEVEL,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )

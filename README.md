@@ -1,3 +1,6 @@
+
+</think>
+
 # Distill
 
 <div align="center">
@@ -85,7 +88,7 @@ cd infra/docker
 docker compose up --build -d
 ```
 
-The application will be available at `http://localhost:5173`.
+The application will be available at `http://localhost:80`.
 
 Before running in production, open `config.toml` and adjust your model/provider, rate limits, and agent limits to match your environment (see [`docs/CONFIG.md`](docs/CONFIG.md) for all options).
 
